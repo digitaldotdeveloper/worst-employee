@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0a0b0e">
+<title>Worst Employee — Art Direction</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ctext y='26' font-size='26'%3E%F0%9F%92%BC%3C/text%3E%3C/svg%3E">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0a0b0e;color:#e8eaf0;font:15px/1.65 "Segoe UI",system-ui,-apple-system,Roboto,sans-serif;
+  padding:26px 18px 70px;-webkit-text-size-adjust:100%}
+.wrap{max-width:820px;margin:0 auto}
+h1{font-size:clamp(26px,7vw,40px);font-weight:900;letter-spacing:-.02em;line-height:1.05;margin-bottom:8px}
+.sub{color:#8d93a6;font-size:13px;margin-bottom:6px}
+.back{display:inline-block;margin-bottom:26px;color:#ffd75e;font-size:12px;font-weight:800;
+  letter-spacing:.08em;text-decoration:none;border-bottom:1px solid rgba(255,215,94,.35)}
+h2{font-size:11px;letter-spacing:.2em;color:#8d93a6;font-weight:800;margin:34px 0 12px;
+  padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,.09)}
+figure{margin:0 0 26px;background:#12141a;border:1px solid rgba(255,255,255,.08);
+  border-radius:10px;overflow:hidden}
+figure img{display:block;width:100%;height:auto;background:#d4d4d4}
+figcaption{padding:12px 14px;font-size:12.5px;line-height:1.6;color:#9aa1b5}
+figcaption b{display:block;color:#e8eaf0;font-size:13.5px;letter-spacing:.06em;margin-bottom:3px}
+figcaption .verdict{display:inline-block;margin-top:7px;font-size:10.5px;font-weight:800;
+  letter-spacing:.08em;padding:3px 8px;border-radius:4px}
+.good{background:rgba(110,184,122,.16);color:#8fd6a0;border:1px solid rgba(110,184,122,.35)}
+.warn{background:rgba(255,215,94,.13);color:#ffd75e;border:1px solid rgba(255,215,94,.32)}
+.bad{background:rgba(255,110,110,.13);color:#ff9a9a;border:1px solid rgba(255,110,110,.3)}
+p{color:#9aa1b5;font-size:13.5px;margin-bottom:12px}
+p b{color:#e8eaf0}
+.note{background:rgba(255,215,94,.07);border-left:3px solid #ffd75e;padding:12px 14px;
+  border-radius:0 6px 6px 0;margin:20px 0;font-size:13px;color:#c6ccdd}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>ART DIRECTION</h1>
+<p class="sub">Worst Employee &mdash; pass 1, style exploration. Generated with Gemini Studio, no reference images.</p>
+<a class="back" href="./">&larr; BACK TO THE PLAYABLE BUILD</a>
+
+<div class="note">
+Every character prompt describes <b>exactly the same person</b> in the same words, so the only
+thing that changes between A, B, C and D is the style itself. Pick one and it becomes the
+reference image attached to every future generation &mdash; that attachment is what stops the
+character drifting between poses.
+</div>
+
+<h2>THE PLAYER &mdash; FOUR DIRECTIONS</h2>
+
+<figure>
+  <img src="tools/concepts/style-A-flat-vector.png" alt="Style A" onerror="this.parentElement.style.display='none'">
+  <figcaption><b>A &mdash; BOLD FLAT VECTOR</b>
+  Thick outlines, flat fills, chunky proportions. Cheapest to animate and reads clearest at
+  phone size.<span class="verdict good">SAFEST FOR ANIMATION</span></figcaption>
+</figure>
+
+<figure>
+  <img src="tools/concepts/style-B-ink-comic.png" alt="Style B">
+  <figcaption><b>B &mdash; HAND-DRAWN INK COMIC</b>
+  Scratchy expressive linework, cel shading. Funniest of the four and the most personality,
+  but hand-drawn line texture is the hardest thing to keep identical across
+  animation frames.<span class="verdict warn">BEST CHARACTER, HARDEST TO REPEAT</span></figcaption>
+</figure>
+
+<figure>
+  <img src="tools/concepts/style-C-flat-illustration.png" alt="Style C">
+  <figcaption><b>C &mdash; CLEAN FLAT ILLUSTRATION</b>
+  No outlines, geometric shapes, muted palette. Elegant, but with no outline the character
+  risks disappearing into the office background &mdash; and it reads more like a corporate
+  website than a game.<span class="verdict bad">WEAKEST SILHOUETTE</span></figcaption>
+</figure>
+
+<figure>
+  <img src="tools/concepts/style-D-polished-cartoon.png" alt="Style D">
+  <figcaption><b>D &mdash; POLISHED CARTOON</b>
+  Soft shading, rim light, realistic proportions. The most premium looking. Also the most
+  detail to reproduce per frame, so the most expensive and the most prone to
+  drift.<span class="verdict warn">BEST LOOKING, MOST EXPENSIVE</span></figcaption>
+</figure>
+
+<h2>THE BOSS &mdash; FIVE ANGER STAGES</h2>
+<figure>
+  <img src="tools/concepts/boss-five-stages.png" alt="Boss stages">
+  <figcaption><b>FRIENDLY &rarr; CONCERNED &rarr; ANNOYED &rarr; ANGRY &rarr; ENRAGED</b>
+  Generated as one sheet on purpose, which is what keeps him the same man in all five.
+  The jacket comes off for the boss fight.</figcaption>
+</figure>
+
+<h2>THE OFFICE</h2>
+<figure>
+  <img src="tools/concepts/environment-office.png" alt="Office">
+  <figcaption><b>FLAT SIDE-ON ELEVATION</b>
+  Drawn as a platformer stage, not a perspective scene &mdash; that flatness is what lets the
+  camera pan along it. Rain outside, "WE'RE A FAMILY" on the wall.</figcaption>
+</figure>
+
+<h2>PROPS</h2>
+<figure>
+  <img src="tools/concepts/props-sheet.png" alt="Props">
+  <figcaption><b>PHYSICS OBJECTS, INTACT STATE</b>
+  Each one still needs a broken version. A few duplicates came back &mdash; harmless, we keep
+  the best of each.</figcaption>
+</figure>
+
+<h2>WHAT HAPPENS NEXT</h2>
+<p>Pick a direction. Then pass 2 regenerates the winner on a flat green background, and that
+image gets attached to every subsequent prompt as the reference &mdash; animation frames first,
+then each clothing layer for the character creator, always the same body and the same pose
+with only the garment changing. That alignment is the whole reason the paper-doll system works.</p>
+<p><b>My pick: A, with B's face.</b> The game lives or dies on animation, and A is the only one
+of the four cheap enough to animate properly at this budget &mdash; but B has the mischief the
+character needs, and that expression can be carried over.</p>
+
+<a class="back" href="./">&larr; BACK TO THE PLAYABLE BUILD</a>
+</div>
+</body>
+</html>

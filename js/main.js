@@ -8,6 +8,7 @@ import { IN, initInput, pollInput } from './input.js';
 import { ChaosSystem } from './chaos.js';
 import { Player } from './player.js';
 import { buildOffice, angerStage } from './office.js';
+import { OPTIONS, defaultLook, randomLook, saveLook, loadLook, drawCharacter, drawPortrait } from './character.js';
 
 const cv = document.getElementById('game');
 const ctx = cv.getContext('2d');
@@ -29,6 +30,7 @@ const S = {
   speedMul: 1, chaosMul: 1, boostT: 0,
   coffeeMachine: null,
   shiftT: 0,
+  look: loadLook() || defaultLook(),
 
   addAnger(v) {
     if (this.boss && this.boss.fighting) return;
@@ -103,6 +105,58 @@ function toast(text, cls = '') {
 function show(id) { $(id).classList.remove('hidden'); }
 function hide(id) { $(id).classList.add('hidden'); }
 
+
+// ---------------------------------------------------------------
+// CHARACTER CREATION
+// The paper-doll payoff: these lists come straight from character.js, so
+// adding an option there grows this screen with no work here.
+// ---------------------------------------------------------------
+const pv = $('preview');
+const pvx = pv.getContext('2d');
+
+function buildOptionRows() {
+  const wrap = $('optionRows');
+  wrap.innerHTML = '';
+  for (const [key, def] of Object.entries(OPTIONS)) {
+    const row = document.createElement('div');
+    row.className = 'orow';
+    const lab = document.createElement('label');
+    lab.textContent = def.label;
+    row.appendChild(lab);
+    const sws = document.createElement('div');
+    sws.className = 'swatches';
+    def.values.forEach((v, i) => {
+      const b = document.createElement('button');
+      b.className = 'sw' + (def.kind === 'colour' ? ' col' : '');
+      if (def.kind === 'colour') b.style.background = v; else b.textContent = v;
+      b.onclick = () => { S.look[key] = i; refreshSwatches(); saveLook(S.look); };
+      b.dataset.key = key; b.dataset.i = i;
+      sws.appendChild(b);
+    });
+    row.appendChild(sws);
+    wrap.appendChild(row);
+  }
+  refreshSwatches();
+}
+
+function refreshSwatches() {
+  for (const b of document.querySelectorAll('.sw'))
+    b.classList.toggle('on', S.look[b.dataset.key] === +b.dataset.i);
+}
+
+let pvT = 0;
+function drawPreview(dt) {
+  pvT += dt;
+  pvx.clearRect(0, 0, pv.width, pv.height);
+  drawPortrait(pvx, pv.width / 2, pv.height - 34, 3.4, S.look, pvT);
+}
+
+function openCreator() {
+  hide('title'); show('create');
+  $('cName').value = S.look.name || 'FIRASS';
+  buildOptionRows();
+}
+
 // ---------------------------------------------------------------
 // GAME FLOW
 // ---------------------------------------------------------------
@@ -124,7 +178,7 @@ function startShift() {
   buildOffice(S.world, S);
 
   FX.clear();
-  hide('title'); hide('report'); hide('help');
+  hide('title'); hide('report'); hide('help'); hide('create');
   show('hud');
   if (HAS_TOUCH) show('touch'); else hide('touch');
   resize();
@@ -323,14 +377,22 @@ function render() {
     ctx.fillText('BOSS', b.cx, b.y - 24);
   }
 
-  // player
+  // player — layered paper-doll, not a pre-rendered sprite
   const p = S.player;
-  drawHuman(ctx, p, {
-    body: p.iframes > 0 ? 'rgba(127,209,255,.45)' : COL.player,
-    dark: COL.playerD, t: p.animT, flip: p.face < 0,
+  ctx.save();
+  ctx.translate(p.cx, p.y + p.h);
+  ctx.fillStyle = 'rgba(0,0,0,.35)';
+  ctx.beginPath(); ctx.ellipse(0, 2, p.w * 0.55, 5, 0, 0, Math.PI * 2); ctx.fill();
+  drawCharacter(ctx, S.look, {
+    w: p.w, h: p.h, t: p.animT, flip: p.face < 0,
     state: p.state === 'dodge' ? 'run' : p.state,
     squash: p.squash,
+    alpha: p.iframes > 0 ? 0.45 : 1,
   });
+  ctx.restore();
+  ctx.fillStyle = 'rgba(255,255,255,.55)';
+  ctx.font = '700 8px system-ui'; ctx.textAlign = 'center';
+  ctx.fillText(S.look.name || 'YOU', p.cx, p.y - 8);
 
   // attack arc tell
   if (p.atk && p.atk.phase === 'active') {
@@ -399,7 +461,10 @@ function frame(now) {
   last = now;
   if (dt > 0.05) dt = 0.05;                 // tab-switch guard
 
-  if (S.mode !== 'play') return;
+  if (S.mode !== 'play') {
+    if (!$('create').classList.contains('hidden')) drawPreview(dt);
+    return;
+  }
 
   if (FX.hitstop > 0) {                     // freeze gameplay, keep drawing
     FX.hitstop -= dt;
@@ -418,8 +483,18 @@ initInput(cv);
 resize();
 requestAnimationFrame(frame);
 
-$('btnStart').onclick = startShift;
+$('btnStart').onclick = openCreator;
 $('btnAgain').onclick = startShift;
+$('btnHired').onclick = () => {
+  S.look.name = ($('cName').value || 'FIRASS').trim().toUpperCase().slice(0, 12);
+  saveLook(S.look);
+  startShift();
+};
+$('btnRandom').onclick = () => {
+  Object.assign(S.look, randomLook($('cName').value));
+  refreshSwatches(); saveLook(S.look);
+};
+$('cName').oninput = () => { S.look.name = $('cName').value.toUpperCase(); };
 $('btnEnd').onclick = () => endShift(false);
 $('btnHelp').onclick = () => { hide('title'); show('help'); };
 $('btnHelpBack').onclick = () => { hide('help'); show('title'); };

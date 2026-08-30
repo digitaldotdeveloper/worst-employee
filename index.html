@@ -64,8 +64,39 @@
       <div class="build">FEEL TEST &mdash; GREYBOX BUILD <span id="verTag"></span></div>
       <button id="btnStart" class="big-btn">FIND A JOB</button>
       <button id="btnHelp" class="ghost-btn wide">HOW TO PLAY</button>
+      <a class="ghost-btn wide" href="concepts.html" style="text-decoration:none">ART DIRECTION &mdash; PICK A STYLE</a>
       <p class="note">No art yet. This build exists to test <b>movement, combat feel,
       physics and the chaos-chain system</b> before a single sprite is drawn.</p>
+    </div>
+  </div>
+
+
+  <!-- ================= CHARACTER CREATION ================= -->
+  <div id="create" class="screen hidden">
+    <div class="screen-inner create-inner">
+      <h2>YOUR EMPLOYEE</h2>
+
+      <div class="create-top">
+        <canvas id="preview" width="260" height="300"></canvas>
+        <div class="profile">
+          <label class="namefield">
+            <span>NAME</span>
+            <input id="cName" maxlength="12" value="FIRASS" autocomplete="off" spellcheck="false">
+          </label>
+          <div class="prow"><span>POSITION</span><b>Unemployed</b></div>
+          <div class="prow"><span>SALARY</span><b>$0</b></div>
+          <div class="prow"><span>CAREER EARNINGS</span><b>$0</b></div>
+          <div class="prow"><span>PRODUCTIVITY</span><b>0%</b></div>
+          <button id="btnRandom" class="ghost-btn wide">RANDOMISE</button>
+        </div>
+      </div>
+
+      <div id="optionRows"></div>
+
+      <button id="btnHired" class="big-btn">START MONDAY</button>
+      <p class="note">Every piece here is a separate layer drawn over one body &mdash;
+      that is what lets us offer thousands of combinations for about
+      <b>25 drawings</b> instead of a thousand whole characters.</p>
     </div>
   </div>
 
