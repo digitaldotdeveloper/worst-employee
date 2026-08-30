@@ -321,3 +321,13 @@ function rr(ctx, x, y, w, h, r) {
   ctx.arcTo(x, y, x + w, y, r);
   ctx.closePath();
 }
+
+// The colours the sprite recolourer needs, by name rather than index.
+export function lookColours(look) {
+  return {
+    skin: val(look, 'skin'),
+    shirt: val(look, 'shirtColour'),
+    trousers: val(look, 'trouserColour'),
+    hair: val(look, 'hairColour'),
+  };
+}

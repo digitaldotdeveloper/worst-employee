@@ -137,6 +137,7 @@ export class Boss extends Body {
     if (p.iframes > 0) { FX.float(p.cx, p.y - 10, 'DODGED', '#7fd1ff', 13); return; }
     if (p.x < box.x + box.w && p.x + p.w > box.x && p.y < box.y + box.h && p.y + p.h > box.y) {
       p.vx += this.face * 520; p.vy -= 240;
+      p.hurtT = 0.35;
       s.playerHits++;
       FX.kick(9, 0.09);
       FX.float(p.cx, p.y - 10, 'OW', '#ff7b7b', 15);

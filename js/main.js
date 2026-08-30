@@ -3,12 +3,12 @@
 import { VERSION, VIEW, FLOOR_Y, LEVEL_W, COL, COFFEE, RANKS, ATTACK } from './config.js';
 import { World } from './engine.js';
 import { FX } from './fx.js';
-import { ART, drawHuman, drawProp, roundRect } from './art.js';
+import { ART, SPRITES, poseFor, recolourSprites, drawHuman, drawProp, roundRect } from './art.js';
 import { IN, initInput, pollInput } from './input.js';
 import { ChaosSystem } from './chaos.js';
 import { Player } from './player.js';
 import { buildOffice, angerStage } from './office.js';
-import { OPTIONS, defaultLook, randomLook, saveLook, loadLook, drawCharacter, drawPortrait } from './character.js';
+import { OPTIONS, defaultLook, randomLook, saveLook, loadLook, drawCharacter, drawPortrait, lookColours } from './character.js';
 
 const cv = document.getElementById('game');
 const ctx = cv.getContext('2d');
@@ -31,6 +31,7 @@ const S = {
   coffeeMachine: null,
   shiftT: 0,
   look: loadLook() || defaultLook(),
+  useArt: true,          // real sprites; false falls back to the greybox rig
 
   addAnger(v) {
     if (this.boss && this.boss.fighting) return;
@@ -177,12 +178,20 @@ function startShift() {
   S.world.add(S.player);
   buildOffice(S.world, S);
 
+  applyLook();
+
   FX.clear();
   hide('title'); hide('report'); hide('help'); hide('create');
   show('hud');
   if (HAS_TOUCH) show('touch'); else hide('touch');
   resize();
   toast('CLOCK IN.');
+}
+
+function applyLook() {
+  if (!SPRITES.ready) return;
+  const c = lookColours(S.look);
+  recolourSprites(S.look, c.skin, c.shirt);
 }
 
 function startBossFight() {
@@ -377,19 +386,29 @@ function render() {
     ctx.fillText('BOSS', b.cx, b.y - 24);
   }
 
-  // player — layered paper-doll, not a pre-rendered sprite
+  // player — real sprites when they have loaded, layered greybox rig otherwise
   const p = S.player;
   ctx.save();
   ctx.translate(p.cx, p.y + p.h);
   ctx.fillStyle = 'rgba(0,0,0,.35)';
   ctx.beginPath(); ctx.ellipse(0, 2, p.w * 0.55, 5, 0, 0, Math.PI * 2); ctx.fill();
-  drawCharacter(ctx, S.look, {
-    w: p.w, h: p.h, t: p.animT, flip: p.face < 0,
-    state: p.state === 'dodge' ? 'run' : p.state,
-    squash: p.squash,
-    alpha: p.iframes > 0 ? 0.45 : 1,
-  });
   ctx.restore();
+
+  const alpha = p.iframes > 0 ? 0.45 : 1;
+  if (S.useArt && SPRITES.ready) {
+    // squash is applied to the draw height so landings still punch
+    SPRITES.draw(ctx, poseFor(p, p.animT), p.cx, p.y + p.h,
+      p.h * p.squash * 1.06, p.face < 0, alpha);
+  } else {
+    ctx.save();
+    ctx.translate(p.cx, p.y + p.h);
+    drawCharacter(ctx, S.look, {
+      w: p.w, h: p.h, t: p.animT, flip: p.face < 0,
+      state: p.state === 'dodge' ? 'run' : p.state,
+      squash: p.squash, alpha,
+    });
+    ctx.restore();
+  }
   ctx.fillStyle = 'rgba(255,255,255,.55)';
   ctx.font = '700 8px system-ui'; ctx.textAlign = 'center';
   ctx.fillText(S.look.name || 'YOU', p.cx, p.y - 8);
@@ -479,6 +498,10 @@ function frame(now) {
 // WIRING
 // ---------------------------------------------------------------
 $('verTag').textContent = 'v' + VERSION;
+SPRITES.load().then(ok => {
+  if (ok) console.log('player sprites loaded:', Object.keys(SPRITES.img).length);
+  else console.log('no player sprites — running greybox');
+});
 initInput(cv);
 resize();
 requestAnimationFrame(frame);
@@ -509,8 +532,9 @@ $('btnShare').onclick = async () => {
 addEventListener('keydown', e => {
   if (S.mode === 'play' && e.key.toLowerCase() === 'r') startShift();
   if (S.mode === 'play' && e.key === 'Escape') endShift(false);
+  if (e.key.toLowerCase() === 'v') S.useArt = !S.useArt;   // A/B art vs greybox
 });
 
 // Art hookup point. When sprites exist, uncomment and point at the files.
 // ART.load({ 'player.idle': { src:'assets/player/idle.png', frames:6, fps:8 } });
-window.WE = { S, ART, FX };     // handy in the mobile console
+window.WE = { S, ART, FX, SPRITES, applyLook };   // handy in the mobile console

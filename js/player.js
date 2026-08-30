@@ -16,7 +16,7 @@ export class Player extends Body {
     this.coyote = 0; this.buffer = 0;
     this.atk = null;            // { kind, step, phase, t, hit:Set }
     this.comboStep = 0; this.comboTimer = 0;
-    this.dodgeT = 0; this.dodgeCd = 0; this.iframes = 0;
+    this.dodgeT = 0; this.dodgeCd = 0; this.iframes = 0; this.hurtT = 0;
     this.carrying = null;
     this.squash = 1;
     this.animT = 0;
@@ -31,6 +31,7 @@ export class Player extends Body {
     if (this.comboTimer > 0) this.comboTimer -= dt; else this.comboStep = 0;
     if (this.dodgeCd > 0) this.dodgeCd -= dt;
     if (this.iframes > 0) this.iframes -= dt;
+    if (this.hurtT > 0) this.hurtT -= dt;
 
     // landing squash
     if (this.grounded && !this.wasGrounded) {

@@ -173,3 +173,148 @@ export function drawProp(ctx, b, t) {
 }
 
 export { roundRect };
+
+// ---------------------------------------------------------------
+// PLAYER SPRITES
+// Every frame shares one crop and one scale (see tools/cutout.py), so the
+// ground line and centre are constants. That is what stops the character
+// sliding or bobbing as he changes animation state.
+// ---------------------------------------------------------------
+export const SPRITES = {
+  ready: false,
+  meta: null,
+  img: {},
+  tinted: null,
+  missing: new Set(),
+
+  async load(base = 'assets/player/') {
+    try {
+      const r = await fetch(base + 'anchors.json');
+      if (!r.ok) return false;
+      this.meta = await r.json();
+    } catch (e) { return false; }
+
+    const jobs = this.meta.poses.map(name => new Promise(res => {
+      const im = new Image();
+      im.onload = () => { this.img[name] = im; res(); };
+      im.onerror = () => { this.missing.add(name); res(); };
+      im.src = base + name + '.png';
+    }));
+    await Promise.all(jobs);
+    this.ready = Object.keys(this.img).length > 0;
+    return this.ready;
+  },
+
+  has(name) { return !!this.img[name]; },
+
+  // Draw with the feet at (x, groundY) and the body scaled to `height`.
+  draw(ctx, name, x, groundY, height, flip, alpha = 1) {
+    const im = (this.tinted && this.tinted[name]) || this.img[name];
+    if (!im || !this.meta) return false;
+    const m = this.meta;
+    const s = height / m.standingH;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(x, groundY);
+    if (flip) ctx.scale(-1, 1);
+    ctx.drawImage(im, -m.centreX * s, -m.groundY * s, m.frameW * s, m.frameH * s);
+    ctx.restore();
+    return true;
+  },
+};
+
+// Which sprite each gameplay state uses. Run cycles through four frames; the
+// rest hold a single key pose while the engine adds squash and shake on top.
+export function poseFor(p, t) {
+  if (p.atk) {
+    if (p.atk.kind === 'heavy') return p.atk.phase === 'startup' ? 'heavy-wind' : 'heavy-hit';
+    return ['light1', 'light2', 'light3'][p.atk.step] || 'light1';
+  }
+  if (p.dodgeT > 0) return 'dodge';
+  if (!p.grounded) return p.vy < 0 ? 'jump-up' : 'fall';
+  if (p.hurtT > 0) return 'hurt';
+  if (p.carrying) return 'carry';
+  if (Math.abs(p.vx) > 30) {
+    const i = Math.floor(t * 12) % 4;
+    return ['run-1', 'run-2', 'run-3', 'run-4'][i];
+  }
+  return 'idle';
+}
+
+// ---------------------------------------------------------------
+// RECOLOURING THE RENDERED SPRITES
+// The renders are one fixed outfit, so without this the character creator
+// stops meaning anything the moment real art loads. Skin and shirt are
+// separable by HUE — the shirt is the only blue on the figure and skin the
+// only orange — so they can be remapped safely at load time.
+//
+// Hair and trousers are deliberately NOT remapped: hair is near-black and so
+// are every outline in the drawing, and the slacks are grey, which has no hue
+// to key on. Those need generated variants, not a colour trick.
+// ---------------------------------------------------------------
+function rgbToHsl(r, g, b) {
+  r /= 255; g /= 255; b /= 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2;
+  if (mx === mn) return [0, 0, l];
+  const d = mx - mn;
+  const s = l > 0.5 ? d / (2 - mx - mn) : d / (mx + mn);
+  let h;
+  if (mx === r) h = ((g - b) / d + (g < b ? 6 : 0));
+  else if (mx === g) h = (b - r) / d + 2;
+  else h = (r - g) / d + 4;
+  return [h * 60, s, l];
+}
+
+function hslToRgb(h, s, l) {
+  h = ((h % 360) + 360) % 360 / 360;
+  if (s === 0) { const v = Math.round(l * 255); return [v, v, v]; }
+  const q = l < 0.5 ? l * (1 + s) : l + s - l * s, p = 2 * l - q;
+  const f = tt => {
+    let x = tt; if (x < 0) x += 1; if (x > 1) x -= 1;
+    if (x < 1 / 6) return p + (q - p) * 6 * x;
+    if (x < 1 / 2) return q;
+    if (x < 2 / 3) return p + (q - p) * (2 / 3 - x) * 6;
+    return p;
+  };
+  return [Math.round(f(h + 1 / 3) * 255), Math.round(f(h) * 255), Math.round(f(h - 1 / 3) * 255)];
+}
+
+const hexHsl = hex => {
+  const n = parseInt(hex.slice(1), 16);
+  return rgbToHsl((n >> 16) & 255, (n >> 8) & 255, n & 255);
+};
+
+// Source ranges measured off the master render.
+const SHIRT_HUE = [185, 235];   // the light-blue tee
+const SKIN_HUE = [8, 48];       // forearms, neck, face
+
+export function recolourSprites(look, skinHex, shirtHex) {
+  if (!SPRITES.ready) return;
+  const [sh] = hexHsl(shirtHex);
+  const shs = hexHsl(shirtHex)[1];
+  const [kh, ks] = hexHsl(skinHex);
+  const kl = hexHsl(skinHex)[2];
+
+  SPRITES.tinted = {};
+  for (const [name, im] of Object.entries(SPRITES.img)) {
+    const c = document.createElement('canvas');
+    c.width = im.width; c.height = im.height;
+    const x = c.getContext('2d', { willReadFrequently: true });
+    x.drawImage(im, 0, 0);
+    const d = x.getImageData(0, 0, c.width, c.height);
+    const a = d.data;
+    for (let i = 0; i < a.length; i += 4) {
+      if (a[i + 3] < 8) continue;
+      const [h, s, l] = rgbToHsl(a[i], a[i + 1], a[i + 2]);
+      let out = null;
+      if (s > 0.10 && l > 0.32 && h >= SHIRT_HUE[0] && h <= SHIRT_HUE[1]) {
+        out = hslToRgb(sh, Math.max(0.10, shs * 0.9), l);      // keep the shading
+      } else if (s > 0.16 && l > 0.18 && l < 0.86 && h >= SKIN_HUE[0] && h <= SKIN_HUE[1]) {
+        out = hslToRgb(kh, ks, Math.min(0.95, l * (kl / 0.62)));
+      }
+      if (out) { a[i] = out[0]; a[i + 1] = out[1]; a[i + 2] = out[2]; }
+    }
+    x.putImageData(d, 0, 0);
+    SPRITES.tinted[name] = c;
+  }
+}
