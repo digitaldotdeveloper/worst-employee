@@ -7,6 +7,7 @@ import { Body, rectsOverlap } from './engine.js';
 import { FX } from './fx.js';
 import { IN } from './input.js';
 import { SFX } from './audio.js';
+import { WEAPONS, statsFor, propStats, bump, hasSkill } from './weapons.js';
 
 export class Player extends Body {
   constructor(x) {
@@ -19,6 +20,9 @@ export class Player extends Body {
     this.comboStep = 0; this.comboTimer = 0;
     this.dodgeT = 0; this.dodgeCd = 0; this.iframes = 0; this.hurtT = 0; this.landT = 0;
     this.carrying = null;
+    this.equipped = null;   // weapon id — NEVER goes in `carrying` (see weapons.js D1)
+    this.lastDodge = 99;
+    this._plough = new Set();
     this.squash = 1;
     this.animT = 0;
     this.wasGrounded = false;
@@ -34,6 +38,7 @@ export class Player extends Body {
     if (this.iframes > 0) this.iframes -= dt;
     if (this.hurtT > 0) this.hurtT -= dt;
     if (this.landT > 0) this.landT -= dt;
+    this.lastDodge += dt;
 
     // landing squash
     if (this.grounded && !this.wasGrounded) {
@@ -48,14 +53,36 @@ export class Player extends Body {
     // ---------------- dodge ----------------
     if (this.dodgeT > 0) {
       this.dodgeT -= dt;
-      this.vx = this.face * PLAYER.dodgeSpeed * (this.dodgeT / PLAYER.dodgeTime + 0.35);
+      const rc = this.equipped === 'rocketchair' ? WEAPONS.rocketchair.charge : null;
+      const spd = rc ? rc.speed : PLAYER.dodgeSpeed;
+      const dur = rc ? rc.time : PLAYER.dodgeTime;
+      this.vx = this.face * spd * (this.dodgeT / dur + 0.35);
       this.state = 'dodge';
-      if (this.dodgeT <= 0) this.dodgeCd = PLAYER.dodgeCooldown;
+      if (rc) {
+        // The rocket chair turns the dodge from defensive into a plough. Nothing
+        // else in the game lets you damage things by moving.
+        FX.spark(this.cx - this.face * 16, this.cy + 12, 3, '#ffb35c', 220);
+        for (const b of s.world.bodies) {
+          if (b === this || b.dead || b.held || this._plough.has(b.id)) continue;
+          if (Math.abs(b.cx - this.cx) > 30 || Math.abs(b.cy - this.cy) > 40) continue;
+          this._plough.add(b.id);
+          b.vx += this.face * 620 / Math.max(0.6, b.mass * 0.5);
+          b.vy -= 240 / Math.max(0.6, b.mass * 0.5);
+          s.damageBody(b, rc.dmg, this);
+          s.chaos.ignite(b, Math.max(1, b.chainDepth), b.label || b.kind);
+          bump(s, 'rc.hits');
+          FX.kick(4, 0.02);
+          SFX.hit(0.7);
+        }
+      }
+      if (this.dodgeT <= 0) { this.dodgeCd = PLAYER.dodgeCooldown; this._plough.clear(); }
       return;
     }
     if (IN.dodgeEdge && this.dodgeCd <= 0 && !this.atk) {
-      this.dodgeT = PLAYER.dodgeTime;
+      this.dodgeT = this.equipped === 'rocketchair' ? WEAPONS.rocketchair.charge.time : PLAYER.dodgeTime;
       this.iframes = PLAYER.dodgeIFrames;
+      this.lastDodge = 0;
+      this._plough.clear();
       if (IN.axis) this.face = Math.sign(IN.axis);
       FX.kick(2, 0);
       SFX.dodge();
@@ -111,8 +138,10 @@ export class Player extends Body {
     // more damage. Swinging what you are holding gets more reach and far more
     // knockback than a fist, and the object takes damage too — so a chair is a
     // few good hits before it becomes debris.
+    // A grabbed prop beats the equipped weapon — you swing what is in your hands.
     const wep = this.carrying;
-    this.atk = { kind, step, phase: 'startup', t: 0, hit: new Set(), wep };
+    this.atk = { kind, step, phase: 'startup', t: 0, hit: new Set(), wep,
+                 eq: wep ? null : this.equipped };
     SFX.whiff();
     this.state = 'attack';
     if (IN.axis) this.face = Math.sign(IN.axis);
@@ -125,7 +154,13 @@ export class Player extends Body {
     this.vx -= Math.sign(this.vx) * Math.min(PLAYER.friction * 1.4 * dt, Math.abs(this.vx));
 
     if (a.phase === 'startup') {
-      if (a.t >= d.startup) { a.phase = 'active'; a.t = 0; this._swing(d, s, a); }
+      if (a.t >= d.startup) {
+        a.phase = 'active'; a.t = 0;
+        if (a.kind === 'heavy' && a.eq === 'hammer' && hasSkill(s, 'hammer.slam') && this.grounded) {
+          this._slam(s, a);
+        }
+        this._swing(d, s, a);
+      }
     } else if (a.phase === 'active') {
       this._swing(d, s, a);
       if (a.t >= d.active) { a.phase = 'recover'; a.t = 0; }
@@ -138,11 +173,19 @@ export class Player extends Body {
   }
 
   _swing(d, s, a) {
-    // A held object extends reach by its own size and multiplies the hit.
+    // Weapon contributions are SCALARS applied alongside `d`, never a clone of
+    // it — the `d === ATTACK.heavy` identity checks below must keep working.
     const wep = a.wep && !a.wep.dead ? a.wep : null;
-    const reach = d.reach + (wep ? wep.w * 0.8 + 10 : 0);
-    const hh = d.hh + (wep ? wep.h * 0.5 : 0);
-    const mul = wep ? 1.6 + Math.min(1.2, wep.mass * 0.35) : 1;
+    const W = wep ? propStats(wep) : statsFor(a.eq || 'fists');
+    const def = a.eq ? WEAPONS[a.eq] : null;
+    let mul = W.dmgMul;
+    // COUNTER: swing straight out of a dodge and it lands twice as hard.
+    if (!wep && a.eq === 'fists' && hasSkill(s, 'fists.counter') && this.lastDodge < 0.4) {
+      mul *= 2.0;
+      if (a.phase === 'active' && a.hit.size === 0) FX.float(this.cx, this.y - 16, 'COUNTER', '#ffd75e', 13);
+    }
+    const reach = d.reach + W.reach;
+    const hh = d.hh + W.hh;
     const box = {
       x: this.face > 0 ? this.x + this.w - 6 : this.x - reach + 6,
       y: this.cy - hh / 2,
@@ -161,8 +204,8 @@ export class Player extends Body {
       a.hit.add(b.id);
 
       const dirX = Math.sign(b.cx - this.cx) || this.face;
-      b.vx += dirX * d.kbX * mul / Math.max(0.6, b.mass * 0.5);
-      b.vy += d.kbY * mul / Math.max(0.6, b.mass * 0.5);
+      b.vx += dirX * d.kbX * W.kbMul / Math.max(0.6, b.mass * 0.5);
+      b.vy += d.kbY * W.kbMul / Math.max(0.6, b.mass * 0.5);
       b.va += dirX * (4 + Math.random() * 5);
       b.flash = 0.14;
 
@@ -171,15 +214,49 @@ export class Player extends Body {
 
       const hx = this.cx + this.face * 30, hy = this.cy - 4;
       FX.spark(hx, hy, d === ATTACK.heavy ? 16 : 9, '#fff', d === ATTACK.heavy ? 420 : 260);
-      FX.kick(d.shake * (wep ? 1.4 : 1), d.hitstop * (wep ? 1.35 : 1));
-      SFX.hit(Math.min(1, (d === ATTACK.heavy ? 1 : 0.35 + a.step * 0.2) * (wep ? 1.5 : 1)));
-      if (wep) {                       // the weapon wears out as you use it
-        s.damageBody(wep, d.dmg * 0.55, this);
+      FX.kick(d.shake * W.shakeMul, d.hitstop * W.stopMul);
+      SFX.hit(Math.min(1, (d === ATTACK.heavy ? 1 : 0.35 + a.step * 0.2) * W.sfxMul));
+
+      // per-weapon effects and mastery counters
+      if (def) {
+        if (def.onHit) def.onHit(this, b, s);
+        if (a.eq === 'keyboard') bump(s, 'keyboard.hits');
+        if (a.eq === 'rocketchair') bump(s, 'rc.hits');
+        if (a.eq === 'fists' && a.step === 3 && b.type === 'prop' && !b.grounded) bump(s, 'fists.launch');
+        if (a.eq === 'fists' && this.lastDodge < 0.4) bump(s, 'fists.counter');
+        if (a.eq === 'hammer' && d === ATTACK.heavy) bump(s, 'hammer.heavy');
+      }
+
+      // a GRABBED prop wears out as you use it; an equipped weapon never does
+      if (wep && W.wear) {
+        s.damageBody(wep, d.dmg * W.wear, this);
         wep.flash = 0.12;
         if (wep.broken) { this.carrying = null; a.wep = null; }
       }
       s.hits++;
     }
+  }
+
+  // GROUND SLAM — the hammer's verb. An area hit centred on the player, which
+  // is the only attack in the game that reaches behind you.
+  _slam(s, a) {
+    const def = WEAPONS.hammer;
+    let r = def.slam.radius;
+    if (hasSkill(s, 'hammer.quake')) r *= 1.5;
+    FX.kick(14, 0.10);
+    SFX.smash('metal', 1);
+    FX.debris(this.cx, FLOOR_Y - 4, 18, '#8a8f9e');
+    for (let i = -1; i <= 1; i += 2) FX.spark(this.cx + i * r * 0.5, FLOOR_Y - 6, 10, '#cfd6e6', 320);
+    for (const b of s.world.bodies) {
+      if (b === this || b.dead || b.held) continue;
+      if (Math.abs(b.cx - this.cx) > r || b.cy < this.cy - 60) continue;
+      a.hit.add(b.id);
+      b.vy += def.slam.kbY / Math.max(0.6, b.mass * 0.5);
+      b.vx += Math.sign(b.cx - this.cx || 1) * 260 / Math.max(0.6, b.mass * 0.5);
+      s.damageBody(b, def.slam.dmg, this);
+      s.chaos.ignite(b, Math.max(1, b.chainDepth), b.label || b.kind);
+    }
+    bump(s, 'hammer.slam');
   }
 
   _grabOrThrow(s) {

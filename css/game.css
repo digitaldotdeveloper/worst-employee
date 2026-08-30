@@ -195,3 +195,30 @@ h3{font-size:11px;letter-spacing:.18em;color:#8d93a6;margin:18px 0 7px}
 .sw.outfit b{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#e8eaf0}
 .sw.outfit span{font-size:9px;color:#8d93a6;letter-spacing:.02em;font-weight:600}
 .sw.outfit.on b{color:#ffd75e}
+
+/* ---------------- supply cupboard ---------------- */
+.shop-inner{max-width:560px}
+.bank{font-size:10px;letter-spacing:.18em;color:#8d93a6;font-weight:700;margin-bottom:14px}
+.bank b{color:#ffd75e;font-size:17px;letter-spacing:.02em;margin-left:6px}
+.wpn{display:flex;gap:12px;align-items:flex-start;text-align:left;width:100%;
+  padding:11px 12px;margin-bottom:8px;border-radius:8px;cursor:pointer;
+  border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.04);color:#e8eaf0}
+.wpn:disabled{cursor:default}
+.wpn.owned{border-color:rgba(110,184,122,.4)}
+.wpn.equipped{border-color:#ffd75e;background:rgba(255,215,94,.09)}
+.wpn.locked{opacity:.55}
+.wpn .pic{flex:0 0 62px;height:44px;display:flex;align-items:center;justify-content:center}
+.wpn .pic img{max-width:100%;max-height:100%;image-rendering:auto}
+.wpn .fist{font-size:22px}
+.wpn .body{flex:1;min-width:0}
+.wpn .row1{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.wpn .nm{font-size:12.5px;font-weight:900;letter-spacing:.08em}
+.wpn .pr{font-size:11px;font-weight:800;color:#ffd75e;white-space:nowrap}
+.wpn .pr.have{color:#8fd6a0}
+.wpn .vb{font-size:10px;color:#ffd75e;font-weight:700;letter-spacing:.03em;margin-top:2px}
+.wpn .ds{font-size:10.5px;color:#8d93a6;line-height:1.5;margin-top:3px}
+.wpn .sk{margin-top:6px;display:flex;flex-wrap:wrap;gap:5px}
+.wpn .sk span{font-size:8.5px;letter-spacing:.08em;font-weight:800;padding:2px 6px;
+  border-radius:3px;background:rgba(255,255,255,.07);color:#8d93a6;border:1px solid rgba(255,255,255,.1)}
+.wpn .sk span.got{background:rgba(110,184,122,.16);color:#8fd6a0;border-color:rgba(110,184,122,.35)}
+#hWeapon{color:#7fd1ff;font-size:12px}

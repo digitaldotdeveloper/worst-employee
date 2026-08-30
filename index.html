@@ -21,6 +21,7 @@
     <div class="hud-top">
       <div class="hud-left">
         <div class="stat"><span class="k">COINS</span><span class="v" id="hCoins">0</span></div>
+        <div class="stat"><span class="k">WEAPON</span><span class="v" id="hWeapon">FISTS</span></div>
         <div class="stat"><span class="k">DAMAGE</span><span class="v" id="hDamage">$0</span></div>
         <div class="stat"><span class="k">PRODUCTIVITY</span><span class="v" id="hProd">0%</span></div>
       </div>
@@ -69,6 +70,7 @@
       <p class="tag">HATE YOUR JOB? BECOME THE WORST EMPLOYEE.</p>
       <div class="build">FEEL TEST &mdash; GREYBOX BUILD <span id="verTag"></span></div>
       <button id="btnStart" class="big-btn">FIND A JOB</button>
+      <button id="btnShop" class="ghost-btn wide">SUPPLY CUPBOARD</button>
       <button id="btnHelp" class="ghost-btn wide">HOW TO PLAY</button>
       <a class="ghost-btn wide" href="concepts.html" style="text-decoration:none">ART DIRECTION &mdash; PICK A STYLE</a>
       <p class="note">No art yet. This build exists to test <b>movement, combat feel,
@@ -103,6 +105,19 @@
       <p class="note">Every look is a full set of <b>28 hand-drawn frames</b> &mdash;
       whole figures, not assembled parts. Skin and shirt colour are applied on top,
       so you get the range without the character falling apart at the joints.</p>
+    </div>
+  </div>
+
+
+  <!-- ================= SHOP ================= -->
+  <div id="shop" class="screen hidden">
+    <div class="screen-inner shop-inner">
+      <h2>SUPPLY CUPBOARD</h2>
+      <div class="bank">BANK <b id="shopBank">0</b></div>
+      <div id="shopList"></div>
+      <button id="btnShopBack" class="big-btn">BACK</button>
+      <p class="note">Weapons are bought. <b>Skills are earned</b> &mdash; each one
+      has a challenge, and some of them won&rsquo;t tell you what it is.</p>
     </div>
   </div>
 

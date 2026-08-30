@@ -4,11 +4,13 @@ import { VERSION, VIEW, FLOOR_Y, CEIL_Y, ROOF_Y, LEVEL_W, COL, COFFEE, RANKS, QU
          ATTACK, ROOMS, DOOR_W, DOOR_H, roomAt } from './config.js';
 import { World } from './engine.js';
 import { FX } from './fx.js';
-import { ART, SPRITES, WORLD, CAST, poseFor, npcPoseName, bossPoseName,
-         recolourSprites, drawHuman, drawProp, roundRect } from './art.js';
+import { ART, SPRITES, WORLD, CAST, WEAPON_ART, poseFor, npcPoseName, bossPoseName,
+         drawWeapon, recolourSprites, drawHuman, drawProp, roundRect } from './art.js';
 import { RIG } from './rig.js';
 import { SFX } from './audio.js';
 import { EventSystem } from './events.js';
+import { WEAPONS, SHOP_ORDER, loadCareer, saveCareer, defaultCareer,
+         bump, checkUnlocks, buy, hasSkill } from './weapons.js';
 import { IN, initInput, pollInput } from './input.js';
 import { ChaosSystem } from './chaos.js';
 import { Player } from './player.js';
@@ -38,6 +40,9 @@ const S = {
   coffeeMachine: null,
   shiftT: 0,
   look: loadLook() || defaultLook(),
+  career: loadCareer(),
+  salaryAcc: 0,
+  cleanT: 0,
   room: null,
   hrWatching: false, hrHeat: 0, freeCoffee: false, clientHere: false, dark: false,
   toast: (msg, cls) => toast(msg, cls),
@@ -216,6 +221,67 @@ function openCreator() {
 }
 
 // ---------------------------------------------------------------
+// THE SUPPLY CUPBOARD
+// Weapons are bought with banked coins; skills are EARNED (script section 16),
+// so the shop shows a weapon's challenges but never sells one. Secret skills
+// show as ??? until the counter trips, which is the point of them.
+// ---------------------------------------------------------------
+function buildShop() {
+  const list = $('shopList');
+  $('shopBank').textContent = S.career.bank.toLocaleString();
+  list.innerHTML = '';
+
+  for (const id of SHOP_ORDER) {
+    const w = WEAPONS[id];
+    const owned = S.career.owned.includes(id);
+    const equipped = S.career.equipped === id;
+    const afford = S.career.bank >= w.cost;
+
+    const b = document.createElement('button');
+    b.className = 'wpn' + (equipped ? ' equipped' : owned ? ' owned' : afford ? '' : ' locked');
+    const pic = w.art
+      ? `<img src="assets/weapons/${w.art}.png" alt="">`
+      : '<span class="fist">&#128074;</span>';
+    const price = owned
+      ? (equipped ? 'EQUIPPED' : 'TAP TO EQUIP')
+      : w.cost.toLocaleString() + ' coins';
+
+    const skills = w.skills.map(sk => {
+      const got = S.career.skills.includes(sk.id);
+      const label = got ? (sk.reveal ? sk.reveal.split(' —')[0] : sk.name)
+                        : (sk.secret ? '???' : sk.name);
+      return `<span class="${got ? 'got' : ''}" title="${got ? (sk.reveal || sk.hint) : sk.hint}">${label}</span>`;
+    }).join('');
+
+    b.innerHTML = `<div class="pic">${pic}</div><div class="body">
+      <div class="row1"><span class="nm">${w.name}</span>
+      <span class="pr ${owned ? 'have' : ''}">${price}</span></div>
+      <div class="vb">${w.verb}</div>
+      <div class="ds">${w.desc}</div>
+      <div class="sk">${skills}</div></div>`;
+
+    b.onclick = () => {
+      if (owned) {
+        S.career.equipped = id;
+        saveCareer(S.career);
+        if (S.player) S.player.equipped = id;
+        SFX.ui(true);
+      } else if (buy(S.career, id)) {
+        if (S.player) S.player.equipped = id;
+        SFX.promote();
+        checkUnlocks(S);
+      } else {
+        SFX.ui(false);
+        toast(`${(w.cost - S.career.bank).toLocaleString()} coins short.`);
+        return;
+      }
+      buildShop();
+    };
+    list.appendChild(b);
+  }
+}
+
+// ---------------------------------------------------------------
 // GAME FLOW
 // ---------------------------------------------------------------
 function startShift() {
@@ -226,6 +292,7 @@ function startShift() {
   S.coins = 0; S.damage = 0; S.destroyed = 0; S.annoyed = 0;
   S.hits = 0; S.playerHits = 0; S.coffees = 0; S.coffeeSpend = 0; S.annoyCount = 0;
   S.chainsMade = 0; S.bestChain = 0;
+  S.salary = 0; S.salaryAcc = 0; S.cleanT = 0; S.lastDamage = 0;
   S.productivity = 100; S.anger = 0; S.stageIdx = 0;
   S.speedMul = 1; S.chaosMul = 1; S.boostT = 0;
 
@@ -239,13 +306,14 @@ function startShift() {
   S.world.onImpact = (a, b, e) => S.chaos.onImpact(a, b, e);
 
   S.player = new Player(120);
+  S.player.equipped = S.career.equipped || 'fists';
   S.world.add(S.player);
   buildOffice(S.world, S);
 
   applyLook();
 
   FX.clear();
-  hide('title'); hide('report'); hide('help'); hide('create');
+  hide('title'); hide('report'); hide('help'); hide('create'); hide('shop');
   show('hud');
   if (HAS_TOUCH) show('touch'); else hide('touch');
   resize();
@@ -281,6 +349,32 @@ S.annoy = function (c) {
   SFX.ui(true);
   if (c.annoyed2 === 4) toast(`"${c.name}, could you please stop."`);
 };
+
+S.bumpCounter = key => bump(S, key);
+
+// D5 — a wage. Destruction is opt-in, so a player who breaks nothing still has
+// to be able to afford the shop. Standing around earns slowly; a clean streak
+// (no damage for a while) multiplies it, so the quiet route is deliberate work
+// rather than idling.
+function tickSalary(dt) {
+  S.cleanT = S.damage === S.lastDamage ? S.cleanT + dt : 0;
+  S.lastDamage = S.damage;
+  const streak = 1 + Math.min(1.5, S.cleanT / 18);
+  S.salaryAcc += dt * 34 * streak;
+  if (S.salaryAcc >= 1) {
+    const n = Math.floor(S.salaryAcc);
+    S.salaryAcc -= n;
+    S.coins += n;
+    S.salary = (S.salary || 0) + n;
+  }
+}
+
+function bankShift() {
+  S.career.bank += S.coins;
+  S.career.lifetime += S.coins;
+  S.career.shifts++;
+  saveCareer(S.career);
+}
 
 async function applyLook() {
   const c = lookColours(S.look);
@@ -322,6 +416,7 @@ function endShift(promoted = false) {
   S.mode = 'report';
   hide('hud'); hide('touch'); hide('rotate');
 
+  bankShift();
   const prod = Math.max(0, S.productivity).toFixed(0);
   const score = Math.round(
     S.damage * 1.1 + S.destroyed * 220 + S.annoyed * 400 +
@@ -349,7 +444,9 @@ function endShift(promoted = false) {
     ['BOSS ANGER', Math.round(S.anger) + '%'],
     ['CHAOS CHAINS', S.chainsMade],
     ['BEST CHAIN', '×' + S.bestChain],
+    ['SALARY', (S.salary || 0).toLocaleString()],
     ['COINS EARNED', S.coins.toLocaleString()],
+    ['BANK', S.career.bank.toLocaleString()],
     ['CHAOS SCORE', score.toLocaleString()],
   ];
   $('reportRows').innerHTML = rows
@@ -388,6 +485,7 @@ function update(dt) {
   S.world.step(dt);
   S.chaos.step(dt);
   S.events.step(dt);
+  tickSalary(dt);
 
   // Announce the room you walk into. Rooms are only worth having if arriving in
   // one is an event.
@@ -432,6 +530,8 @@ function update(dt) {
 
 function updateHud() {
   $('hCoins').textContent = S.coins.toLocaleString();
+  const wq = WEAPONS[S.player.equipped] || WEAPONS.fists;
+  $('hWeapon').textContent = wq.name;
   $('hDamage').textContent = '$' + S.damage.toLocaleString();
   $('hProd').textContent = Math.max(0, S.productivity).toFixed(0) + '%';
   const st = angerStage(S.anger);
@@ -561,14 +661,21 @@ function render() {
   ctx.restore();
 
   const alpha = p.iframes > 0 ? 0.45 : 1;
+  const curPose = (S.useArt && SPRITES.ready) ? poseFor(p, p.animT) : null;
   if (S.useRig && RIG.ready) {
     // the skeleton: customization survives every animation
     RIG.draw(ctx, RIG.poseFor(p, p.animT), p.cx, p.y + p.h,
       p.h * p.squash * 1.06, p.face < 0, alpha);
   } else if (S.useArt && SPRITES.ready) {
     // squash is applied to the draw height so landings still punch
-    SPRITES.draw(ctx, poseFor(p, p.animT), p.cx, p.y + p.h,
+    SPRITES.draw(ctx, curPose, p.cx, p.y + p.h,
       p.h * p.squash * 1.06, p.face < 0, alpha);
+    // the equipped weapon rides in the hand; a grabbed prop is drawn by the
+    // props loop instead, so never draw both
+    const eqw = WEAPONS[p.equipped];
+    if (eqw && eqw.art && !p.carrying) {
+      drawWeapon(ctx, eqw.art, curPose, p.cx, p.y + p.h, p.h * p.squash * 1.06, p.face < 0);
+    }
   } else {
     ctx.save();
     ctx.translate(p.cx, p.y + p.h);
@@ -776,6 +883,7 @@ SPRITES.load().then(ok => {
   console.log(ok ? 'player sprites loaded: ' + Object.keys(SPRITES.img).length
                  : 'no player sprites');
 });
+WEAPON_ART.load().then(n => console.log('weapon art loaded: ' + n));
 WORLD.load().then(ok => console.log(ok ? 'world art loaded: ' + Object.keys(WORLD.props).length + ' props' : 'no world art'));
 CAST.load(['npc-sami', 'npc-rita', 'npc-omar', 'boss-calm', 'boss-rage'])
   .then(n => console.log('cast frames loaded: ' + n + ' characters'));
@@ -804,6 +912,8 @@ $('btnRandom').onclick = () => {
 $('cName').oninput = () => { S.look.name = $('cName').value.toUpperCase(); };
 $('btnEnd').onclick = () => endShift(false);
 $('btnHelp').onclick = () => { hide('title'); show('help'); };
+$('btnShop').onclick = () => { SFX.resume(); SFX.ui(); buildShop(); hide('title'); show('shop'); };
+$('btnShopBack').onclick = () => { SFX.ui(false); hide('shop'); show('title'); };
 $('btnHelpBack').onclick = () => { hide('help'); show('title'); };
 $('btnShare').onclick = async () => {
   try {

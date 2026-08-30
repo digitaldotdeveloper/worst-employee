@@ -509,3 +509,87 @@ export function bossPoseName(b, t) {
   if (Math.abs(b.vx) > 22) return ['run-1', 'run-2', 'run-3', 'run-4'][Math.floor(t * (b.fighting ? 8 : 4)) % 4];
   return (Math.floor(t * 0.4) % 3 === 2) ? 'idle2' : 'idle';
 }
+
+// ---------------------------------------------------------------
+// THE EQUIPPED WEAPON, drawn in hand.
+// Sprites are authored handle-left / business-end-right and rotated about the
+// grip, so one image covers every pose. The hand position per pose is a small
+// table rather than derived from the art: the drawn frames are whole figures,
+// there is no hand joint to read, and eight hand-tuned offsets beat a wrong
+// guess in every frame.
+// ---------------------------------------------------------------
+export const WEAPON_ART = {
+  meta: null,
+  img: {},
+
+  async load(base = 'assets/weapons/') {
+    try {
+      const r = await fetch(base + 'weapons.json');
+      if (!r.ok) return 0;
+      this.meta = (await r.json()).weapons || {};
+    } catch (e) { return 0; }
+    await Promise.all(Object.keys(this.meta).map(n => new Promise(res => {
+      const im = new Image();
+      im.onload = () => { this.img[n] = im; res(); };
+      im.onerror = res;
+      im.src = base + n + '.png';
+    })));
+    return Object.keys(this.img).length;
+  },
+};
+
+// Hand position per drawn pose: x from the body centre, y from the feet (negative
+// is up), then the angle the weapon points. The POSITIONS are measured off the
+// art itself — tools found the most-extended skin pixel in each frame — because
+// hand-guessed offsets put a hammer at chest height while the idle frame has its
+// arms at the hips. The ANGLES have to be authored: a hand position says where
+// the grip is, never which way the weapon points.
+const HAND = {
+  'air-hit': [27.0, -37.2, 0.5],
+  'c1-hit': [24.0, -44.7, -0.1],
+  'c1-wind': [25.5, -44.7, -1.25],
+  'c2-hit': [27.5, -42.2, 0.02],
+  'c3-hit': [24.5, -45.7, 0.62],
+  'c4-hit': [13.5, -46.2, -1.3],
+  'c5-hit': [15.0, -42.2, 0.75],
+  'c5-wind': [10.5, -40.2, -1.05],
+  'carry': [18.5, -44.7, -0.35],
+  'dodge': [30, -27.2, 0.85],
+  'fall': [17.0, -29.7, 0.95],
+  'heavy-hit': [27.5, -41.2, 0.18],
+  'heavy-wind': [24.5, -41.7, -1.55],
+  'hurt': [17.5, -11.2, -0.85],
+  'idle': [8.5, -26.2, 1.15],
+  'idle2': [10.5, -43.2, 0.95],
+  'jump-apex': [9.0, -25.7, 1.0],
+  'jump-up': [10.5, -50, -0.55],
+  'land': [15.5, -6, 1.35],
+  'run-1': [19.5, -39.2, 0.55],
+  'run-2': [13.5, -27.7, 0.95],
+  'run-3': [19.5, -40.7, 0.5],
+  'run-4': [14.0, -42.7, 0.9],
+  'run-5': [20.5, -39.2, 0.35],
+  'run-6': [15.0, -33.2, 0.8],
+  'swing': [18.0, -44.2, 0.25],
+  'taunt': [21.5, -31.7, -0.45],
+  'throw': [26.0, -39.7, 0.28],
+};
+
+export function drawWeapon(ctx, artName, pose, x, groundY, height, flip) {
+  const im = WEAPON_ART.img[artName];
+  const m = WEAPON_ART.meta && WEAPON_ART.meta[artName];
+  if (!im || !m) return false;
+  const h = HAND[pose] || HAND.idle;
+  const k = height / 124;                 // same standing height the frames use
+  const ss = m.ss || 2;
+
+  ctx.save();
+  ctx.translate(x, groundY);
+  if (flip) ctx.scale(-1, 1);
+  ctx.translate(h[0] * k * (124 / 62), h[1] * k * (124 / 62));
+  ctx.rotate(h[2]);
+  ctx.drawImage(im, -m.gripX / ss * k * 2, -m.gripY / ss * k * 2,
+                im.width / ss * k * 2, im.height / ss * k * 2);
+  ctx.restore();
+  return true;
+}

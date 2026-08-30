@@ -32,9 +32,11 @@ export class ChaosSystem {
     this.until = this.s.time + CHAOS.chainWindow;
     if (label && this.links[this.links.length - 1] !== label) this.links.push(label);
 
-    const coins = Math.round(CHAOS.coinBase * depth * this.s.chaosMul);
-    this.pending += coins;
-    this.s.coins += coins;
+    // Depth 1 pays NOTHING: the first hit is a chain seed, not income.
+    // Paying per hit turns any fast weapon into a coin printer and lets you
+    // farm an already-broken prop forever.
+    const coins = Math.round(CHAOS.coinBase * (depth - 1) * this.s.chaosMul);
+    if (coins > 0) { this.pending += coins; this.s.coins += coins; }
 
     if (depth >= 2) {
       FX.float(body.cx, body.y - 12, `x${depth}`, '#ffd75e', 13 + Math.min(depth, 9));
@@ -73,6 +75,9 @@ export class ChaosSystem {
       FX.float(this.s.cam.x + VIEW.w / this.s.zoom / 2, this.s.cam.y + 118, `+${this.pending.toLocaleString()} coins`, '#fff', 15);
       SFX.chain(n);
       this.s.chainsMade++;
+      if (this.s.player && this.s.player.equipped === 'stapler' && n >= 6) {
+        this.s.bumpCounter && this.s.bumpCounter('stapler.chain');
+      }
       if (n > this.s.bestChain) this.s.bestChain = n;
       this.s.addAnger(Math.min(14, 1.6 * n));
     }
