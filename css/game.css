@@ -142,3 +142,14 @@ h3{font-size:11px;letter-spacing:.18em;color:#8d93a6;margin:18px 0 7px}
 .sw.col{width:30px;height:30px;padding:0;border-radius:50%}
 .sw.on{border-color:#ffd75e;box-shadow:0 0 0 2px rgba(255,215,94,.25)}
 .sw:active{transform:scale(.94)}
+
+/* On a landscape phone the option list is taller than the screen, and the
+   preview scrolled away — you were choosing clothes blind. Pin it. */
+.create-top{position:sticky;top:-24px;z-index:5;padding:10px 0 12px;
+  background:linear-gradient(180deg,#0a0b0e 78%,rgba(10,11,14,0));
+  margin-bottom:6px}
+@media (max-height:460px){
+  #preview{width:104px}
+  .create-top{top:-24px}
+  .prow{font-size:9px;padding:2px 0}
+}
