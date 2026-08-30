@@ -6,7 +6,7 @@
 //
 // Everything else in the game is a way of starting one of these.
 
-import { CHAOS } from './config.js';
+import { CHAOS, VIEW } from './config.js';
 import { FX } from './fx.js';
 
 export class ChaosSystem {
@@ -67,8 +67,8 @@ export class ChaosSystem {
   cash() {
     if (this.chain >= 2) {
       const n = this.chain;
-      FX.float(this.s.cam.x + 480, 190, `CHAOS ×${n}`, '#ffd75e', 30);
-      FX.float(this.s.cam.x + 480, 218, `+${this.pending.toLocaleString()} coins`, '#fff', 15);
+      FX.float(this.s.cam.x + VIEW.w / 2, 190, `CHAOS ×${n}`, '#ffd75e', 30);
+      FX.float(this.s.cam.x + VIEW.w / 2, 218, `+${this.pending.toLocaleString()} coins`, '#fff', 15);
       this.s.chainsMade++;
       if (n > this.s.bestChain) this.s.bestChain = n;
       this.s.addAnger(Math.min(14, 1.6 * n));

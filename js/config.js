@@ -3,7 +3,10 @@
 
 export const VERSION = '0.1.0';
 
-export const VIEW = { w: 960, h: 540 };          // logical resolution, scaled to fit
+// Logical resolution. `h` is fixed — it defines the world scale. `w` is set
+// at runtime from the device aspect ratio so a wide phone fills its screen
+// instead of being pillarboxed. Read it, never cache it.
+export const VIEW = { w: 960, h: 540, minW: 760, maxW: 1400 };
 export const GRAVITY = 2100;                      // px/s^2
 export const FLOOR_Y = 470;                       // office floor line
 export const LEVEL_W = 2600;                      // office width

@@ -76,6 +76,7 @@ let scale = 1, offX = 0, offY = 0;
 function resize() {
   const dpr = Math.min(devicePixelRatio || 1, 2);
   const W = innerWidth, H = innerHeight;
+  VIEW.w = Math.round(Math.min(VIEW.maxW, Math.max(VIEW.minW, VIEW.h * (W / H))));
   scale = Math.min(W / VIEW.w, H / VIEW.h);
   const w = Math.round(VIEW.w * scale), h = Math.round(VIEW.h * scale);
   cv.style.width = w + 'px'; cv.style.height = h + 'px';
