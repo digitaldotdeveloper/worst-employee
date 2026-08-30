@@ -1,6 +1,6 @@
 // WORST EMPLOYEE — feel test. Game state, loop, camera, renderer, shift report.
 
-import { VERSION, VIEW, FLOOR_Y, CEIL_Y, ROOF_Y, LEVEL_W, COL, COFFEE, RANKS, ATTACK } from './config.js';
+import { VERSION, VIEW, FLOOR_Y, CEIL_Y, ROOF_Y, LEVEL_W, COL, COFFEE, RANKS, QUIET_RANKS, ATTACK } from './config.js';
 import { World } from './engine.js';
 import { FX } from './fx.js';
 import { ART, SPRITES, WORLD, poseFor, recolourSprites, drawHuman, drawProp, roundRect } from './art.js';
@@ -293,8 +293,16 @@ function endShift(promoted = false) {
     S.damage * 1.1 + S.destroyed * 220 + S.annoyed * 400 +
     S.bestChain * 900 + S.anger * 60 + S.coins * 0.5
   );
-  let rank = RANKS[0].name;
-  for (const r of RANKS) if (score >= r.at) rank = r.name;
+  // A shift with almost no damage is a deliberate playstyle, not a failed one.
+  const quiet = S.damage < 900 && S.destroyed < 6;
+  let rank;
+  if (quiet) {
+    rank = QUIET_RANKS[0].name;
+    for (const r of QUIET_RANKS) if (S.coins >= r.at) rank = r.name;
+  } else {
+    rank = RANKS[0].name;
+    for (const r of RANKS) if (score >= r.at) rank = r.name;
+  }
 
   const rows = [
     ['PRODUCTIVITY', prod + '%'],

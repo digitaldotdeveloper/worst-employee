@@ -79,6 +79,16 @@ export const ANGER_STAGES = [
   { at: 100, name: 'BOSS FIGHT',line: "I HAVE HAD ENOUGH!" },
 ];
 
+// Two ways to end a shift. Wrecking the place is the loud one; doing almost
+// nothing and still getting paid is the other (script section 28, QUIET
+// QUITTING). Destruction is opt-in, so the report has to recognise both.
+export const QUIET_RANKS = [
+  { at: 0,   name: 'MODEL EMPLOYEE' },
+  { at: 250, name: 'QUIET QUITTER' },
+  { at: 700, name: 'PROFESSIONAL LOITERER' },
+  { at: 1400, name: 'PAID TO EXIST' },
+];
+
 export const RANKS = [
   { at: 0,      name: 'EMPLOYEE OF THE MONTH' },
   { at: 4000,   name: 'UNDERPERFORMER' },

@@ -160,9 +160,20 @@ export class World {
     // you get caught on a bin and the whole game feels like walking in mud.
     const pa = a.type === 'player', pb = b.type === 'player';
 
+    // Brushing past something must NOT launch it. Handing the prop the player's
+    // full velocity meant it kept flying after you stopped, so simply running
+    // through the office scattered — and chain-reacted — the entire floor.
+    // Destroying the place should be a thing you choose to do. The overlap is
+    // still resolved so you never get stuck; the prop just gets a nudge scaled
+    // by its own mass, and heavy things barely register you.
+    const nudge = (mover, target, dir) => {
+      const push = Math.min(70, Math.abs(mover.vx) * 0.30) / Math.max(0.6, target.mass);
+      if (Math.abs(target.vx) < push) target.vx = dir * push;
+    };
+
     if (Math.abs(ox) < Math.abs(oy)) {
-      if (pa && !b.static) { b.x -= ox; b.vx = a.vx * 1.15; b.va += Math.sign(a.vx) * 3; }
-      else if (pb && !a.static) { a.x += ox; a.vx = b.vx * 1.15; a.va += Math.sign(b.vx) * 3; }
+      if (pa && !b.static) { b.x -= ox; nudge(a, b, Math.sign(a.vx) || Math.sign(-ox) || 1); }
+      else if (pb && !a.static) { a.x += ox; nudge(b, a, Math.sign(b.vx) || Math.sign(ox) || 1); }
       else {
         a.x += ox * (ma / tot); b.x -= ox * (mb / tot);
         const va = a.vx, vb = b.vx;
