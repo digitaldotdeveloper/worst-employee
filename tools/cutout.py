@@ -23,7 +23,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 # set of drawn frames, so it gets its own folder under assets/player/.
 OUTFIT = ([a for a in sys.argv[1:] if not a.startswith('--')] or ['base'])[0]
 SRC = os.path.join(HERE, 'renders-' + OUTFIT)
-OUT = os.path.join(os.path.dirname(HERE), 'assets', 'player', OUTFIT)
+# Cast members go to assets/cast/; player outfits to assets/player/.
+_KIND = 'cast' if OUTFIT.startswith(('npc-', 'boss-')) else 'player'
+OUT = os.path.join(os.path.dirname(HERE), 'assets', _KIND, OUTFIT)
 
 # The pose that defines the ground line and the standing height.
 DATUM = 'idle'

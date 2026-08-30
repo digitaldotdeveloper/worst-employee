@@ -42,10 +42,12 @@ export class Coworker extends Body {
     this.animT = Math.random() * 4;
     this.label = 'COWORKER';
     this.art = null;          // set by buildOffice
+    this.hurtT = 0;
   }
 
   update(dt, s) {
     this.animT += dt;
+    if (this.hurtT > 0) this.hurtT -= dt;
     if (this.mode === 'down') {
       this.downT -= dt;
       this.angle += this.va * dt * 0.3;
@@ -82,7 +84,8 @@ export class Coworker extends Body {
   knock(s) {
     if (this.mode === 'down') return;
     this.mode = 'down';
-    this.downT = 1.1 + Math.random() * 0.8;
+    this.hurtT = 0.3;
+    this.downT = 1.4 + Math.random() * 0.9;
     this.va = (Math.random() - 0.5) * 12;
     if (!this.annoyed) { this.annoyed = true; s.annoyed++; }
   }
@@ -101,6 +104,7 @@ export class Boss extends Body {
     this.label = 'BOSS';
     this.homeX = x;
     this.swingT = 0;
+    this.defeated = false;
   }
 
   update(dt, s) {

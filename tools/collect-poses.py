@@ -3,7 +3,7 @@ import json, io, os, shutil, glob, sys
 LIB='C:/Users/it/Desktop/Gemini Prompt Sender/dashboard/library'
 HERE=os.path.dirname(os.path.abspath(__file__))
 jobs={}
-for f in glob.glob(os.path.join(HERE,'pass6-*-jobs.json')):
+for f in glob.glob(os.path.join(HERE,'pass6-*-jobs.json')) + glob.glob(os.path.join(HERE,'pass7-*-jobs.json')):
     if 'desk' in f: continue
     jobs.update(json.load(io.open(f,encoding='utf-8')))
 idx=json.load(io.open(LIB+'/index.json',encoding='utf-8'))

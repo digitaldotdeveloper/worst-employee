@@ -1,0 +1,19 @@
+{
+ "_comment": "Written by tools/cutout.py. Every frame shares one crop and one scale, so groundY and centreX are constants, not per-frame values.",
+ "frameW": 206,
+ "frameH": 134,
+ "groundY": 131.8,
+ "centreX": 98.1,
+ "standingH": 124,
+ "poses": [
+  "down",
+  "hurt",
+  "idle",
+  "idle2",
+  "run-1",
+  "run-2",
+  "run-3",
+  "run-4",
+  "work"
+ ]
+}

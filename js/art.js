@@ -426,3 +426,70 @@ export const WORLD = {
     return true;
   },
 };
+
+// ---------------------------------------------------------------
+// CAST SPRITES
+// The player stopped looking assembled the moment he became whole drawn frames;
+// the coworkers and boss did not, because they were still the cut-up skeleton.
+// Same fix, fewer frames each — a coworker never throws a five-hit combo.
+// ---------------------------------------------------------------
+export const CAST = {
+  sets: {},
+
+  async load(names, base = 'assets/cast/') {
+    await Promise.all(names.map(async name => {
+      let meta;
+      try {
+        const r = await fetch(base + name + '/anchors.json');
+        if (!r.ok) return;
+        meta = await r.json();
+      } catch (e) { return; }
+      const img = {};
+      await Promise.all(meta.poses.map(pose => new Promise(res => {
+        const im = new Image();
+        im.onload = () => { img[pose] = im; res(); };
+        im.onerror = res;
+        im.src = base + name + '/' + pose + '.png';
+      })));
+      if (Object.keys(img).length) this.sets[name] = { meta, img };
+    }));
+    return Object.keys(this.sets).length;
+  },
+
+  has(name) { return !!this.sets[name]; },
+
+  draw(ctx, name, pose, x, groundY, height, flip, alpha = 1) {
+    const s = this.sets[name];
+    if (!s) return false;
+    const im = s.img[pose] || s.img.idle;
+    if (!im) return false;
+    const m = s.meta;
+    const k = height / m.standingH;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(x, groundY);
+    if (flip) ctx.scale(-1, 1);
+    ctx.drawImage(im, -m.centreX * k, -m.groundY * k, m.frameW * k, m.frameH * k);
+    ctx.restore();
+    return true;
+  },
+};
+
+export function npcPoseName(c, t) {
+  if (c.mode === 'down') return 'down';
+  if (c.hurtT > 0) return 'hurt';
+  if (c.mode === 'panic') {
+    return ['run-1', 'run-2', 'run-3', 'run-4'][Math.floor(t * 10) % 4];
+  }
+  if (c.mode === 'work') return 'work';
+  if (Math.abs(c.vx) > 22) return ['run-1', 'run-2', 'run-3', 'run-4'][Math.floor(t * 5) % 4];
+  return (Math.floor(t * 0.4) % 3 === 2) ? 'idle2' : 'idle';
+}
+
+export function bossPoseName(b, t) {
+  if (b.defeated) return 'down';
+  if (b.hurtT > 0) return 'hurt';
+  if (b.fighting && b.swingT > 0) return b.swingT > 0.20 ? 'c1-wind' : 'c1-hit';
+  if (Math.abs(b.vx) > 22) return ['run-1', 'run-2', 'run-3', 'run-4'][Math.floor(t * (b.fighting ? 8 : 4)) % 4];
+  return (Math.floor(t * 0.4) % 3 === 2) ? 'idle2' : 'idle';
+}

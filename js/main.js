@@ -3,7 +3,8 @@
 import { VERSION, VIEW, FLOOR_Y, CEIL_Y, ROOF_Y, LEVEL_W, COL, COFFEE, RANKS, QUIET_RANKS, ATTACK } from './config.js';
 import { World } from './engine.js';
 import { FX } from './fx.js';
-import { ART, SPRITES, WORLD, poseFor, recolourSprites, drawHuman, drawProp, roundRect } from './art.js';
+import { ART, SPRITES, WORLD, CAST, poseFor, npcPoseName, bossPoseName,
+         recolourSprites, drawHuman, drawProp, roundRect } from './art.js';
 import { RIG } from './rig.js';
 import { SFX } from './audio.js';
 import { EventSystem } from './events.js';
@@ -276,6 +277,7 @@ function startBossFight() {
 function bossDown() {
   const b = S.boss;
   b.fighting = false;
+  b.defeated = true;
   b.mode = 'down';
   b.va = 8; b.angle = 1.5;
   b.solid = false;
@@ -469,7 +471,10 @@ function render() {
   // coworkers — same skeleton as the player, different parts
   for (const c of S.coworkers) {
     if (c.dead) continue;
-    if (c.art && RIG.cast[c.art]) {
+    if (c.art && CAST.has(c.art)) {
+      CAST.draw(ctx, c.art, npcPoseName(c, c.animT),
+        c.cx, c.y + c.h, c.h * 1.10, c.face < 0, 1);
+    } else if (c.art && RIG.cast[c.art]) {
       RIG.drawCast(ctx, c.art, RIG.npcPose(c, c.animT, c.mode),
         c.cx, c.y + c.h, c.h * 1.06, c.face < 0, 1);
     } else {
@@ -485,7 +490,10 @@ function render() {
   if (S.boss && !S.boss.dead) {
     const b = S.boss;
     const bossArt = b.fighting ? 'boss-rage' : 'boss-calm';
-    if (RIG.cast[bossArt]) {
+    if (CAST.has(bossArt)) {
+      CAST.draw(ctx, bossArt, bossPoseName(b, b.animT),
+        b.cx, b.y + b.h, b.h * 1.10, b.face < 0, b.hurtT > 0 ? 0.65 : 1);
+    } else if (RIG.cast[bossArt]) {
       RIG.drawCast(ctx, bossArt, RIG.bossPose(b, b.animT),
         b.cx, b.y + b.h, b.h * 1.06, b.face < 0, b.hurtT > 0 ? 0.6 : 1);
     } else {
@@ -687,6 +695,8 @@ SPRITES.load().then(ok => {
                  : 'no player sprites');
 });
 WORLD.load().then(ok => console.log(ok ? 'world art loaded: ' + Object.keys(WORLD.props).length + ' props' : 'no world art'));
+CAST.load(['npc-sami', 'npc-rita', 'npc-omar', 'boss-calm', 'boss-rage'])
+  .then(n => console.log('cast frames loaded: ' + n + ' characters'));
 RIG.load().then(async ok => {
   if (!ok) { console.log('no rig — falling back to key poses'); return; }
   const c = await RIG.loadCast(['npc-sami', 'npc-rita', 'npc-omar', 'boss-calm', 'boss-rage']);
@@ -733,4 +743,4 @@ addEventListener('keydown', e => {
 
 // Art hookup point. When sprites exist, uncomment and point at the files.
 // ART.load({ 'player.idle': { src:'assets/player/idle.png', frames:6, fps:8 } });
-window.WE = { S, ART, FX, SPRITES, RIG, applyLook };   // handy in the mobile console
+window.WE = { S, ART, FX, SPRITES, RIG, CAST, applyLook };   // handy in the mobile console
