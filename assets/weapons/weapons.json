@@ -1,0 +1,40 @@
+{
+ "_comment": "Written by tools (pass 8). gripX/gripY is where the hand holds it, in supersampled sprite pixels. Sprites are drawn handle-left, business-end-right; the game rotates about the grip.",
+ "weapons": {
+  "hammer": {
+   "w": 68,
+   "h": 31,
+   "ss": 2,
+   "gripX": 8,
+   "gripY": 15
+  },
+  "keyboard": {
+   "w": 59,
+   "h": 12,
+   "ss": 2,
+   "gripX": 7,
+   "gripY": 5
+  },
+  "pan": {
+   "w": 76,
+   "h": 15,
+   "ss": 2,
+   "gripX": 9,
+   "gripY": 3
+  },
+  "rocketchair": {
+   "w": 80,
+   "h": 22,
+   "ss": 2,
+   "gripX": 9,
+   "gripY": 18
+  },
+  "stapler": {
+   "w": 44,
+   "h": 13,
+   "ss": 2,
+   "gripX": 5,
+   "gripY": 5
+  }
+ }
+}

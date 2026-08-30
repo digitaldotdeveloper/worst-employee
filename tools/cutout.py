@@ -58,8 +58,44 @@ def key(path):
     return rgba
 
 
+def strip_ground_line(rgba):
+    """Remove a drawn floor line under a prone figure.
+
+    Asking for a body lying on the ground tends to get a helpful little
+    horizontal rule drawn under it. It keys as opaque, so it both drags the
+    bbox down (breaking the ground anchor) and renders in game as a stray
+    streak under the character. It is trivially distinguishable from a body:
+    it is only a few pixels TALL. So walk up from the bottom and clear any row
+    whose opaque columns have almost no vertical thickness.
+    """
+    a = rgba[..., 3]
+    solid = a > 16
+    if not solid.any():
+        return rgba
+    ys = np.where(solid.any(axis=1))[0]
+    bottom = int(ys.max())
+    # vertical run length ending at each pixel, computed once
+    run = np.zeros_like(solid, dtype=np.int32)
+    run[0] = solid[0]
+    for y in range(1, solid.shape[0]):
+        run[y] = np.where(solid[y], run[y - 1] + 1, 0)
+
+    cleared = 0
+    for y in range(bottom, max(-1, bottom - 12), -1):
+        cols = np.where(solid[y])[0]
+        if len(cols) < 12:
+            continue
+        if np.median(run[y, cols]) <= 4:        # a few px tall => a drawn line
+            rgba[y, cols, 3] = 0
+            solid[y, cols] = False
+            cleared += 1
+        else:
+            break                                # reached real body, stop
+    return rgba
+
+
 def bbox(rgba):
-    ys, xs = np.where(rgba[..., 3] > 0)
+    ys, xs = np.where(rgba[..., 3] > 16)
     if len(xs) == 0:
         return None
     return int(xs.min()), int(ys.min()), int(xs.max()), int(ys.max())
@@ -80,6 +116,8 @@ def main():
     for f in files:
         name = os.path.splitext(f)[0]
         rgba = key(os.path.join(SRC, f))
+        if name in ('down',):
+            rgba = strip_ground_line(rgba)
         bb = bbox(rgba)
         if bb is None:
             problems.append(f'{name}: EMPTY after keying (background may not be green)')
@@ -157,6 +195,14 @@ def main():
         'centreX': round(((d[0] + d[2]) / 2 - x0) * scale, 1),
         'standingH': TARGET_H,
         'poses': sorted(keyed),
+        # Per-pose lowest opaque row, in frame pixels. The shared groundY is
+        # derived from the IDLE pose, which is right for anything standing and
+        # wrong for anything lying flat: a knocked-down body is drawn wherever
+        # the generator felt like putting it on the canvas, so anchoring it to
+        # the standing feet line leaves it hovering. Poses the game marks as
+        # prone anchor to this instead.
+        'poseBottom': {n: round((boxes[n][3] - y0) * scale, 1) for n in sorted(keyed)},
+        'poseTop': {n: round((boxes[n][1] - y0) * scale, 1) for n in sorted(keyed)},
     }
     with open(os.path.join(OUT, 'anchors.json'), 'w') as fh_:
         json.dump(meta, fh_, indent=1)

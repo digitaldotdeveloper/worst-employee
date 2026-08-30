@@ -223,8 +223,9 @@ export const SPRITES = {
   draw(ctx, name, x, groundY, height, flip, alpha = 1) {
     // A single missing frame should not blank the character. One generation in a
     // set can fail or come back unusable; fall back to idle rather than vanish.
+    let key = name;
     let im = (this.tinted && this.tinted[name]) || this.img[name];
-    if (!im) im = (this.tinted && this.tinted.idle) || this.img.idle;
+    if (!im) { key = 'idle'; im = (this.tinted && this.tinted.idle) || this.img.idle; }
     if (!im || !this.meta) return false;
     const m = this.meta;
     const s = height / m.standingH;
@@ -232,7 +233,7 @@ export const SPRITES = {
     ctx.globalAlpha = alpha;
     ctx.translate(x, groundY);
     if (flip) ctx.scale(-1, 1);
-    ctx.drawImage(im, -m.centreX * s, -m.groundY * s, m.frameW * s, m.frameH * s);
+    ctx.drawImage(im, -m.centreX * s, -anchorFor(m, key) * s, m.frameW * s, m.frameH * s);
     ctx.restore();
     return true;
   },
@@ -433,6 +434,20 @@ export const WORLD = {
 // the coworkers and boss did not, because they were still the cut-up skeleton.
 // Same fix, fewer frames each — a coworker never throws a five-hit combo.
 // ---------------------------------------------------------------
+// Poses where the body is ON the floor rather than standing on its feet. These
+// anchor to the frame's own lowest pixel instead of the shared standing ground
+// line — the ground line comes from the idle pose, so a body lying flat hovers
+// above it by however much the generator shifted it up the canvas (measured at
+// 23.5px for the coworkers, which is very visible).
+const PRONE = new Set(['down']);
+
+function anchorFor(meta, pose) {
+  if (PRONE.has(pose) && meta.poseBottom && meta.poseBottom[pose] != null) {
+    return meta.poseBottom[pose];
+  }
+  return meta.groundY;
+}
+
 export const CAST = {
   sets: {},
 
@@ -461,7 +476,8 @@ export const CAST = {
   draw(ctx, name, pose, x, groundY, height, flip, alpha = 1) {
     const s = this.sets[name];
     if (!s) return false;
-    const im = s.img[pose] || s.img.idle;
+    const key = s.img[pose] ? pose : 'idle';
+    const im = s.img[key];
     if (!im) return false;
     const m = s.meta;
     const k = height / m.standingH;
@@ -469,7 +485,7 @@ export const CAST = {
     ctx.globalAlpha = alpha;
     ctx.translate(x, groundY);
     if (flip) ctx.scale(-1, 1);
-    ctx.drawImage(im, -m.centreX * k, -m.groundY * k, m.frameW * k, m.frameH * k);
+    ctx.drawImage(im, -m.centreX * k, -anchorFor(m, key) * k, m.frameW * k, m.frameH * k);
     ctx.restore();
     return true;
   },
