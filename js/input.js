@@ -14,6 +14,7 @@ export const IN = {
 };
 
 const keys = {};
+const held = {};
 const MAP = {
   a: 'left', arrowleft: 'left', d: 'right', arrowright: 'right',
   w: 'jump', arrowup: 'jump', ' ': 'jump',
@@ -27,8 +28,23 @@ let prev = { jump: false, dodge: false, grab: false, light: false, heavy: false 
 // press entirely — which is exactly what a fast combo is made of.
 const pending = {};
 
+// A keystroke aimed at a text field is not a game input. Without this the
+// gameplay handler preventDefault()s most letters, so the name box in the
+// character creator silently refused to accept them.
+const typing = e => {
+  const t = e.target;
+  return !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable);
+};
+
+export function resetInput() {
+  for (const k in pending) delete pending[k];
+  for (const k in keys) keys[k] = false;
+  for (const k in held) held[k] = false;
+}
+
 export function initInput(canvas) {
   addEventListener('keydown', e => {
+    if (typing(e)) return;
     const k = MAP[e.key.toLowerCase()];
     if (!k) return;
     if (!keys[k]) pending[k] = true;
@@ -36,6 +52,7 @@ export function initInput(canvas) {
     e.preventDefault();
   });
   addEventListener('keyup', e => {
+    if (typing(e)) return;
     const k = MAP[e.key.toLowerCase()];
     if (k) { keys[k] = false; e.preventDefault(); }
   });
@@ -46,7 +63,6 @@ export function initInput(canvas) {
 
 // ---------------- touch ----------------
 let stickId = null, stickOx = 0, stickAxis = 0;
-const held = {};
 
 function setupTouch() {
   const zone = document.getElementById('stickZone');

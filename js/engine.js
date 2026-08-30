@@ -188,6 +188,10 @@ export class World {
       if (!b.static) b.vy *= 0.4;
     }
 
+    // Walking into a person is not a collision event. rel > 90 is below normal
+    // walking speed, so ordinary contact was firing the whole impact pipeline.
+    const isPerson = x => x.type === 'npc' || x.type === 'boss' || x.type === 'player';
+    if (isPerson(a) && isPerson(b)) return;
     if (rel > 90) this._impact(a, b, rel);
   }
 

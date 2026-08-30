@@ -60,14 +60,17 @@ html,body{height:100%;overflow:hidden;background:#0a0b0e;
 
 #btnPad{position:absolute;right:14px;bottom:14px;width:196px;height:196px;pointer-events:none}
 .tb{position:absolute;pointer-events:auto;border:2px solid rgba(255,255,255,.22);
-  background:rgba(255,255,255,.09);color:#fff;font-weight:800;font-size:10px;
-  letter-spacing:.08em;border-radius:50%;backdrop-filter:blur(3px)}
+  background:rgba(255,255,255,.09);color:#fff;border-radius:50%;backdrop-filter:blur(3px);
+  display:flex;align-items:center;justify-content:center;padding:0}
+.tb svg{width:46%;height:46%;fill:none;stroke:currentColor;stroke-width:2.1;
+  stroke-linecap:round;stroke-linejoin:round}
+.tb-hit svg{width:52%;height:52%;fill:currentColor;stroke:none}
 .tb:active,.tb.down{background:rgba(255,255,255,.3);transform:scale(.93)}
-.tb-hit  {right:0;   bottom:56px; width:84px;height:84px;font-size:13px;
+.tb-hit  {right:0;   bottom:56px; width:84px;height:84px;
           background:rgba(255,110,110,.2);border-color:rgba(255,120,120,.45)}
 .tb-jump {right:78px;bottom:0;    width:70px;height:70px}
-.tb-dodge{right:96px;bottom:78px; width:62px;height:62px;font-size:9px}
-.tb-grab {right:14px;bottom:146px;width:62px;height:62px;font-size:9px;
+.tb-dodge{right:96px;bottom:78px; width:62px;height:62px}
+.tb-grab {right:14px;bottom:146px;width:62px;height:62px;
           background:rgba(120,190,255,.16);border-color:rgba(120,190,255,.4)}
 
 /* ---------------- SCREENS ---------------- */
@@ -222,3 +225,22 @@ h3{font-size:11px;letter-spacing:.18em;color:#8d93a6;margin:18px 0 7px}
   border-radius:3px;background:rgba(255,255,255,.07);color:#8d93a6;border:1px solid rgba(255,255,255,.1)}
 .wpn .sk span.got{background:rgba(110,184,122,.16);color:#8fd6a0;border-color:rgba(110,184,122,.35)}
 #hWeapon{color:#7fd1ff;font-size:12px}
+
+/* ---------------- ruin + sabotage jobs ---------------- */
+.stat.ruin{flex-direction:column;align-items:flex-start;gap:0}
+.stat.ruin .v{font-size:19px;color:#ff8a5c;line-height:1}
+.stat.ruin .tier{font-size:8px;letter-spacing:.14em;color:#ffb08a;font-weight:800;margin-top:2px}
+.jobs{position:absolute;right:12px;top:74px;display:flex;flex-direction:column;gap:4px;
+  align-items:flex-end;pointer-events:none;max-width:46%}
+.job{background:rgba(10,11,14,.62);border-left:2px solid rgba(255,215,94,.5);
+  padding:4px 8px;border-radius:0 4px 4px 0;backdrop-filter:blur(3px);text-align:right}
+.job b{display:block;font-size:9px;letter-spacing:.12em;color:#ffd75e;font-weight:900}
+.job span{font-size:9px;color:#9aa1b5}
+.job.done{border-left-color:#6eb87a;opacity:.6}
+.job.done b{color:#8fd6a0;text-decoration:line-through}
+.rank i{display:block;font-style:normal;font-size:10px;color:#8d93a6;letter-spacing:.04em;margin-top:5px}
+.ladder{font-size:9px;letter-spacing:.2em;color:#8d93a6;margin-bottom:6px}
+.ladder b{color:#7fd1ff;margin-left:6px;letter-spacing:.08em}
+
+.tb-swap{right:96px;bottom:150px;width:50px;height:50px;
+  background:rgba(255,215,94,.14);border-color:rgba(255,215,94,.42);color:#ffd75e}

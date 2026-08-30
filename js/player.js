@@ -273,7 +273,25 @@ export class Player extends Body {
       if (dx > 56 || dy > 44) continue;
       if (dx < vd) { vd = dx; victim = c; }
     }
-    if (victim) { s.annoy(victim); return; }
+    if (victim) {
+      // Tap = pester. But if they are already fed up with you, you pick them
+      // clean up off the floor instead — which is both funnier and a much
+      // bigger act of sabotage than anything you can do to a printer.
+      if (victim.annoyed2 >= 2 && !victim.held) {
+        victim.held = true;
+        victim.mode = 'panic';
+        victim.hoisted = true;
+        this.carrying = victim;
+        s.hoisted = (s.hoisted || 0) + 1;
+        FX.float(victim.cx, victim.y - 16, 'HOISTED', '#ff9a5c', 13);
+        SFX.grab();
+        SFX.hit(0.4);
+        s.toast(`"PUT ME DOWN"  — ${victim.name}, ${victim.title || 'staff'}`);
+        return;
+      }
+      s.annoy(victim);
+      return;
+    }
 
     let best = null, bestD = 999;
     for (const b of s.world.bodies) {
@@ -295,6 +313,15 @@ export class Player extends Body {
     const b = this.carrying;
     if (!b) return;
     b.held = false;
+    if (b.hoisted) {
+      // A hurled colleague is a projectile AND a casualty.
+      b.hoisted = false;
+      b.knock(this.s);
+      b.downT = 3.4;
+      this.s.ruinFromThrow && this.s.ruinFromThrow(b);
+      FX.float(b.cx, b.y - 16, 'WHEEEE', '#ffd75e', 14);
+      SFX.hit(0.8);
+    }
     b.x = this.cx + this.face * 22;
     b.y = this.cy - b.h / 2 - 10;
     b.vx = this.face * PLAYER.throwSpeed;

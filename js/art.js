@@ -188,23 +188,36 @@ export const SPRITES = {
   outfit: 'base',
   missing: new Set(),
 
+  _gen: 0,
+
+  // Loads into a LOCAL map and swaps atomically. Assigning into this.img while
+  // frames were still arriving meant an outfit change briefly left the set empty
+  // — the player and the creator preview vanished while the weapon kept drawing —
+  // and two overlapping loads could interleave into a mixed set.
   async load(base = 'assets/player/base/') {
+    const gen = ++this._gen;
+    let meta;
     try {
       const r = await fetch(base + 'anchors.json');
       if (!r.ok) return false;
-      this.meta = await r.json();
+      meta = await r.json();
     } catch (e) { return false; }
 
-    this.img = {};
-    const jobs = this.meta.poses.map(name => new Promise(res => {
+    const img = {};
+    await Promise.all(meta.poses.map(name => new Promise(res => {
       const im = new Image();
-      im.onload = () => { this.img[name] = im; res(); };
+      im.onload = () => { img[name] = im; res(); };
       im.onerror = () => { this.missing.add(name); res(); };
       im.src = base + name + '.png';
-    }));
-    await Promise.all(jobs);
-    this.ready = Object.keys(this.img).length > 0;
-    return this.ready;
+    })));
+    if (gen !== this._gen) return false;          // a newer load won
+    if (!Object.keys(img).length) return false;   // keep the old set rather than blank
+
+    this.meta = meta;
+    this.img = img;
+    this.tinted = null;
+    this.ready = true;
+    return true;
   },
 
   has(name) { return !!this.img[name]; },
@@ -332,6 +345,11 @@ const SKIN_HUE = [8, 48];       // forearms, neck, face
 
 export function recolourSprites(look, skinHex, shirtHex) {
   if (!SPRITES.ready) return;
+  // Re-tinting 28 full-size frames on every swatch click is why the creator felt
+  // sticky. Nothing changed, nothing to do.
+  const tk = SPRITES.outfit + '|' + skinHex + '|' + shirtHex;
+  if (SPRITES._tintKey === tk && SPRITES.tinted) return;
+  SPRITES._tintKey = tk;
   const [sh] = hexHsl(shirtHex);
   const shs = hexHsl(shirtHex)[1];
   const [kh, ks] = hexHsl(skinHex);

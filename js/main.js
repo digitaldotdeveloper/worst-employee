@@ -11,7 +11,8 @@ import { SFX } from './audio.js';
 import { EventSystem } from './events.js';
 import { WEAPONS, SHOP_ORDER, loadCareer, saveCareer, defaultCareer,
          bump, checkUnlocks, buy, hasSkill } from './weapons.js';
-import { IN, initInput, pollInput } from './input.js';
+import { Sabotage, RUIN, ruinTier, rankFor } from './sabotage.js';
+import { IN, initInput, pollInput, resetInput } from './input.js';
 import { ChaosSystem } from './chaos.js';
 import { Player } from './player.js';
 import { buildOffice, angerStage } from './office.js';
@@ -41,6 +42,7 @@ const S = {
   shiftT: 0,
   look: loadLook() || defaultLook(),
   career: loadCareer(),
+  ruin: 0, deskDown: 0, knocked: 0, killed: {}, roomKills: {}, jobsDone: 0,
   salaryAcc: 0,
   cleanT: 0,
   room: null,
@@ -73,7 +75,15 @@ const S = {
 
   damageBody(b, dmg, src) {
     if (!b || b.dead) return;
-    if (b.type === 'npc') { b.knock(this); this.addAnger(1.4); return; }
+    if (b.type === 'npc') {
+      // A scrape is not a hit. Only a real blow puts someone on the floor.
+      if (dmg < 18) { b.hurtT = Math.max(b.hurtT, 0.16); return; }
+      b.knock(this);
+      this.knocked = (this.knocked || 0) + 1;
+      this.ruin += RUIN.workerDown;
+      this.addAnger(1.4);
+      return;
+    }
     if (b.type === 'boss') {
       if (!b.fighting) { this.addAnger(6); return; }
       b.hp -= dmg; b.hurtT = 0.16;
@@ -88,6 +98,18 @@ const S = {
       b.hp = 0;
       this.destroyed++;
       this.damage += b.value;
+
+      // RUIN is the real score: not what it cost, but how much of the working
+      // day stopped because of it.
+      this.killed[b.kind] = (this.killed[b.kind] || 0) + 1;
+      const rm = roomAt(b.cx);
+      if (rm) this.roomKills[rm.id] = (this.roomKills[rm.id] || 0) + 1;
+      let r = 40;
+      if (b.kind === 'coffee') r = RUIN.coffeeDead;
+      else if (b.kind === 'cooler') r = RUIN.waterDead;
+      else if (b.kind === 'printer') r = RUIN.printerDead;
+      else if (b.kind === 'monitor') { r = RUIN.deskDown; this.deskDown++; }
+      this.ruin += r;
       this.productivity = Math.max(0, this.productivity - 1.6);
       this.addAnger(b.value > 500 ? 5 : 2);
       const mat = ({ monitor: 'glass', stack: 'paper', printer: 'plastic', bin: 'metal',
@@ -285,6 +307,8 @@ function buildShop() {
 // GAME FLOW
 // ---------------------------------------------------------------
 function startShift() {
+  if (S.endTimer) { clearTimeout(S.endTimer); S.endTimer = null; }
+  S.shiftId = (S.shiftId || 0) + 1;
   SFX.resume();
   SFX.startMusic();
   S.mode = 'play';
@@ -292,7 +316,11 @@ function startShift() {
   S.coins = 0; S.damage = 0; S.destroyed = 0; S.annoyed = 0;
   S.hits = 0; S.playerHits = 0; S.coffees = 0; S.coffeeSpend = 0; S.annoyCount = 0;
   S.chainsMade = 0; S.bestChain = 0;
-  S.salary = 0; S.salaryAcc = 0; S.cleanT = 0; S.lastDamage = 0;
+  S.salary = 0; S.salaryAcc = 0; S.cleanT = 0; S.lastDamage = 0; S.coffeeCd = 0;
+  S.ruin = 0; S.deskDown = 0; S.knocked = 0; S.killed = {}; S.roomKills = {}; S.jobsDone = 0;
+  S.sabotage = S.sabotage || new Sabotage(S);
+  S.career.lastJobs = S.sabotage.roll(S.career.lastJobs);
+  saveCareer(S.career);
   S.productivity = 100; S.anger = 0; S.stageIdx = 0;
   S.speedMul = 1; S.chaosMul = 1; S.boostT = 0;
 
@@ -312,8 +340,9 @@ function startShift() {
 
   applyLook();
 
+  resetInput();
   FX.clear();
-  hide('title'); hide('report'); hide('help'); hide('create'); hide('shop');
+  hide('title'); hide('report'); hide('help'); hide('create'); hide('shop'); hide('boost');
   show('hud');
   if (HAS_TOUCH) show('touch'); else hide('touch');
   resize();
@@ -342,6 +371,7 @@ S.annoy = function (c) {
   S.coins += pay;
   S.productivity = Math.max(0, S.productivity - 1.1);
   S.addAnger(2.2);
+  S.ruin += RUIN.workerAnnoyed;
   S.annoyCount = (S.annoyCount || 0) + 1;
 
   FX.float(c.cx, c.y - 12, '+' + pay, '#ffd75e', 12);
@@ -351,6 +381,11 @@ S.annoy = function (c) {
 };
 
 S.bumpCounter = key => bump(S, key);
+S.ruinFromThrow = b => {
+  S.ruin += RUIN.workerDown * 2;
+  S.addAnger(6);
+  toast(`${b.name} has been thrown across the office.`);
+};
 
 // D5 — a wage. Destruction is opt-in, so a player who breaks nothing still has
 // to be able to afford the shop. Standing around earns slowly; a clean streak
@@ -360,7 +395,7 @@ function tickSalary(dt) {
   S.cleanT = S.damage === S.lastDamage ? S.cleanT + dt : 0;
   S.lastDamage = S.damage;
   const streak = 1 + Math.min(1.5, S.cleanT / 18);
-  S.salaryAcc += dt * 34 * streak;
+  S.salaryAcc += dt * 14 * streak;   // a wage, not a living
   if (S.salaryAcc >= 1) {
     const n = Math.floor(S.salaryAcc);
     S.salaryAcc -= n;
@@ -409,13 +444,19 @@ function bossDown() {
   b.solid = false;
   FX.kick(18, 0.25);
   toast('"...You know what? You\'ve got potential."', 'boss');
-  setTimeout(() => { if (S.mode === 'play') endShift(true); }, 2600);
+  // stamp the shift: without this the timer could end the NEXT shift
+  const myShift = S.shiftId;
+  S.endTimer = setTimeout(() => {
+    if (S.mode === 'play' && S.shiftId === myShift) endShift(true);
+  }, 2600);
 }
 
 function endShift(promoted = false) {
   S.mode = 'report';
   hide('hud'); hide('touch'); hide('rotate');
 
+  if (S.chaos) S.chaos.cash();     // a chain still alive must still count
+  S.career.ruin = (S.career.ruin || 0) + Math.round(S.ruin);
   bankShift();
   const prod = Math.max(0, S.productivity).toFixed(0);
   const score = Math.round(
@@ -448,11 +489,23 @@ function endShift(promoted = false) {
     ['COINS EARNED', S.coins.toLocaleString()],
     ['BANK', S.career.bank.toLocaleString()],
     ['CHAOS SCORE', score.toLocaleString()],
+    ['SABOTAGE JOBS', `${S.jobsDone || 0} / 3`],
+    ['RUIN', Math.round(S.ruin).toLocaleString()],
   ];
   $('reportRows').innerHTML = rows
     .map(([k, v]) => `<div><span class="lk">${k}</span><span class="lv">${v}</span></div>`)
     .join('');
-  $('reportRank').textContent = promoted ? 'PROMOTION APPROVED' : rank;
+  const tier = ruinTier(S.ruin);
+  const rk = rankFor(S.career.ruin || 0);
+  $('reportRank').textContent = tier.name;
+  $('reportNote').textContent = tier.note;
+  $('reportRankRow').textContent = rk.rank.title
+    + (rk.next ? `  ·  next: ${rk.next.title} at ${rk.next.at.toLocaleString()} ruin` : '  ·  TOP OF THE LADDER');
+  if (rk.rank.title !== S.career.title) {
+    S.career.title = rk.rank.title;
+    saveCareer(S.career);
+    toast('PROMOTED — ' + rk.rank.title, 'boss');
+  }
   SFX.stopMusic();
   if (promoted) SFX.promote(); else SFX.ui(false);
   S.lastShare =
@@ -485,6 +538,7 @@ function update(dt) {
   S.world.step(dt);
   S.chaos.step(dt);
   S.events.step(dt);
+  S.sabotage.step();
   tickSalary(dt);
 
   // Announce the room you walk into. Rooms are only worth having if arriving in
@@ -498,7 +552,10 @@ function update(dt) {
 
   // coffee machine interaction
   const cm = S.coffeeMachine;
-  if (cm && !cm.broken && Math.abs(cm.cx - S.player.cx) < 46 && (S.boostT <= 0.01 || S.freeCoffee)) {
+  if (S.coffeeCd > 0) S.coffeeCd -= dt;
+  if (cm && !cm.broken && S.coffeeCd <= 0 &&
+      Math.abs(cm.cx - S.player.cx) < 46 && (S.boostT <= 0.01 || S.freeCoffee)) {
+    S.coffeeCd = 0.9;   // per-cup gate, independent of the 12s boost
     if (S.player.grounded && Math.abs(S.player.vx) < 40) {
       S.coffees++;
       S.coffeeSpend += COFFEE.capsuleCost;
@@ -532,12 +589,25 @@ function updateHud() {
   $('hCoins').textContent = S.coins.toLocaleString();
   const wq = WEAPONS[S.player.equipped] || WEAPONS.fists;
   $('hWeapon').textContent = wq.name;
-  $('hDamage').textContent = '$' + S.damage.toLocaleString();
+  $('hRuin').textContent = Math.round(S.ruin).toLocaleString();
+  $('hRuinTier').textContent = ruinTier(S.ruin).name;
   $('hProd').textContent = Math.max(0, S.productivity).toFixed(0) + '%';
   const st = angerStage(S.anger);
   SFX.setTension(S.anger / 100);
   $('hAngerStage').textContent = st.name;
   $('hAngerFill').style.width = S.anger + '%';
+
+  // sabotage briefing
+  const jl = $('jobs');
+  if (S.sabotage && S.sabotage.active.length) {
+    const sig = S.sabotage.active.map(j => j.id + (j.complete ? '1' : '0')).join(',');
+    if (jl._sig !== sig) {
+      jl._sig = sig;
+      jl.innerHTML = S.sabotage.active.map(j =>
+        `<div class="job${j.complete ? ' done' : ''}"><b>${j.name}</b><span>${j.complete ? j.done : j.brief}</span></div>`
+      ).join('');
+    }
+  }
 
   const ev = $('eventBar');
   if (S.events && S.events.active) {
@@ -615,6 +685,16 @@ function render() {
     if (c.art && CAST.has(c.art)) {
       CAST.draw(ctx, c.art, npcPoseName(c, c.animT),
         c.cx, c.y + c.h, c.h * 1.10, c.face < 0, 1);
+      if (c.mode !== 'down' && Math.abs(c.cx - S.player.cx) < 190) {
+        const fs = 1 / S.zoom;
+        ctx.textAlign = 'center';
+        ctx.fillStyle = 'rgba(230,235,250,.62)';
+        ctx.font = `800 ${9 * fs * 1.7}px system-ui`;
+        ctx.fillText(c.name, c.cx, c.y - 14);
+        ctx.fillStyle = 'rgba(140,150,180,.6)';
+        ctx.font = `700 ${7 * fs * 1.7}px system-ui`;
+        ctx.fillText(c.title || 'STAFF', c.cx, c.y - 6);
+      }
     } else if (c.art && RIG.cast[c.art]) {
       RIG.drawCast(ctx, c.art, RIG.npcPose(c, c.animT, c.mode),
         c.cx, c.y + c.h, c.h * 1.06, c.face < 0, 1);
@@ -878,6 +958,26 @@ function frame(now) {
 // ---------------------------------------------------------------
 // WIRING
 // ---------------------------------------------------------------
+// Phones leave the browser chrome in place on rotate, which eats a third of a
+// landscape screen. Ask for fullscreen (and a landscape lock where the browser
+// allows it) on the first real gesture — it can only be requested from one.
+function goFullscreen() {
+  const el = document.documentElement;
+  const fn = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+  if (fn && !document.fullscreenElement) {
+    try {
+      const r = fn.call(el);
+      if (r && r.then) r.then(() => {
+        if (screen.orientation && screen.orientation.lock) {
+          screen.orientation.lock('landscape').catch(() => {});
+        }
+      }).catch(() => {});
+    } catch (e) { /* desktop, or the browser said no */ }
+  }
+  setTimeout(resize, 220);
+}
+addEventListener('fullscreenchange', () => setTimeout(resize, 120));
+
 $('verTag').textContent = 'v' + VERSION;
 SPRITES.load().then(ok => {
   console.log(ok ? 'player sprites loaded: ' + Object.keys(SPRITES.img).length
@@ -898,10 +998,12 @@ resize();
 requestAnimationFrame(frame);
 
 for (const b of document.querySelectorAll('button')) b.addEventListener('pointerdown', () => SFX.resume());
+$('btnStart').addEventListener('pointerdown', goFullscreen);
+$('btnHired').addEventListener('pointerdown', goFullscreen);
 $('btnStart').onclick = () => { SFX.resume(); SFX.ui(); openCreator(); };
 $('btnAgain').onclick = startShift;
 $('btnHired').onclick = () => {
-  S.look.name = ($('cName').value || 'FIRASS').trim().toUpperCase().slice(0, 12);
+  S.look.name = ($('cName').value.trim().toUpperCase().slice(0, 12)) || 'FIRASS';
   saveLook(S.look);
   startShift();
 };
@@ -913,7 +1015,23 @@ $('cName').oninput = () => { S.look.name = $('cName').value.toUpperCase(); };
 $('btnEnd').onclick = () => endShift(false);
 $('btnHelp').onclick = () => { hide('title'); show('help'); };
 $('btnShop').onclick = () => { SFX.resume(); SFX.ui(); buildShop(); hide('title'); show('shop'); };
-$('btnShopBack').onclick = () => { SFX.ui(false); hide('shop'); show('title'); };
+function cycleWeapon() {
+  const owned = S.career.owned.filter(id => WEAPONS[id]);
+  if (owned.length < 2) { toast('Buy something first.'); SFX.ui(false); return; }
+  const i = (owned.indexOf(S.player.equipped) + 1) % owned.length;
+  S.player.equipped = owned[i];
+  S.career.equipped = owned[i];
+  saveCareer(S.career);
+  toast(WEAPONS[owned[i]].name);
+  SFX.ui(true);
+}
+$('btnSwap').addEventListener('pointerdown', e => { e.preventDefault(); cycleWeapon(); });
+$('btnShopFromReport').onclick = () => { buildShop(); hide('report'); show('shop'); S.shopFrom = 'report'; };
+$('btnShopBack').onclick = () => {
+  SFX.ui(false); hide('shop');
+  show(S.shopFrom === 'report' ? 'report' : 'title');
+  S.shopFrom = null;
+};
 $('btnHelpBack').onclick = () => { hide('help'); show('title'); };
 $('btnShare').onclick = async () => {
   try {
@@ -924,9 +1042,13 @@ $('btnShare').onclick = async () => {
 
 // keyboard shortcut: R restarts, ESC ends the shift
 addEventListener('keydown', e => {
+  // Typing a name containing V used to flip the renderer mid-creator.
+  const tg = e.target;
+  if (tg && (tg.tagName === 'INPUT' || tg.tagName === 'TEXTAREA' || tg.isContentEditable)) return;
   if (S.mode === 'play' && e.key.toLowerCase() === 'r') startShift();
   if (S.mode === 'play' && e.key === 'Escape') endShift(false);
-  if (e.key.toLowerCase() === 'v') {                       // cycle the renderers
+  if (S.mode === 'play' && e.key.toLowerCase() === 'q') cycleWeapon();
+  if (S.mode === 'play' && e.key.toLowerCase() === 'v') {                       // cycle the renderers
     if (S.useRig) { S.useRig = false; S.useArt = true; toast('KEY POSES'); }
     else if (S.useArt) { S.useArt = false; toast('GREYBOX'); }
     else { S.useRig = true; S.useArt = true; toast('RIG'); }

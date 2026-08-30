@@ -59,7 +59,15 @@ export function loadLook() {
   } catch (e) { return null; }
 }
 
-const val = (look, key) => OPTIONS[key].values[look[key] ?? 0];
+// Hardened: the v2 rewrite deleted hair/trousers/shoes/accessory from OPTIONS,
+// but the greybox fallback still asked for them, so drawCharacter threw a
+// TypeError on every call the moment sprites were unavailable.
+const val = (look, key) => {
+  const d = OPTIONS[key];
+  if (!d) return null;
+  const i = Math.min(Math.max(0, look[key] | 0), d.values.length - 1);
+  return d.values[i];
+};
 
 // ---------------------------------------------------------------
 // DRAW
@@ -78,15 +86,15 @@ export function drawCharacter(ctx, look, opt = {}) {
     w = 34, h = 62, t = 0, state = 'idle', flip = false, squash = 1, alpha = 1,
   } = opt;
 
-  const skin = val(look, 'skin');
-  const hairCol = val(look, 'hairColour');
-  const shirtCol = val(look, 'shirtColour');
-  const trouserCol = val(look, 'trouserColour');
-  const hairStyle = val(look, 'hair');
-  const shirtStyle = val(look, 'shirt');
-  const trouserStyle = val(look, 'trousers');
-  const shoeStyle = val(look, 'shoes');
-  const acc = val(look, 'accessory');
+  const skin = val(look, 'skin') || '#e8b98c';
+  const hairCol = val(look, 'hairColour') || '#241c14';
+  const shirtCol = val(look, 'shirtColour') || '#7fd1ff';
+  const trouserCol = val(look, 'trouserColour') || '#3c4256';
+  const hairStyle = val(look, 'hair') || 'short';
+  const shirtStyle = val(look, 'shirt') || 'tee';
+  const trouserStyle = val(look, 'trousers') || 'slacks';
+  const shoeStyle = val(look, 'shoes') || 'sneakers';
+  const acc = val(look, 'accessory') || 'none';
 
   const H = h * squash;
   const dir = flip ? -1 : 1;

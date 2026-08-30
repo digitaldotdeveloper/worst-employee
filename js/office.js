@@ -247,16 +247,19 @@ export function buildOffice(world, s) {
   P('bin', 4160);
 
   // ── the cast, seated where they belong ────────────────────────────────
+  // Titles matter: ruining a SENIOR DEVELOPER's day is funnier than ruining
+  // "coworker 3", and it tells you who is worth bothering.
   const staff = [
-    ['SAMI',  'npc-sami', 800],
-    ['RITA',  'npc-rita', 1120],
-    ['OMAR',  'npc-omar', 1560],
-    ['LEA',   'npc-rita', 1880],
-    ['KARIM', 'npc-sami', 2560],   // break room
-    ['NOUR',  'npc-omar', 3070],   // meeting room
+    ['SAMI',  'SENIOR DEVELOPER', 'npc-sami', 800],
+    ['RITA',  'ACCOUNTS',         'npc-rita', 1120],
+    ['OMAR',  'IT SUPPORT',       'npc-omar', 1560],
+    ['LEA',   'MARKETING',        'npc-rita', 1880],
+    ['KARIM', 'INTERN',           'npc-sami', 2560],   // break room
+    ['NOUR',  'HR',               'npc-omar', 3070],   // meeting room
   ];
-  for (const [name, art, x] of staff) {
+  for (const [name, title, art, x] of staff) {
     const c = new Coworker(x, name);
+    c.title = title;
     c.art = art;
     c.homeX = x;                    // they drift, but they belong somewhere
     world.add(c); s.coworkers.push(c);

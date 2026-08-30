@@ -35,7 +35,7 @@ export class ChaosSystem {
     // Depth 1 pays NOTHING: the first hit is a chain seed, not income.
     // Paying per hit turns any fast weapon into a coin printer and lets you
     // farm an already-broken prop forever.
-    const coins = Math.round(CHAOS.coinBase * (depth - 1) * this.s.chaosMul);
+    const coins = Math.round(CHAOS.coinBase * (depth - 1) * this.s.chaosMul * (this.s.chaosDrill || 1));
     if (coins > 0) { this.pending += coins; this.s.coins += coins; }
 
     if (depth >= 2) {
@@ -58,6 +58,14 @@ export class ChaosSystem {
     const src = aHot ? a : b;
     const dst = aHot ? b : a;
     if (!dst || dst === src) return;
+
+    // THE PLAYER IS NEVER A CHAIN NODE, in either direction.
+    // Without this, a thrown or smashed prop bouncing off you ignites YOU — and
+    // for the next few seconds merely walking into a colleague ran the chain
+    // logic, damaged them and knocked them flat. That is exactly the "I hit
+    // people just by passing them" bug, and it was invisible because
+    // damageBody ignores the player.
+    if (src.type === 'player' || dst.type === 'player') return;
     if (dst.chaosUntil > now && dst.chainDepth >= src.chainDepth) return;  // no ping-pong
 
     this.ignite(dst, src.chainDepth + 1, dst.label || dst.kind);
@@ -69,6 +77,12 @@ export class ChaosSystem {
   }
 
   cash() {
+    // Clear every link before banking. chainDepth used to persist forever, so a
+    // prop that once reached depth 5 kept paying 4 links on every later swing —
+    // the exact coin printer the depth-1-pays-nothing rule exists to prevent.
+    for (const b of this.s.world.bodies) {
+      if (b.chainDepth) { b.chainDepth = 0; b.chaosUntil = 0; }
+    }
     if (this.chain >= 2) {
       const n = this.chain;
       FX.float(this.s.cam.x + VIEW.w / this.s.zoom / 2, this.s.cam.y + 90, `CHAOS ×${n}`, '#ffd75e', 30);

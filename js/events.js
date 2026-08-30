@@ -30,11 +30,15 @@ export const EVENTS = [
         }
       } else {
         s.hrHeat = Math.max(0, (s.hrHeat || 0) - dt * 0.6);
-        s.coins += Math.round(38 * dt);          // paid to do nothing
+        // Accumulate: Math.round(38 * dt) pays 58% too much at 60Hz and
+        // literally nothing above ~76Hz.
+        s.hrAcc = (s.hrAcc || 0) + 38 * dt;
+        const n = Math.floor(s.hrAcc);
+        if (n) { s.hrAcc -= n; s.coins += n; }
       }
     },
     end(s) {
-      s.hrWatching = false; s.hrHeat = 0;
+      s.hrWatching = false; s.hrHeat = 0; s.hrAcc = 0;
       s.toast('HR has left. "Model employee."');
     },
   },
@@ -46,10 +50,10 @@ export const EVENTS = [
     start(s) {
       SFX.alarm();
       for (const c of s.coworkers) { c.mode = 'panic'; c.timer = 11; }
-      s.chaosMul *= 1.5;
+      s.chaosDrill = 1.5;   // separate multiplier: the coffee boost ASSIGNS chaosMul
     },
     tick(s) { if (Math.random() < 0.02) SFX.alarm(); },
-    end(s) { s.chaosMul /= 1.5; s.toast('Drill over. Back to work.'); },
+    end(s) { s.chaosDrill = 1; s.toast('Drill over. Back to work.'); },
   },
   {
     id: 'freecoffee',

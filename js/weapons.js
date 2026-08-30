@@ -122,7 +122,7 @@ export const WEAPONS = {
   },
 
   keyboard: {
-    id: 'keyboard', name: 'KEYBOARD', cost: 900, tag: 'CHEAP',
+    id: 'keyboard', name: 'KEYBOARD', cost: 2500, tag: 'CHEAP',
     art: 'keyboard',
     desc: 'Ripped out of someone\'s desk. Long, light, and it sprays keycaps '
         + 'everywhere, which starts chains a fist cannot reach.',
@@ -138,7 +138,7 @@ export const WEAPONS = {
   },
 
   stapler: {
-    id: 'stapler', name: 'STAPLER', cost: 3200, tag: 'CHAIN',
+    id: 'stapler', name: 'STAPLER', cost: 9000, tag: 'CHAIN',
     art: 'stapler',
     desc: 'Heavy-duty, and it barely knocks anything back. That is the point — '
         + 'things stay exactly where you can hit them again.',
@@ -159,7 +159,7 @@ export const WEAPONS = {
   },
 
   pan: {
-    id: 'pan', name: 'FRYING PAN', cost: 7500, tag: 'STUN',
+    id: 'pan', name: 'FRYING PAN', cost: 22000, tag: 'STUN',
     art: 'pan',
     desc: 'From the break room. Nobody knows whose it is. Connects with a noise '
         + 'that stops a room, and stops people too.',
@@ -179,7 +179,7 @@ export const WEAPONS = {
   },
 
   hammer: {
-    id: 'hammer', name: 'HAMMER', cost: 16000, tag: 'DEMOLITION',
+    id: 'hammer', name: 'HAMMER', cost: 48000, tag: 'DEMOLITION',
     art: 'hammer',
     desc: 'Found in a maintenance cupboard nobody locks. Heavy enough that the '
         + 'heavy attack becomes a ground slam that levels everything nearby.',
@@ -200,7 +200,7 @@ export const WEAPONS = {
   },
 
   rocketchair: {
-    id: 'rocketchair', name: 'ROCKET CHAIR', cost: 38000, tag: 'CHAOS',
+    id: 'rocketchair', name: 'ROCKET CHAIR', cost: 110000, tag: 'CHAOS',
     art: 'rocketchair',
     desc: 'Two boosters and a lot of duct tape. Dodge becomes a rocket-assisted '
         + 'charge that ploughs through the entire floor.',

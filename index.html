@@ -20,6 +20,7 @@
   <div id="hud" class="hidden">
     <div class="hud-top">
       <div class="hud-left">
+        <div class="stat ruin"><span class="k">RUIN</span><span class="v" id="hRuin">0</span><span class="tier" id="hRuinTier">A NORMAL DAY</span></div>
         <div class="stat"><span class="k">COINS</span><span class="v" id="hCoins">0</span></div>
         <div class="stat"><span class="k">WEAPON</span><span class="v" id="hWeapon">FISTS</span></div>
         <div class="stat"><span class="k">DAMAGE</span><span class="v" id="hDamage">$0</span></div>
@@ -39,6 +40,7 @@
       <div id="chainBar" class="chain-bar"><i></i></div>
     </div>
 
+    <div id="jobs" class="jobs"></div>
     <div id="eventBar" class="event-bar hidden">
       <div id="eventName">EVENT</div>
       <div class="event-fill"><i id="eventFill"></i></div>
@@ -51,10 +53,16 @@
   <div id="touch" class="hidden">
     <div id="stickZone"><div id="stickBase"><div id="stickNub"></div></div></div>
     <div id="btnPad">
-      <button class="tb tb-dodge" data-btn="dodge">DODGE</button>
-      <button class="tb tb-grab"  data-btn="grab">GRAB</button>
-      <button class="tb tb-jump"  data-btn="jump">JUMP</button>
-      <button class="tb tb-hit"   data-btn="hit">HIT</button>
+      <button class="tb tb-dodge" data-btn="dodge" aria-label="Dodge">
+        <svg viewBox="0 0 24 24"><path d="M4 12h11M9 7l-5 5 5 5M20 5v14" /></svg></button>
+      <button class="tb tb-grab"  data-btn="grab" aria-label="Grab">
+        <svg viewBox="0 0 24 24"><path d="M8 11V5.5a1.5 1.5 0 0 1 3 0V11m0-.5V4.5a1.5 1.5 0 0 1 3 0V11m0-.5V6a1.5 1.5 0 0 1 3 0v7M5 12v-.5a1.5 1.5 0 0 1 3 0V15c0 3 2 5 5 5h1a5 5 0 0 0 5-5v-2" /></svg></button>
+      <button class="tb tb-jump"  data-btn="jump" aria-label="Jump">
+        <svg viewBox="0 0 24 24"><path d="M12 20V5M6 11l6-6 6 6" /></svg></button>
+      <button class="tb tb-hit"   data-btn="hit" aria-label="Hit">
+        <svg viewBox="0 0 24 24"><path d="M13 3L5 13h6l-2 8 8-10h-6z" /></svg></button>
+      <button class="tb tb-swap"  id="btnSwap" aria-label="Switch weapon">
+        <svg viewBox="0 0 24 24"><path d="M4 8h13l-3-3M20 16H7l3 3" /></svg></button>
     </div>
   </div>
 
@@ -166,8 +174,10 @@
     <div class="screen-inner">
       <h2>SHIFT REPORT</h2>
       <div class="rows" id="reportRows"></div>
-      <div class="rank">RANK<br><b id="reportRank">&mdash;</b></div>
+      <div class="rank">THE DAY YOU CAUSED<br><b id="reportRank">&mdash;</b><i id="reportNote"></i></div>
+      <div class="ladder">POSITION <b id="reportRankRow">INTERN</b></div>
       <button id="btnAgain" class="big-btn">ANOTHER SHIFT</button>
+      <button id="btnShopFromReport" class="ghost-btn wide">SUPPLY CUPBOARD</button>
       <button id="btnShare" class="ghost-btn wide">COPY RESULT</button>
     </div>
   </div>
