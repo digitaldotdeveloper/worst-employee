@@ -221,7 +221,10 @@ export const SPRITES = {
 
   // Draw with the feet at (x, groundY) and the body scaled to `height`.
   draw(ctx, name, x, groundY, height, flip, alpha = 1) {
-    const im = (this.tinted && this.tinted[name]) || this.img[name];
+    // A single missing frame should not blank the character. One generation in a
+    // set can fail or come back unusable; fall back to idle rather than vanish.
+    let im = (this.tinted && this.tinted[name]) || this.img[name];
+    if (!im) im = (this.tinted && this.tinted.idle) || this.img.idle;
     if (!im || !this.meta) return false;
     const m = this.meta;
     const s = height / m.standingH;

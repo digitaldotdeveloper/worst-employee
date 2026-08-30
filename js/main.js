@@ -11,7 +11,7 @@ import { IN, initInput, pollInput } from './input.js';
 import { ChaosSystem } from './chaos.js';
 import { Player } from './player.js';
 import { buildOffice, angerStage } from './office.js';
-import { OPTIONS, defaultLook, randomLook, saveLook, loadLook, drawCharacter, drawPortrait, lookColours, lookVariants } from './character.js';
+import { OPTIONS, defaultLook, randomLook, saveLook, loadLook, drawCharacter, drawPortrait, lookColours, lookOutfit, OUTFITS } from './character.js';
 
 const cv = document.getElementById('game');
 const ctx = cv.getContext('2d');
@@ -159,8 +159,13 @@ function buildOptionRows() {
     sws.className = 'swatches';
     def.values.forEach((v, i) => {
       const b = document.createElement('button');
-      b.className = 'sw' + (def.kind === 'colour' ? ' col' : '');
-      if (def.kind === 'colour') b.style.background = v; else b.textContent = v;
+      b.className = 'sw' + (def.kind === 'colour' ? ' col' : (def.kind === 'outfit' ? ' outfit' : ''));
+      if (def.kind === 'colour') {
+        b.style.background = v;
+      } else if (def.kind === 'outfit') {
+        const o = OUTFITS.find(x => x.id === v) || { name: v, desc: '' };
+        b.innerHTML = `<b>${o.name}</b><span>${o.desc}</span>`;
+      } else b.textContent = v;
       b.onclick = () => { S.look[key] = i; refreshSwatches(); saveLook(S.look); applyLook(); SFX.ui(); };
       b.dataset.key = key; b.dataset.i = i;
       sws.appendChild(b);
@@ -180,9 +185,18 @@ let pvT = 0;
 function drawPreview(dt) {
   pvT += dt;
   pvx.clearRect(0, 0, pv.width, pv.height);
-  // Show the real rig so the creator previews what you actually get, not a
-  // greybox approximation of it.
-  if (RIG.ready) {
+  // Preview the actual drawn frames, and cycle idle -> walk -> jab so the look
+  // is judged in motion rather than as a mugshot.
+  if (SPRITES.ready) {
+    const cycle = pvT % 6;
+    let pose = 'idle';
+    if (cycle > 2.2 && cycle < 4.0) {
+      const order = ['run-1', 'run-2', 'run-5', 'run-3', 'run-4', 'run-6'];
+      pose = order[Math.floor(pvT * 9) % order.length];
+    } else if (cycle >= 4.6 && cycle < 5.0) pose = 'c2-hit';
+    else if (cycle >= 5.0 && cycle < 5.3) pose = 'c3-hit';
+    SPRITES.draw(pvx, pose, pv.width / 2, pv.height - 20, 230, false, 1);
+  } else if (RIG.ready) {
     RIG.draw(pvx, RIG.poseFor({ grounded: true, vx: 0, vy: 0, atk: null,
       dodgeT: 0, hurtT: 0, carrying: null }, pvT),
       pv.width / 2, pv.height - 26, 210, false, 1);
@@ -234,11 +248,18 @@ function startShift() {
   toast('CLOCK IN.');
 }
 
-function applyLook() {
-  if (RIG.ready) RIG.applyLook(lookVariants(S.look));
-  if (!SPRITES.ready) return;
+let outfitToken = 0;
+async function applyLook() {
   const c = lookColours(S.look);
-  recolourSprites(S.look, c.skin, c.shirt);
+  const want = lookOutfit(S.look);
+  const mine = ++outfitToken;
+  if (SPRITES.outfit !== want) {
+    // A whole frame set has to load; ignore the result if the player has
+    // clicked on to another look in the meantime.
+    await SPRITES.setOutfit(want);
+    if (mine !== outfitToken) return;
+  }
+  if (SPRITES.ready) recolourSprites(S.look, c.skin, c.shirt);
 }
 
 function startBossFight() {
@@ -660,9 +681,8 @@ SPRITES.load().then(ok => {
 WORLD.load().then(ok => console.log(ok ? 'world art loaded: ' + Object.keys(WORLD.props).length + ' props' : 'no world art'));
 RIG.load().then(async ok => {
   if (!ok) { console.log('no rig — falling back to key poses'); return; }
-  const n = await RIG.loadVariants();
   const c = await RIG.loadCast(['npc-sami', 'npc-rita', 'npc-omar', 'boss-calm', 'boss-rage']);
-  console.log('rig loaded: ' + Object.keys(RIG.img).length + ' parts, ' + n + ' variants, ' + c + ' cast');
+  console.log('rig loaded: ' + Object.keys(RIG.img).length + ' parts, ' + c + ' cast');
   applyLook();
 });
 initInput(cv);

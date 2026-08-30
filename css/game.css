@@ -188,3 +188,10 @@ h3{font-size:11px;letter-spacing:.18em;color:#8d93a6;margin:18px 0 7px}
   .intro .pre,#title h1,#title .tag,#title .build,#title #btnStart,#title #btnHelp,
   #title .note,#title a.ghost-btn{animation:none;opacity:1}
 }
+
+/* outfit preset cards */
+.sw.outfit{display:flex;flex-direction:column;align-items:flex-start;gap:2px;
+  text-align:left;padding:8px 10px;min-width:132px;text-transform:none}
+.sw.outfit b{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#e8eaf0}
+.sw.outfit span{font-size:9px;color:#8d93a6;letter-spacing:.02em;font-weight:600}
+.sw.outfit.on b{color:#ffd75e}

@@ -20,54 +20,34 @@ import { ART } from './art.js';
 // THE OPTIONS WE GIVE THE PLAYER
 // Add to these lists and the creator UI grows by itself.
 // ---------------------------------------------------------------
+export const OUTFITS = [
+  { id: 'base',   name: 'THE NEW GUY', desc: 'Tee, slacks, sneakers. Blends in.' },
+  { id: 'scruff', name: 'BURNT OUT',   desc: 'Shirt untucked, tie loosened. Given up.' },
+  { id: 'hood',   name: 'HOODIE',      desc: 'Headphones-in energy. Not listening.' },
+  { id: 'smart',  name: 'TRYING HARD', desc: 'Blazer and a tie. Wants the promotion.' },
+];
+
 export const OPTIONS = {
-  skin:      { label: 'SKIN',    kind: 'colour',
+  outfit:     { label: 'LOOK',   kind: 'outfit',
+    values: OUTFITS.map(o => o.id) },
+
+  skin:       { label: 'SKIN',   kind: 'colour',
     values: ['#f2cba3', '#e8b98c', '#d19a6b', '#b07a4c', '#8a5a34', '#5f3d24'] },
 
-  hair:      { label: 'HAIR',    kind: 'style',
-    values: ['short', 'buzz', 'curls', 'bun', 'long', 'spiky'] },
-  hairColour:{ label: 'COLOUR',  kind: 'colour',
-    values: ['#241c14', '#4a3728', '#7a5230', '#b5813f', '#d9b26a', '#8a2f2f', '#3d4f8a', '#c8c8d2'] },
-
-  shirt:     { label: 'SHIRT',   kind: 'style',
-    values: ['tee', 'polo', 'buttonup', 'hoodie', 'vest', 'tank'] },
   shirtColour:{ label: 'COLOUR', kind: 'colour',
     values: ['#7fd1ff', '#5b8dd6', '#7a6fd0', '#d06f9a', '#d0844f', '#6fb87a', '#e2e5ee', '#3c4256'] },
-
-  trousers:  { label: 'TROUSERS', kind: 'style',
-    values: ['slacks', 'jeans', 'shorts', 'cargo'] },
-  trouserColour:{ label: 'COLOUR', kind: 'colour',
-    values: ['#3c4256', '#2b3049', '#5a4636', '#4a4f63', '#6b6f80', '#1e2230'] },
-
-  shoes:     { label: 'SHOES',   kind: 'style',
-    values: ['sneakers', 'formal', 'boots', 'sandals'] },
-
-  accessory: { label: 'EXTRAS',  kind: 'style',
-    values: ['none', 'glasses', 'tie', 'lanyard', 'cap', 'headphones'] },
 };
 
 export function defaultLook() {
-  return {
-    name: 'FIRASS',
-    skin: 1, hair: 0, hairColour: 0,
-    shirt: 0, shirtColour: 0,
-    trousers: 0, trouserColour: 0,
-    shoes: 0, accessory: 0,
-  };
+  return { name: 'FIRASS', outfit: 0, skin: 1, shirtColour: 0 };
 }
 
 export function randomLook(name) {
   const r = k => Math.floor(Math.random() * OPTIONS[k].values.length);
-  return {
-    name: name || 'FIRASS',
-    skin: r('skin'), hair: r('hair'), hairColour: r('hairColour'),
-    shirt: r('shirt'), shirtColour: r('shirtColour'),
-    trousers: r('trousers'), trouserColour: r('trouserColour'),
-    shoes: r('shoes'), accessory: r('accessory'),
-  };
+  return { name: name || 'FIRASS', outfit: r('outfit'), skin: r('skin'), shirtColour: r('shirtColour') };
 }
 
-const KEY = 'we.look.v1';
+const KEY = 'we.look.v2';   // v1 was the mix-and-match rig look
 export function saveLook(look) {
   try { localStorage.setItem(KEY, JSON.stringify(look)); } catch (e) { /* private mode */ }
 }
@@ -324,30 +304,7 @@ function rr(ctx, x, y, w, h, r) {
 
 // The colours the sprite recolourer needs, by name rather than index.
 export function lookColours(look) {
-  return {
-    skin: val(look, 'skin'),
-    shirt: val(look, 'shirtColour'),
-    trousers: val(look, 'trouserColour'),
-    hair: val(look, 'hairColour'),
-  };
+  return { skin: val(look, 'skin'), shirt: val(look, 'shirtColour') };
 }
 
-// Creator option -> rig variant folder. The first value of each list is what the
-// base render already wears, so it maps to nothing.
-const VARIANT_OF = {
-  hair:     { buzz: 'hair-buzz', curls: 'hair-curls', bun: 'hair-bun',
-              long: 'hair-long', spiky: 'hair-spiky' },
-  shirt:    { polo: 'shirt-polo', buttonup: 'shirt-buttonup', hoodie: 'shirt-hoodie',
-              vest: 'shirt-vest', tank: 'shirt-tank' },
-  trousers: { jeans: 'trousers-jeans', shorts: 'trousers-shorts', cargo: 'trousers-cargo' },
-  shoes:    { formal: 'shoes-formal', boots: 'shoes-boots', sandals: 'shoes-sandals' },
-};
-
-export function lookVariants(look) {
-  const out = [];
-  for (const key of Object.keys(VARIANT_OF)) {
-    const v = VARIANT_OF[key][val(look, key)];
-    if (v) out.push(v);
-  }
-  return out;
-}
+export function lookOutfit(look) { return val(look, 'outfit'); }
