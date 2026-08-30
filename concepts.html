@@ -37,7 +37,7 @@ p b{color:#e8eaf0}
 <div class="wrap">
 
 <h1>ART DIRECTION</h1>
-<p class="sub">Worst Employee &mdash; pass 1, style exploration. Generated with Gemini Studio, no reference images.</p>
+<p class="sub">Worst Employee &mdash; art direction. Generated with Gemini Studio. <b style="color:#ffd75e">Style D chosen; layer system proven.</b></p>
 <a class="back" href="./">&larr; BACK TO THE PLAYABLE BUILD</a>
 
 <div class="note">
@@ -104,15 +104,64 @@ character drifting between poses.
   the best of each.</figcaption>
 </figure>
 
-<h2>WHAT HAPPENS NEXT</h2>
-<p>Pick a direction. Then pass 2 regenerates the winner on a flat green background, and that
-image gets attached to every subsequent prompt as the reference &mdash; animation frames first,
-then each clothing layer for the character creator, always the same body and the same pose
-with only the garment changing. That alignment is the whole reason the paper-doll system works.</p>
-<p><b>My pick: A, with B's face.</b> The game lives or dies on animation, and A is the only one
-of the four cheap enough to animate properly at this budget &mdash; but B has the mischief the
-character needs, and that expression can be carried over.</p>
+<h2>PASS 2 &mdash; STYLE D LOCKED, LAYER PLAN PROVEN</h2>
+<p>You picked <b>D</b>. It is the best looking of the four and also the most expensive
+per frame and the hardest to reproduce exactly &mdash; soft shading and a rim light are
+precisely what tends to drift between poses. So before generating a hundred assets on
+that assumption, I tested it.</p>
 
+<figure>
+  <img src="tools/concepts/master-neutral.png" alt="Master reference">
+  <figcaption><b>THE MASTER REFERENCE</b>
+  Style D on flat pure green, base outfit only &mdash; short hair, plain tee, slacks,
+  sneakers, no accessories. Everything else in the game is a layer that goes on top of
+  this, so the base has to be the simplest possible version. This one image is now
+  attached to every future prompt.</figcaption>
+</figure>
+
+<h2>TEST 1 &mdash; DOES HE SURVIVE A POSE CHANGE?</h2>
+<figure>
+  <img src="tools/concepts/test-pose-run.png" alt="Run test">
+  <figcaption><b>PASS</b> &mdash; same face, same build, same clothes, mid-run.
+  Animation frames are reachable.</figcaption>
+</figure>
+
+<h2>TEST 2 &mdash; CAN WE SWAP ONE GARMENT AND NOTHING ELSE?</h2>
+<figure>
+  <img src="tools/concepts/test-garment-hair.png" alt="Hair swap">
+  <figcaption><b>HAIR ONLY</b> &mdash; afro instead of short hair, everything else untouched.</figcaption>
+</figure>
+<figure>
+  <img src="tools/concepts/test-garment-hoodie.png" alt="Hoodie swap">
+  <figcaption><b>SHIRT ONLY</b> &mdash; hoodie instead of the tee, everything else untouched.</figcaption>
+</figure>
+
+<div class="note">
+Looking the same is not enough. To offer <b>every hair with every shirt</b> we have to cut
+pieces out and recombine them, and that needs the bodies to line up to the pixel. Measured:
+feet within <b>1px</b>, centre within <b>2px</b>, and <b>94&ndash;97% of the lower body is
+pixel-identical</b> between renders.
+</div>
+
+<h2>THE PROOF</h2>
+<figure style="max-width:260px;margin-left:auto;margin-right:auto">
+  <img src="tools/concepts/composite-proof.png" alt="Composite" style="background:#1a1d27">
+  <figcaption><b>THIS IMAGE WAS NEVER GENERATED</b>
+  It is the afro cut from one render and the hoodie body cut from another, joined at the
+  neck by <code>tools/compose-test.py</code>. The seam is invisible.
+  <span class="verdict good">LAYER SYSTEM CONFIRMED ON STYLE D</span></figcaption>
+</figure>
+<p>That settles it. Every hair option multiplied by every shirt option is reachable from a
+handful of renders instead of one render per combination &mdash; which is the entire reason
+the character creator can exist on this budget.</p>
+
+<h2>WHAT HAPPENS NEXT</h2>
+<p>Generate the full set against that master reference: the animation sets from
+<code>assets/manifest.json</code> first (idle, run, jump, dodge, the three light attacks,
+heavy, grab, carry, throw, hurt), then each clothing option as a same-pose variant to be
+cut into a layer. Then they replace the coloured boxes in the playable build, one slot at
+a time &mdash; the game already falls back to greybox for anything not yet loaded, so it
+never breaks half-finished.</p>
 <a class="back" href="./">&larr; BACK TO THE PLAYABLE BUILD</a>
 </div>
 </body>
