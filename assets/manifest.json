@@ -1,0 +1,112 @@
+{
+  "_comment": [
+    "Every visual slot the game will ask for. This is the shopping list for the",
+    "Gemini Studio art pipeline — generate against it, drop files in, then register",
+    "them in js/art.js via ART.load(). Nothing here exists yet; the game runs on",
+    "greybox shapes until it does.",
+    "",
+    "Generation rules that must be applied to every character prompt:",
+    "  - attach the approved reference sheet, open with 'redraw THE SAME person'",
+    "  - name every garment and accessory explicitly",
+    "  - background flat pure green #00FF00, nothing worn may be green",
+    "  - exactly ONE figure, no duplicate, no turnaround sheet",
+    "  - hair as one solid shape with a crisp edge, never wispy strands",
+    "  - slice the returned sheet by connected component, one shared scale"
+  ],
+
+  "canvas": { "logicalWidth": 960, "logicalHeight": 540, "floorY": 470 },
+
+  "player": {
+    "_size": "roughly 34x62 logical px on screen; generate at 4x and downscale",
+    "slots": {
+      "idle":    { "frames": 6,  "fps": 8,  "priority": 1 },
+      "run":     { "frames": 8,  "fps": 14, "priority": 1 },
+      "jump":    { "frames": 3,  "fps": 10, "priority": 1 },
+      "fall":    { "frames": 2,  "fps": 8,  "priority": 1 },
+      "land":    { "frames": 3,  "fps": 18, "priority": 2 },
+      "dodge":   { "frames": 4,  "fps": 20, "priority": 1 },
+      "light1":  { "frames": 4,  "fps": 22, "priority": 1 },
+      "light2":  { "frames": 4,  "fps": 22, "priority": 1 },
+      "light3":  { "frames": 6,  "fps": 20, "priority": 1 },
+      "heavy":   { "frames": 7,  "fps": 18, "priority": 1 },
+      "grab":    { "frames": 3,  "fps": 16, "priority": 2 },
+      "carry":   { "frames": 4,  "fps": 8,  "priority": 2 },
+      "throw":   { "frames": 4,  "fps": 20, "priority": 2 },
+      "hurt":    { "frames": 3,  "fps": 14, "priority": 2 },
+      "knocked": { "frames": 4,  "fps": 10, "priority": 3 }
+    },
+    "customization": {
+      "_note": "OPEN DESIGN QUESTION — see _CONTINUE-HERE.md section 5. Either these become paper-doll layers on a rig, or customization narrows to palette swaps.",
+      "layers": ["body", "hair", "shirt", "trousers", "shoes", "accessory"]
+    }
+  },
+
+  "coworker": {
+    "_size": "30x58",
+    "bodyTypes": 3,
+    "slots": {
+      "idle":  { "frames": 4, "fps": 6,  "priority": 1 },
+      "work":  { "frames": 4, "fps": 5,  "priority": 1 },
+      "panic": { "frames": 8, "fps": 16, "priority": 1 },
+      "slip":  { "frames": 5, "fps": 16, "priority": 2 },
+      "down":  { "frames": 3, "fps": 8,  "priority": 2 }
+    }
+  },
+
+  "boss": {
+    "_size": "40x72",
+    "_note": "Script section 17 — the same man across five emotional stages. Same suit, same build, escalating face and posture. Generate all five in ONE sheet so he stays one person.",
+    "stages": ["friendly", "concerned", "annoyed", "angry", "enraged"],
+    "slots": {
+      "idle":    { "frames": 4, "fps": 6,  "priority": 1 },
+      "walk":    { "frames": 8, "fps": 12, "priority": 1 },
+      "charge":  { "frames": 6, "fps": 16, "priority": 1 },
+      "swing":   { "frames": 7, "fps": 20, "priority": 1 },
+      "hurt":    { "frames": 3, "fps": 16, "priority": 1 },
+      "defeated":{ "frames": 4, "fps": 8,  "priority": 1 }
+    }
+  },
+
+  "props": {
+    "_note": "Each needs an intact and a broken state. Side-on, flat lighting, readable silhouette at small size.",
+    "items": {
+      "chair":        { "w": 28, "h": 34, "states": ["intact", "broken"] },
+      "monitor":      { "w": 30, "h": 24, "states": ["intact", "broken"] },
+      "printer":      { "w": 40, "h": 28, "states": ["intact", "broken"] },
+      "phone":        { "w": 16, "h": 12, "states": ["intact", "broken"] },
+      "mug":          { "w": 14, "h": 14, "states": ["intact", "broken"] },
+      "bin":          { "w": 24, "h": 26, "states": ["intact", "broken"] },
+      "plant":        { "w": 22, "h": 38, "states": ["intact", "broken"] },
+      "extinguisher": { "w": 16, "h": 34, "states": ["intact", "broken"] },
+      "paperStack":   { "w": 20, "h": 16, "states": ["intact", "scattered"] },
+      "waterCooler":  { "w": 26, "h": 52, "states": ["intact", "broken"] },
+      "coffeeMachine":{ "w": 26, "h": 52, "states": ["intact", "empty", "broken"] },
+      "desk":         { "w": 120, "h": 40, "states": ["intact"] }
+    }
+  },
+
+  "environment": {
+    "officeFloor":  { "w": 2600, "h": 540, "layers": ["backWall", "windows", "ceiling", "floor"] },
+    "breakRoom":    { "priority": 2 },
+    "meetingRoom":  { "priority": 2 },
+    "corridor":     { "priority": 2 },
+    "elevator":     { "priority": 3 },
+    "signage":      { "_note": "WE'RE A FAMILY / PRODUCTIVITY MATTERS / SYNERGY — comedy lives here" }
+  },
+
+  "weapons": {
+    "_note": "Script section 15. Each is a held prop plus its own attack frames.",
+    "items": ["fists", "officeChair", "hammer", "stapler", "fryingPan", "rocketOfficeChair"]
+  },
+
+  "ui": {
+    "shiftReport": {}, "performanceReview": {}, "promotion": {},
+    "achievements": {}, "shop": {}, "profileCard": {},
+    "shareCard": { "_note": "the viral results image, script section 36" }
+  },
+
+  "audio": {
+    "_note": "Not art, but the same $0 rule applies. Hits, impacts, glass, paper, printer death, boss barks, office ambience.",
+    "priority": 2
+  }
+}

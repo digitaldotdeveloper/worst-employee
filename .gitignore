@@ -1,0 +1,16 @@
+# ---------------------------------------------------------------
+# PRIVATE DESIGN DOCS — never publish these.
+# GitHub Pages needs a PUBLIC repo on a free account, so anything
+# committed here is world-readable. The financial plan in particular
+# contains personal budget / banking notes.
+# ---------------------------------------------------------------
+Game Script.txt
+Financial Plan.txt
+_CONTINUE-HERE.md
+
+# scratch
+*.bak
+*.log
+node_modules/
+.DS_Store
+Thumbs.db

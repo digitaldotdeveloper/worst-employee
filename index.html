@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#12141a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Worst Employee — Feel Test</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ctext y='26' font-size='26'%3E%F0%9F%92%BC%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/game.css">
+</head>
+<body>
+
+<div id="stage">
+  <canvas id="game"></canvas>
+
+  <!-- ================= HUD ================= -->
+  <div id="hud" class="hidden">
+    <div class="hud-top">
+      <div class="hud-left">
+        <div class="stat"><span class="k">COINS</span><span class="v" id="hCoins">0</span></div>
+        <div class="stat"><span class="k">DAMAGE</span><span class="v" id="hDamage">$0</span></div>
+        <div class="stat"><span class="k">PRODUCTIVITY</span><span class="v" id="hProd">0%</span></div>
+      </div>
+      <div class="hud-right">
+        <div class="anger">
+          <div class="anger-label">BOSS ANGER <b id="hAngerStage">FRIENDLY</b></div>
+          <div class="anger-bar"><i id="hAngerFill"></i></div>
+        </div>
+        <button id="btnEnd" class="ghost-btn">END SHIFT</button>
+      </div>
+    </div>
+
+    <div id="chainWrap" class="chain-wrap">
+      <div id="chainX" class="chain-x">CHAOS &times;0</div>
+      <div id="chainBar" class="chain-bar"><i></i></div>
+    </div>
+
+    <div id="boost" class="boost hidden">&#9749; COFFEE BOOST</div>
+    <div id="toast" class="toast"></div>
+  </div>
+
+  <!-- ================= TOUCH CONTROLS ================= -->
+  <div id="touch" class="hidden">
+    <div id="stickZone"><div id="stickBase"><div id="stickNub"></div></div></div>
+    <div id="btnPad">
+      <button class="tb tb-dodge" data-btn="dodge">DODGE</button>
+      <button class="tb tb-grab"  data-btn="grab">GRAB</button>
+      <button class="tb tb-jump"  data-btn="jump">JUMP</button>
+      <button class="tb tb-hit"   data-btn="hit">HIT</button>
+    </div>
+  </div>
+
+  <!-- ================= TITLE ================= -->
+  <div id="title" class="screen">
+    <div class="screen-inner">
+      <p class="pre">LIFE IS EXPENSIVE.</p>
+      <p class="pre">YOU NEED MONEY.</p>
+      <p class="pre">YOU NEED A JOB.</p>
+      <h1>WORST<br>EMPLOYEE</h1>
+      <p class="tag">HATE YOUR JOB? BECOME THE WORST EMPLOYEE.</p>
+      <div class="build">FEEL TEST &mdash; GREYBOX BUILD <span id="verTag"></span></div>
+      <button id="btnStart" class="big-btn">FIND A JOB</button>
+      <button id="btnHelp" class="ghost-btn wide">HOW TO PLAY</button>
+      <p class="note">No art yet. This build exists to test <b>movement, combat feel,
+      physics and the chaos-chain system</b> before a single sprite is drawn.</p>
+    </div>
+  </div>
+
+  <!-- ================= HELP ================= -->
+  <div id="help" class="screen hidden">
+    <div class="screen-inner">
+      <h2>HOW TO PLAY</h2>
+      <div class="keys">
+        <div><b>MOVE</b><span>A / D &nbsp;or&nbsp; &larr; &rarr; &nbsp;|&nbsp; left thumb</span></div>
+        <div><b>JUMP</b><span>W / SPACE &nbsp;|&nbsp; JUMP</span></div>
+        <div><b>LIGHT HIT</b><span>J &nbsp;|&nbsp; tap HIT</span></div>
+        <div><b>HEAVY HIT</b><span>K &nbsp;|&nbsp; hold HIT</span></div>
+        <div><b>DODGE</b><span>SHIFT &nbsp;|&nbsp; DODGE &mdash; brief invulnerability</span></div>
+        <div><b>GRAB / THROW</b><span>L &nbsp;|&nbsp; GRAB &mdash; pick a thing up, press again to launch it</span></div>
+        <div><b>INTERACT</b><span>walk into the coffee machine</span></div>
+      </div>
+      <h3>THE POINT</h3>
+      <p>Hit something hard enough and it becomes <b>chaotic</b>. If it then hits
+      something else, the chain continues. Coffee &rarr; monitor &rarr; printer &rarr;
+      papers &rarr; coworker &rarr; boss. Longer chain, bigger multiplier.</p>
+      <p>Productivity going <i>down</i> is the win condition. Fill the boss's anger
+      bar to trigger the fight.</p>
+      <button id="btnHelpBack" class="big-btn">GOT IT</button>
+    </div>
+  </div>
+
+  <!-- ================= SHIFT REPORT ================= -->
+  <div id="report" class="screen hidden">
+    <div class="screen-inner">
+      <h2>SHIFT REPORT</h2>
+      <div class="rows" id="reportRows"></div>
+      <div class="rank">RANK<br><b id="reportRank">&mdash;</b></div>
+      <button id="btnAgain" class="big-btn">ANOTHER SHIFT</button>
+      <button id="btnShare" class="ghost-btn wide">COPY RESULT</button>
+    </div>
+  </div>
+
+  <!-- ================= ROTATE HINT ================= -->
+  <div id="rotate" class="hidden"><div>&#8635;<br>TURN YOUR PHONE SIDEWAYS</div></div>
+</div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
