@@ -18,6 +18,7 @@ export const PROPS = {
   extinguisher:{ w:16, h:34, mass:2.2, hp:26, value:150, label:'',       color:'#a3474a' },
   stack:    { w:20, h:16, mass:0.5, hp:6,   value:30,   label:'',        color:'#d8dbe6' },
   cooler:   { w:26, h:52, mass:4.0, hp:60,  value:340,  label:'WATER',   color:'#5a7fa0' },
+  cabinet:  { w:30, h:52, mass:5.5, hp:90,  value:620,  label:'FILES',   color:'#6a7086' },
 };
 
 export function makeProp(kind, x, y) {
@@ -62,11 +63,11 @@ export class Coworker extends Body {
       const away = Math.sign(this.cx - s.player.cx) || 1;
       this.face = away;
       this.vx += away * 900 * dt;
-      this.vx = Math.max(-260, Math.min(260, this.vx));
+      this.vx = Math.max(-190, Math.min(190, this.vx));
       if (this.timer <= 0) { this.mode = 'wander'; this.timer = 2; }
     } else if (this.mode === 'wander') {
       this.vx += this.face * 320 * dt;
-      this.vx = Math.max(-90, Math.min(90, this.vx));
+      this.vx = Math.max(-64, Math.min(64, this.vx));
       if (this.timer <= 0) {
         this.timer = 1.5 + Math.random() * 3;
         this.mode = Math.random() < 0.5 ? 'work' : 'wander';
@@ -112,7 +113,7 @@ export class Boss extends Body {
       const d = this.homeX - this.cx;
       if (Math.abs(d) > 40) { this.vx += Math.sign(d) * 300 * dt; this.face = Math.sign(d); }
       else this.vx *= 0.85;
-      this.vx = Math.max(-110, Math.min(110, this.vx));
+      this.vx = Math.max(-78, Math.min(78, this.vx));
       return;
     }
 
@@ -123,11 +124,11 @@ export class Boss extends Body {
 
     if (Math.abs(dx) > 90) {
       this.vx += this.face * 620 * dt;
-      this.vx = Math.max(-235, Math.min(235, this.vx));
+      this.vx = Math.max(-172, Math.min(172, this.vx));
     } else {
       this.vx *= 0.86;
       if (this.attackCd <= 0) {
-        this.attackCd = 1.15 + Math.random() * 0.7;
+        this.attackCd = 1.5 + Math.random() * 0.8;
         this.swingT = 0.32;
         this.swing(s);
       }
@@ -180,6 +181,7 @@ export function buildOffice(world, s) {
     ['bin', 150], ['plant', 480], ['printer', 640], ['extinguisher', 860],
     ['bin', 1080], ['printer', 1320], ['plant', 1580], ['bin', 1760],
     ['extinguisher', 2020], ['printer', 2180], ['plant', 2380],
+    ['cabinet', 300], ['cabinet', 1140], ['cabinet', 1900],
   ];
   for (const [kind, x] of floorProps) world.add(makeProp(kind, x));
 

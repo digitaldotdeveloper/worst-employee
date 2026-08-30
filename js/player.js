@@ -17,7 +17,7 @@ export class Player extends Body {
     this.coyote = 0; this.buffer = 0;
     this.atk = null;            // { kind, step, phase, t, hit:Set }
     this.comboStep = 0; this.comboTimer = 0;
-    this.dodgeT = 0; this.dodgeCd = 0; this.iframes = 0; this.hurtT = 0;
+    this.dodgeT = 0; this.dodgeCd = 0; this.iframes = 0; this.hurtT = 0; this.landT = 0;
     this.carrying = null;
     this.squash = 1;
     this.animT = 0;
@@ -33,12 +33,15 @@ export class Player extends Body {
     if (this.dodgeCd > 0) this.dodgeCd -= dt;
     if (this.iframes > 0) this.iframes -= dt;
     if (this.hurtT > 0) this.hurtT -= dt;
+    if (this.landT > 0) this.landT -= dt;
 
     // landing squash
     if (this.grounded && !this.wasGrounded) {
       this.squash = 0.84; FX.kick(1.2, 0);
+      if (Math.abs(this.vy) > 260 || this.wasAir > 0.22) this.landT = 0.16;
       SFX.land(Math.min(1, Math.abs(this.vy) / 900));
     }
+    this.wasAir = this.grounded ? 0 : (this.wasAir || 0) + dt;
     this.wasGrounded = this.grounded;
     this.squash += (1 - this.squash) * Math.min(1, dt * 14);
 
@@ -69,7 +72,7 @@ export class Player extends Body {
     // ---------------- attack start ----------------
     if (IN.heavyEdge) { this._startAttack('heavy', 0); return; }
     if (IN.lightEdge) {
-      const step = (this.comboTimer > 0) ? (this.comboStep % 3) : 0;
+      const step = (this.comboTimer > 0) ? (this.comboStep % ATTACK.light.length) : 0;
       this._startAttack('light', step);
       return;
     }
@@ -146,8 +149,8 @@ export class Player extends Body {
       w: reach, h: hh,
     };
     // small lunge on the finisher / heavy
-    if (a.phase === 'active' && (d === ATTACK.heavy || a.step === 2)) {
-      this.vx += this.face * 620 * (1 / 60);
+    if (a.phase === 'active' && (d === ATTACK.heavy || a.step >= 3)) {
+      this.vx += this.face * 520 * (1 / 60);
     }
 
     for (const b of s.world.bodies) {

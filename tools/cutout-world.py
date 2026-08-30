@@ -24,6 +24,7 @@ SIZES = {
     'chair': (28, 34), 'monitor': (30, 24), 'printer': (40, 28), 'phone': (16, 12),
     'mug': (14, 14), 'bin': (24, 26), 'plant': (22, 38), 'extinguisher': (16, 34),
     'stack': (20, 16), 'cooler': (26, 52), 'coffee': (26, 52), 'desk': (120, 40),
+    'desk-alt': (120, 40), 'cabinet': (30, 52),
 }
 OVERSIZE = 1.18          # art overhangs the collider slightly so it reads as an object
 SS = 2                   # supersample for high-DPI phones

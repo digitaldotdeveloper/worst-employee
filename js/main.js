@@ -39,7 +39,12 @@ const S = {
   hrWatching: false, hrHeat: 0, freeCoffee: false, clientHere: false, dark: false,
   toast: (msg, cls) => toast(msg, cls),
   useArt: true,          // rendered key poses
-  useRig: true,          // the cut-up skeleton — takes priority when loaded
+  // Drawn frames are the default. The cut-up skeleton animates for almost
+  // nothing but it READS as cut up — visible segments, stiff joints — and that
+  // was the single loudest complaint. Whole drawn frames cost outfit
+  // combinations (a frame bakes in what he is wearing) so customization becomes
+  // presets. That trade buys the thing that was actually wrong.
+  useRig: false,         // press V to compare against the skeleton
   // Camera zoom is a RENDER-only scale. The player is 62px tall because the
   // physics and combat timings were tuned at that size and they should not move;
   // at 1:1 he is 11% of screen height, which reads as a distant doll rather than
@@ -343,7 +348,7 @@ function update(dt) {
 
   // camera
   const tx = S.player.cx - viewW() / 2 + S.player.face * 40;
-  S.cam.x += (Math.max(0, Math.min(LEVEL_W - viewW(), tx)) - S.cam.x) * Math.min(1, dt * 6);
+  S.cam.x += (Math.max(0, Math.min(LEVEL_W - viewW(), tx)) - S.cam.x) * Math.min(1, dt * 4.2);
   // Keep the floor near the bottom of the frame rather than centring on the
   // player, so jumps show headroom instead of sliding the whole office down.
   const ty = FLOOR_Y + 26 - viewH();

@@ -19,8 +19,11 @@ import numpy as np
 from PIL import Image
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-SRC = os.path.join(HERE, 'renders')
-OUT = os.path.join(os.path.dirname(HERE), 'assets', 'player')
+# Which outfit to pack: `python tools/cutout.py hood`. Each outfit is a full
+# set of drawn frames, so it gets its own folder under assets/player/.
+OUTFIT = ([a for a in sys.argv[1:] if not a.startswith('--')] or ['base'])[0]
+SRC = os.path.join(HERE, 'renders-' + OUTFIT)
+OUT = os.path.join(os.path.dirname(HERE), 'assets', 'player', OUTFIT)
 
 # The pose that defines the ground line and the standing height.
 DATUM = 'idle'

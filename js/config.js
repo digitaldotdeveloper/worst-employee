@@ -7,7 +7,7 @@ export const VERSION = '0.1.0';
 // at runtime from the device aspect ratio so a wide phone fills its screen
 // instead of being pillarboxed. Read it, never cache it.
 export const VIEW = { w: 960, h: 540, minW: 760, maxW: 1400 };
-export const GRAVITY = 2100;                      // px/s^2
+export const GRAVITY = 1750;                      // px/s^2
 export const FLOOR_Y = 470;                       // office floor line
 // Ceiling height, in world px above the floor. The greybox office was 412px of
 // wall for a 62px character — 6.6 character-heights, so once the camera zoomed
@@ -17,35 +17,43 @@ export const CEIL_Y = FLOOR_Y - 168;
 export const ROOF_Y = CEIL_Y - 42;                // ceiling tile strip sits here
 export const LEVEL_W = 2600;                      // office width
 
+// PACE. Everything here was roughly 40% faster and it read as twitchy rather
+// than punchy — you could cross the office before a swing finished, so nothing
+// had weight. Slower movement and longer attack frames give each hit room to
+// land. If it ever feels sluggish, raise `speed` and `accel` together and shorten
+// `recover`, in that order.
 export const PLAYER = {
   w: 34, h: 62,
-  speed: 300,
-  accel: 2600,
-  friction: 2200,
-  airControl: 0.55,
-  jump: 720,
-  coyote: 0.10,          // grace after leaving ground
-  buffer: 0.12,          // jump pressed slightly early still fires
-  dodgeSpeed: 660,
-  dodgeTime: 0.20,
-  dodgeIFrames: 0.16,
-  dodgeCooldown: 0.36,
+  speed: 205,
+  accel: 1500,
+  friction: 1500,
+  airControl: 0.48,
+  jump: 640,
+  coyote: 0.11,
+  buffer: 0.14,
+  dodgeSpeed: 500,
+  dodgeTime: 0.26,
+  dodgeIFrames: 0.20,
+  dodgeCooldown: 0.48,
   carryOffset: { x: 26, y: -18 },
-  throwSpeed: 900,
-  throwLift: -260,
+  throwSpeed: 780,
+  throwLift: -230,
 };
 
-// Attacks. `startup` = wind-up, `active` = hitbox live, `recover` = locked after.
-// Combat feel is priority #1 in the script, so these get their own block.
+// A FIVE-BEAT COMBO. Each beat has its own drawn frame and its own silhouette:
+// jab, cross, hook, uppercut, spinning kick. The finisher launches.
+// `startup` = wind-up, `active` = hitbox live, `recover` = locked after.
 export const ATTACK = {
   light: [
-    { startup:0.055, active:0.070, recover:0.105, dmg:10, kbX:300, kbY:-110, reach:44, hh:34, hitstop:0.045, shake:3 },
-    { startup:0.050, active:0.070, recover:0.110, dmg:12, kbX:340, kbY:-130, reach:46, hh:34, hitstop:0.050, shake:3.5 },
-    { startup:0.085, active:0.090, recover:0.230, dmg:22, kbX:640, kbY:-330, reach:54, hh:44, hitstop:0.105, shake:8 },
+    { startup:0.085, active:0.075, recover:0.150, dmg:10, kbX:230, kbY:-70,  reach:46, hh:34, hitstop:0.055, shake:3,   pose:'c1' },
+    { startup:0.080, active:0.075, recover:0.155, dmg:12, kbX:280, kbY:-90,  reach:48, hh:34, hitstop:0.060, shake:3.5, pose:'c2' },
+    { startup:0.095, active:0.085, recover:0.180, dmg:15, kbX:340, kbY:-120, reach:52, hh:38, hitstop:0.070, shake:4.5, pose:'c3' },
+    { startup:0.110, active:0.090, recover:0.210, dmg:20, kbX:300, kbY:-430, reach:50, hh:46, hitstop:0.095, shake:7,   pose:'c4' },
+    { startup:0.150, active:0.110, recover:0.330, dmg:28, kbX:760, kbY:-330, reach:62, hh:48, hitstop:0.130, shake:10,  pose:'c5' },
   ],
-  heavy: { startup:0.185, active:0.100, recover:0.300, dmg:34, kbX:900, kbY:-420, reach:62, hh:52, hitstop:0.140, shake:11 },
-  comboWindow: 0.34,     // time after recover to chain the next light
-  holdForHeavy: 0.19,    // touch: hold HIT this long -> heavy
+  heavy: { startup:0.240, active:0.120, recover:0.380, dmg:38, kbX:980, kbY:-420, reach:66, hh:54, hitstop:0.165, shake:12, pose:'heavy' },
+  comboWindow: 0.45,     // longer, so a five-hit string is actually reachable
+  holdForHeavy: 0.20,
 };
 
 export const CHAOS = {

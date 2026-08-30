@@ -185,15 +185,17 @@ export const SPRITES = {
   meta: null,
   img: {},
   tinted: null,
+  outfit: 'base',
   missing: new Set(),
 
-  async load(base = 'assets/player/') {
+  async load(base = 'assets/player/base/') {
     try {
       const r = await fetch(base + 'anchors.json');
       if (!r.ok) return false;
       this.meta = await r.json();
     } catch (e) { return false; }
 
+    this.img = {};
     const jobs = this.meta.poses.map(name => new Promise(res => {
       const im = new Image();
       im.onload = () => { this.img[name] = im; res(); };
@@ -206,6 +208,16 @@ export const SPRITES = {
   },
 
   has(name) { return !!this.img[name]; },
+
+  // Swap the whole frame set for another outfit. Each outfit is a complete set
+  // of drawn frames, so this is a reload rather than a part swap — the cost of
+  // frames that look whole instead of assembled.
+  async setOutfit(name) {
+    if (this.outfit === name) return true;
+    const ok = await this.load('assets/player/' + name + '/');
+    if (ok) { this.outfit = name; this.tinted = null; }
+    return ok;
+  },
 
   // Draw with the feet at (x, groundY) and the body scaled to `height`.
   draw(ctx, name, x, groundY, height, flip, alpha = 1) {
@@ -223,22 +235,48 @@ export const SPRITES = {
   },
 };
 
-// Which sprite each gameplay state uses. Run cycles through four frames; the
-// rest hold a single key pose while the engine adds squash and shake on top.
+// Which drawn frame each gameplay state uses.
+//
+// Every combo beat gets its own silhouette — jab, cross, hook, uppercut,
+// spinning kick — because a five-hit string where every hit looks the same
+// reads as one long twitch. Wind-up frames exist only where the beat needs
+// telegraphing; the rest carry the previous beat's frame through the startup so
+// the string flows instead of resetting to neutral five times.
+const COMBO = [
+  { wind: 'c1-wind', hit: 'c1-hit' },
+  { wind: 'c1-hit',  hit: 'c2-hit' },
+  { wind: 'c2-hit',  hit: 'c3-hit' },
+  { wind: 'c3-hit',  hit: 'c4-hit' },
+  { wind: 'c5-wind', hit: 'c5-hit' },
+];
+
 export function poseFor(p, t) {
   if (p.atk) {
-    if (p.atk.kind === 'heavy') return p.atk.phase === 'startup' ? 'heavy-wind' : 'heavy-hit';
-    return ['light1', 'light2', 'light3'][p.atk.step] || 'light1';
+    const wind = p.atk.phase === 'startup';
+    if (!p.grounded) return 'air-hit';
+    if (p.carrying) return 'swing';
+    if (p.atk.kind === 'heavy') return wind ? 'heavy-wind' : 'heavy-hit';
+    const c = COMBO[p.atk.step] || COMBO[0];
+    return wind ? c.wind : c.hit;
   }
-  if (p.dodgeT > 0) return 'dodge';
-  if (!p.grounded) return p.vy < 0 ? 'jump-up' : 'fall';
   if (p.hurtT > 0) return 'hurt';
-  if (p.carrying) return 'carry';
-  if (Math.abs(p.vx) > 30) {
-    const i = Math.floor(t * 12) % 4;
-    return ['run-1', 'run-2', 'run-3', 'run-4'][i];
+  if (p.dodgeT > 0) return 'dodge';
+  if (!p.grounded) {
+    if (p.vy < -180) return 'jump-up';
+    if (p.vy < 120) return 'jump-apex';
+    return 'fall';
   }
-  return 'idle';
+  if (p.landT > 0) return 'land';
+  if (p.carrying) return 'carry';
+  if (Math.abs(p.vx) > 26) {
+    // six frames instead of four: the extra stride and recovery frames are what
+    // stop a run cycle looking like a shuffle
+    const order = ['run-1', 'run-2', 'run-5', 'run-3', 'run-4', 'run-6'];
+    const speed = Math.min(1.5, Math.abs(p.vx) / 205);
+    return order[Math.floor(t * 11 * speed) % order.length];
+  }
+  // a second idle keeps a standing character from looking frozen
+  return (Math.floor(t * 0.42) % 5 === 4) ? 'idle2' : 'idle';
 }
 
 // ---------------------------------------------------------------
