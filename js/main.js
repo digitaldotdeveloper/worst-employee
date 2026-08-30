@@ -4,6 +4,7 @@ import { VERSION, VIEW, FLOOR_Y, LEVEL_W, COL, COFFEE, RANKS, ATTACK } from './c
 import { World } from './engine.js';
 import { FX } from './fx.js';
 import { ART, SPRITES, poseFor, recolourSprites, drawHuman, drawProp, roundRect } from './art.js';
+import { RIG } from './rig.js';
 import { IN, initInput, pollInput } from './input.js';
 import { ChaosSystem } from './chaos.js';
 import { Player } from './player.js';
@@ -31,7 +32,8 @@ const S = {
   coffeeMachine: null,
   shiftT: 0,
   look: loadLook() || defaultLook(),
-  useArt: true,          // real sprites; false falls back to the greybox rig
+  useArt: true,          // rendered key poses
+  useRig: true,          // the cut-up skeleton — takes priority when loaded
 
   addAnger(v) {
     if (this.boss && this.boss.fighting) return;
@@ -395,7 +397,11 @@ function render() {
   ctx.restore();
 
   const alpha = p.iframes > 0 ? 0.45 : 1;
-  if (S.useArt && SPRITES.ready) {
+  if (S.useRig && RIG.ready) {
+    // the skeleton: customization survives every animation
+    RIG.draw(ctx, RIG.poseFor(p, p.animT), p.cx, p.y + p.h,
+      p.h * p.squash * 1.06, p.face < 0, alpha);
+  } else if (S.useArt && SPRITES.ready) {
     // squash is applied to the draw height so landings still punch
     SPRITES.draw(ctx, poseFor(p, p.animT), p.cx, p.y + p.h,
       p.h * p.squash * 1.06, p.face < 0, alpha);
@@ -499,8 +505,12 @@ function frame(now) {
 // ---------------------------------------------------------------
 $('verTag').textContent = 'v' + VERSION;
 SPRITES.load().then(ok => {
-  if (ok) console.log('player sprites loaded:', Object.keys(SPRITES.img).length);
-  else console.log('no player sprites — running greybox');
+  console.log(ok ? 'player sprites loaded: ' + Object.keys(SPRITES.img).length
+                 : 'no player sprites');
+});
+RIG.load().then(ok => {
+  console.log(ok ? 'rig loaded: ' + Object.keys(RIG.img).length + ' parts'
+                 : 'no rig — falling back to key poses');
 });
 initInput(cv);
 resize();
@@ -532,9 +542,13 @@ $('btnShare').onclick = async () => {
 addEventListener('keydown', e => {
   if (S.mode === 'play' && e.key.toLowerCase() === 'r') startShift();
   if (S.mode === 'play' && e.key === 'Escape') endShift(false);
-  if (e.key.toLowerCase() === 'v') S.useArt = !S.useArt;   // A/B art vs greybox
+  if (e.key.toLowerCase() === 'v') {                       // cycle the renderers
+    if (S.useRig) { S.useRig = false; S.useArt = true; toast('KEY POSES'); }
+    else if (S.useArt) { S.useArt = false; toast('GREYBOX'); }
+    else { S.useRig = true; S.useArt = true; toast('RIG'); }
+  }
 });
 
 // Art hookup point. When sprites exist, uncomment and point at the files.
 // ART.load({ 'player.idle': { src:'assets/player/idle.png', frames:6, fps:8 } });
-window.WE = { S, ART, FX, SPRITES, applyLook };   // handy in the mobile console
+window.WE = { S, ART, FX, SPRITES, RIG, applyLook };   // handy in the mobile console
