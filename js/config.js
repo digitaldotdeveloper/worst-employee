@@ -15,7 +15,22 @@ export const FLOOR_Y = 470;                       // office floor line
 // is about 1.5x a person; this is a bit more for headroom over a jump.
 export const CEIL_Y = FLOOR_Y - 168;
 export const ROOF_Y = CEIL_Y - 42;                // ceiling tile strip sits here
-export const LEVEL_W = 2600;                      // office width
+export const LEVEL_W = 4400;                      // office width
+
+// ROOMS. The office was one undifferentiated corridor with props sprinkled along
+// it, which is why it read as unarranged — there was nothing to arrange them
+// AROUND. Each room now has a purpose, its own furniture rules and its own wall
+// tint, and they are separated by partition walls with doorways you walk through.
+export const DOOR_W = 74;                         // gap you walk through
+export const DOOR_H = 104;                        // taller than the player
+export const ROOMS = [
+  { id:'reception', name:'RECEPTION',        x0:0,    x1:640,  tint:'#2f3346' },
+  { id:'openplan',  name:'OPEN PLAN',        x0:640,  x1:2180, tint:'#262a38' },
+  { id:'break',     name:'BREAK ROOM',       x0:2180, x1:2900, tint:'#33301f' },
+  { id:'meeting',   name:'MEETING ROOM',     x0:2900, x1:3560, tint:'#232b39' },
+  { id:'boss',      name:"THE BOSS'S OFFICE",x0:3560, x1:4400, tint:'#3a2b2b' },
+];
+export const roomAt = x => ROOMS.find(r => x >= r.x0 && x < r.x1) || ROOMS[0];
 
 // PACE. Everything here was roughly 40% faster and it read as twitchy rather
 // than punchy — you could cross the office before a swing finished, so nothing

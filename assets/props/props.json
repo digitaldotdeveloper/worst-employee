@@ -2,43 +2,43 @@
  "_comment": "Written by tools/cutout-world.py. Sizes are supersampled by `ss`; divide to get logical px.",
  "props": {
   "bin-broken": {
-   "w": 56,
-   "h": 35,
-   "ss": 2
-  },
-  "bin": {
-   "w": 49,
-   "h": 61,
-   "ss": 2
-  },
-  "cabinet": {
-   "w": 70,
-   "h": 94,
-   "ss": 2
-  },
-  "chair-broken": {
-   "w": 66,
+   "w": 47,
    "h": 29,
    "ss": 2
   },
+  "bin": {
+   "w": 41,
+   "h": 51,
+   "ss": 2
+  },
+  "cabinet": {
+   "w": 66,
+   "h": 87,
+   "ss": 2
+  },
+  "chair-broken": {
+   "w": 61,
+   "h": 27,
+   "ss": 2
+  },
   "chair": {
-   "w": 52,
-   "h": 80,
+   "w": 49,
+   "h": 75,
    "ss": 2
   },
   "coffee": {
-   "w": 61,
-   "h": 79,
+   "w": 51,
+   "h": 67,
    "ss": 2
   },
   "cooler-broken": {
-   "w": 61,
-   "h": 64,
+   "w": 51,
+   "h": 54,
    "ss": 2
   },
   "cooler": {
-   "w": 50,
-   "h": 122,
+   "w": 42,
+   "h": 103,
    "ss": 2
   },
   "desk-alt": {
@@ -52,53 +52,53 @@
    "ss": 2
   },
   "extinguisher": {
-   "w": 37,
-   "h": 67,
+   "w": 30,
+   "h": 54,
    "ss": 2
   },
   "monitor-broken": {
-   "w": 70,
-   "h": 55,
+   "w": 60,
+   "h": 47,
    "ss": 2
   },
   "monitor": {
-   "w": 28,
-   "h": 56,
+   "w": 23,
+   "h": 47,
    "ss": 2
   },
   "mug": {
-   "w": 33,
-   "h": 29,
+   "w": 21,
+   "h": 19,
    "ss": 2
   },
   "phone": {
-   "w": 37,
-   "h": 26,
+   "w": 26,
+   "h": 18,
    "ss": 2
   },
   "plant-broken": {
-   "w": 51,
-   "h": 29,
+   "w": 47,
+   "h": 26,
    "ss": 2
   },
   "plant": {
-   "w": 51,
-   "h": 65,
+   "w": 47,
+   "h": 59,
    "ss": 2
   },
   "printer-broken": {
-   "w": 92,
-   "h": 66,
+   "w": 66,
+   "h": 47,
    "ss": 2
   },
   "printer": {
-   "w": 94,
-   "h": 60,
+   "w": 74,
+   "h": 47,
    "ss": 2
   },
   "stack": {
-   "w": 47,
-   "h": 22,
+   "w": 35,
+   "h": 16,
    "ss": 2
   }
  }

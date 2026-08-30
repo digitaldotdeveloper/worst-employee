@@ -184,6 +184,20 @@ export class Player extends Body {
 
   _grabOrThrow(s) {
     if (this.carrying) { this._throw(); return; }
+
+    // A coworker within arm's reach takes priority over a prop. Annoying people
+    // is the whole premise of the game and it needs to be a thing you can DO,
+    // not just a side effect of breaking their monitor — especially now that
+    // destruction is opt-in and a quiet playthrough is a real option.
+    let victim = null, vd = 999;
+    for (const c of s.coworkers) {
+      if (c.dead || c.mode === 'down' || c.annoyCd > 0) continue;
+      const dx = Math.abs(c.cx - this.cx), dy = Math.abs(c.cy - this.cy);
+      if (dx > 56 || dy > 44) continue;
+      if (dx < vd) { vd = dx; victim = c; }
+    }
+    if (victim) { s.annoy(victim); return; }
+
     let best = null, bestD = 999;
     for (const b of s.world.bodies) {
       if (b === this || !b.grabbable || b.dead || b.type === 'boss') continue;

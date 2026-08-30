@@ -2,23 +2,24 @@
 // Script section 10 — objects must interact physically, not decorate.
 
 import { Body } from './engine.js';
-import { FLOOR_Y, LEVEL_W, COL, ANGER_STAGES } from './config.js';
+import { FLOOR_Y, LEVEL_W, COL, ANGER_STAGES, ROOMS } from './config.js';
 import { FX } from './fx.js';
 import { SFX } from './audio.js';
 
 // kind -> { w,h,mass,hp,value,label,color }
 export const PROPS = {
-  chair:    { w:28, h:34, mass:1.6, hp:34,  value:180,  label:'CHAIR',   color:'#5f6a86' },
-  monitor:  { w:30, h:24, mass:1.1, hp:22,  value:420,  label:'PC',      color:'#4d5570' },
-  printer:  { w:40, h:28, mass:3.0, hp:48,  value:1250, label:'PRINTER', color:'#6a7190' },
-  phone:    { w:16, h:12, mass:0.5, hp:14,  value:90,   label:'',        color:'#576080' },
-  mug:      { w:14, h:14, mass:0.4, hp:8,   value:12,   label:'',        color:'#8a5a2b' },
-  bin:      { w:24, h:26, mass:0.9, hp:20,  value:40,   label:'BIN',     color:'#4a5169' },
-  plant:    { w:22, h:38, mass:1.2, hp:18,  value:70,   label:'',        color:'#4a6b52' },
-  extinguisher:{ w:16, h:34, mass:2.2, hp:26, value:150, label:'',       color:'#a3474a' },
-  stack:    { w:20, h:16, mass:0.5, hp:6,   value:30,   label:'',        color:'#d8dbe6' },
-  cooler:   { w:26, h:52, mass:4.0, hp:60,  value:340,  label:'WATER',   color:'#5a7fa0' },
-  cabinet:  { w:30, h:52, mass:5.5, hp:90,  value:620,  label:'FILES',   color:'#6a7086' },
+  chair:    { w:26, h:32, mass:1.6, hp:34,  value:180,  label:'CHAIR',   color:'#5f6a86' },
+  monitor:  { w:26, h:20, mass:1.1, hp:22,  value:420,  label:'PC',      color:'#4d5570' },
+  printer:  { w:34, h:20, mass:3.0, hp:48,  value:1250, label:'PRINTER', color:'#6a7190' },
+  phone:    { w:14, h:8, mass:0.5, hp:14,  value:90,   label:'',        color:'#576080' },
+  mug:      { w:9, h:9, mass:0.4, hp:8,   value:12,   label:'',        color:'#8a5a2b' },
+  bin:      { w:20, h:22, mass:0.9, hp:20,  value:40,   label:'BIN',     color:'#4a5169' },
+  plant:    { w:20, h:30, mass:1.2, hp:18,  value:70,   label:'',        color:'#4a6b52' },
+  extinguisher:{ w:13, h:27, mass:2.2, hp:26, value:150, label:'',       color:'#a3474a' },
+  stack:    { w:18, h:7, mass:0.5, hp:6,   value:30,   label:'',        color:'#d8dbe6' },
+  cooler:   { w:22, h:44, mass:4.0, hp:60,  value:340,  label:'WATER',   color:'#5a7fa0' },
+  cabinet:  { w:28, h:46, mass:5.5, hp:90,  value:620,  label:'FILES',   color:'#6a7086' },
+  coffee:   { w:22, h:38, mass:4.5, hp:90,  value:900,  label:'COFFEE',  color:'#7a5a3a' },
 };
 
 export function makeProp(kind, x, y) {
@@ -43,11 +44,14 @@ export class Coworker extends Body {
     this.label = 'COWORKER';
     this.art = null;          // set by buildOffice
     this.hurtT = 0;
+    this.annoyCd = 0;   // cannot be pestered again instantly
+    this.annoyed2 = 0;  // how many times this one has put up with you
   }
 
   update(dt, s) {
     this.animT += dt;
     if (this.hurtT > 0) this.hurtT -= dt;
+    if (this.annoyCd > 0) this.annoyCd -= dt;
     if (this.mode === 'down') {
       this.downT -= dt;
       this.angle += this.va * dt * 0.3;
@@ -159,63 +163,110 @@ export class Boss extends Body {
 
 // ---------------------------------------------------------------
 // Level build
+//
+// Props used to be sprinkled along one long corridor at arbitrary x values,
+// which is exactly why the office read as unarranged: there was no structure to
+// arrange them around. Now every room has a purpose and its own furniture
+// rules, and a workstation is a single unit — desk, monitor, keyboard, mug,
+// papers, chair — placed as a unit rather than as six independent props.
 // ---------------------------------------------------------------
+
+const DESK_W = 120, DESK_H = 40;
+
+function desk(world, x) {
+  const d = { x, y: FLOOR_Y - DESK_H, w: DESK_W, h: DESK_H, label: 'DESK', oneWay: true };
+  world.addStatic(d);
+  return d;
+}
+
+// One tidy workstation. Everything sits ON the desk surface at d.y, so nothing
+// looks sunk into the top, and the chair is tucked in front rather than dumped
+// on the floor beside it.
+function workstation(world, x, opt = {}) {
+  const d = desk(world, x);
+  const top = d.y;
+  world.add(makeProp('monitor', x + 16, top - PROPS.monitor.h));
+  if (opt.keyboard !== false) world.add(makeProp('stack', x + 54, top - PROPS.stack.h));
+  world.add(makeProp('mug', x + 92, top - PROPS.mug.h));
+  if (opt.phone) world.add(makeProp('phone', x + 34, top - PROPS.phone.h));
+  world.add(makeProp('chair', x + 48, FLOOR_Y - PROPS.chair.h));
+  if (opt.bin) world.add(makeProp('bin', x + DESK_W + 12));
+  return d;
+}
+
 export function buildOffice(world, s) {
   world.levelW = LEVEL_W;
   world.statics.length = 0;
+  s.coworkers = [];
 
-  const desks = [];
-  // a row of desks down the floor; each is solid, with a monitor + chair + mug on it
-  for (let i = 0; i < 7; i++) {
-    const x = 220 + i * 320;
-    const dw = 120, dh = 40;
-    const desk = { x, y: FLOOR_Y - dh, w: dw, h: dh, label: 'DESK', oneWay: true };
-    world.addStatic(desk);
-    desks.push(desk);
+  const P = (kind, x) => world.add(makeProp(kind, x));
 
-    world.add(makeProp('monitor', x + 12, desk.y - PROPS.monitor.h));
-    world.add(makeProp('mug', x + 74, desk.y - PROPS.mug.h));
-    world.add(makeProp('chair', x + 140, FLOOR_Y - PROPS.chair.h)); // clear of the desk collider
-    if (i % 2 === 0) world.add(makeProp('stack', x + 92, desk.y - PROPS.stack.h));
-    if (i % 3 === 1) world.add(makeProp('phone', x + 40, desk.y - PROPS.phone.h));
-  }
+  // ── RECEPTION ─ sparse and tidy: the bit visitors see ──────────────────
+  P('plant', 90);
+  P('cabinet', 170);
+  P('plant', 470);
+  P('bin', 560);
+  const waterR = makeProp('cooler', 380); waterR.isWater = true; world.add(waterR);
 
-  // scattered floor props
-  const floorProps = [
-    ['bin', 150], ['plant', 480], ['printer', 640], ['extinguisher', 860],
-    ['bin', 1080], ['printer', 1320], ['plant', 1580], ['bin', 1760],
-    ['extinguisher', 2020], ['printer', 2180], ['plant', 2380],
-    ['cabinet', 300], ['cabinet', 1140], ['cabinet', 1900],
-  ];
-  for (const [kind, x] of floorProps) world.add(makeProp(kind, x));
+  // ── OPEN PLAN ─ four workstations in a row, service kit between them ───
+  const stations = [740, 1060, 1500, 1820];
+  stations.forEach((x, i) => workstation(world, x, { phone: i % 2 === 0, bin: i % 2 === 1 }));
+  P('printer', 940);
+  P('cabinet', 1400);
+  P('extinguisher', 1392);
+  P('printer', 1740);
+  P('plant', 2100);
 
-  // coffee machine + water cooler — the running joke and the boost
-  const coffee = makeProp('cooler', 760);
-  coffee.label = 'COFFEE'; coffee.color = '#7a5a3a'; coffee.kind = 'coffee';
-  coffee.grabbable = false; coffee.hp = 90; coffee.value = 900;
+  // ── BREAK ROOM ─ coffee, water, a table, mess ─────────────────────────
+  const coffee = makeProp('coffee', 2260);
+  coffee.grabbable = false;
   world.add(coffee);
   s.coffeeMachine = coffee;
+  const waterB = makeProp('cooler', 2340); waterB.isWater = true; world.add(waterB);
+  const table = desk(world, 2480);
+  P('mug', 2500); P('mug', 2540); P('stack', 2570);
+  world.add(makeProp('chair', 2460, FLOOR_Y - PROPS.chair.h));
+  world.add(makeProp('chair', 2620, FLOOR_Y - PROPS.chair.h));
+  P('bin', 2700); P('plant', 2830);
 
-  const water = makeProp('cooler', 1500);
-  water.kind = 'water';
-  world.add(water);
+  // ── MEETING ROOM ─ one long table, chairs down both sides ─────────────
+  desk(world, 2990); desk(world, 3110);
+  for (const cx of [2970, 3060, 3150, 3240]) {
+    world.add(makeProp('chair', cx, FLOOR_Y - PROPS.chair.h));
+  }
+  P('mug', 3010); P('stack', 3080); P('mug', 3160);
+  P('plant', 3330); P('cabinet', 3420);
 
-  // coworkers
-  const names = ['SAMI', 'RITA', 'OMAR', 'LEA', 'KARIM', 'NOUR'];
-  const arts = ['npc-sami', 'npc-rita', 'npc-omar'];
-  s.coworkers = [];
-  for (let i = 0; i < names.length; i++) {
-    const c = new Coworker(340 + i * 360, names[i]);
-    c.art = arts[i % arts.length];       // three bodies, reused down the floor
+  // ── BOSS'S OFFICE ─ big desk, status objects, nothing shared ──────────
+  const bossDesk = desk(world, 3760);
+  P('monitor', 3776); P('stack', 3830); P('phone', 3866);
+  world.add(makeProp('chair', 3720, FLOOR_Y - PROPS.chair.h));
+  P('cabinet', 3660);
+  P('plant', 4020);
+  P('extinguisher', 4090);
+  P('bin', 4160);
+
+  // ── the cast, seated where they belong ────────────────────────────────
+  const staff = [
+    ['SAMI',  'npc-sami', 800],
+    ['RITA',  'npc-rita', 1120],
+    ['OMAR',  'npc-omar', 1560],
+    ['LEA',   'npc-rita', 1880],
+    ['KARIM', 'npc-sami', 2560],   // break room
+    ['NOUR',  'npc-omar', 3070],   // meeting room
+  ];
+  for (const [name, art, x] of staff) {
+    const c = new Coworker(x, name);
+    c.art = art;
+    c.homeX = x;                    // they drift, but they belong somewhere
     world.add(c); s.coworkers.push(c);
   }
 
-  // boss
-  const boss = new Boss(2320);
+  const boss = new Boss(3900);
   world.add(boss);
   s.boss = boss;
 
-  return { desks };
+  return {};
 }
 
 export function angerStage(v) {

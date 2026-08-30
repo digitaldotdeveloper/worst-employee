@@ -21,10 +21,19 @@ OUT_BG = os.path.join(os.path.dirname(HERE), 'assets', 'bg')
 # Collision sizes from js/office.js. The art is fitted to these, never the
 # other way round: the feel was tuned against these numbers.
 SIZES = {
-    'chair': (28, 34), 'monitor': (30, 24), 'printer': (40, 28), 'phone': (16, 12),
-    'mug': (14, 14), 'bin': (24, 26), 'plant': (22, 38), 'extinguisher': (16, 34),
-    'stack': (20, 16), 'cooler': (26, 52), 'coffee': (26, 52), 'desk': (120, 40),
-    'desk-alt': (120, 40), 'cabinet': (30, 52),
+    'chair': (26, 32),
+    'monitor': (26, 20),
+    'printer': (34, 20),
+    'phone': (14, 8),
+    'mug': (9, 9),
+    'bin': (20, 22),
+    'plant': (20, 30),
+    'extinguisher': (13, 27),
+    'stack': (18, 7),
+    'cooler': (22, 44),
+    'coffee': (22, 38),
+    'cabinet': (28, 46),
+    'desk': (120, 40), 'desk-alt': (120, 40),
 }
 OVERSIZE = 1.18          # art overhangs the collider slightly so it reads as an object
 SS = 2                   # supersample for high-DPI phones

@@ -29,6 +29,13 @@ OUT = os.path.join(os.path.dirname(HERE), 'assets', _KIND, OUTFIT)
 
 # The pose that defines the ground line and the standing height.
 DATUM = 'idle'
+# Poses where the body lies along the ground. These need a LENGTH check, not a
+# height check: a prone figure is legitimately short, so the "is it zoomed?"
+# height test can never catch one drawn too big — and the generator does draw
+# them too big (measured 1.16x to 1.43x). A person lying down is about as long
+# as they are tall, a little less when curled.
+PRONE_POSES = {'down'}
+PRONE_LEN = 0.95
 # Standing height in output pixels. The game draws the player 62px tall, so 2x
 # gives a little headroom for high-DPI phones without bloating the download.
 TARGET_H = 124
@@ -94,6 +101,17 @@ def strip_ground_line(rgba):
     return rgba
 
 
+def rescale_about(rgba, factor, ax, ay):
+    """Scale the whole frame's content by `factor`, keeping (ax, ay) fixed."""
+    h, w = rgba.shape[:2]
+    im = Image.fromarray(rgba, 'RGBA')
+    nw, nh = max(1, int(round(w * factor))), max(1, int(round(h * factor)))
+    out = Image.new('RGBA', (w, h), (0, 0, 0, 0))
+    out.paste(im.resize((nw, nh), Image.LANCZOS),
+              (int(round(ax - ax * factor)), int(round(ay - ay * factor))))
+    return np.asarray(out).copy()
+
+
 def bbox(rgba):
     ys, xs = np.where(rgba[..., 3] > 16)
     if len(xs) == 0:
@@ -140,6 +158,27 @@ def main():
     d = boxes[DATUM]
     datum_h = d[3] - d[1]
     ground_y = d[3]
+
+    # Correct prone frames drawn at the wrong scale, measured by LENGTH against
+    # the standing height. Scaled about the body's bottom-centre so it stays on
+    # the ground and stays put horizontally.
+    for name in list(keyed):
+        if name not in PRONE_POSES:
+            continue
+        bb = boxes[name]
+        length = bb[2] - bb[0]
+        want = datum_h * PRONE_LEN
+        ratio = length / want
+        if abs(ratio - 1) < 0.06:
+            print(f'{name:14s} prone length {length} vs target {want:.0f} — ok')
+            continue
+        f = want / length
+        print(f'{name:14s} prone length {length} vs target {want:.0f} '
+              f'({ratio:+.0%} off) — rescaling by {f:.3f}')
+        keyed[name] = rescale_about(keyed[name], f, (bb[0] + bb[2]) / 2, bb[3])
+        nb = bbox(keyed[name])
+        if nb:
+            boxes[name] = nb
 
     print(f'{"pose":14s} {"bbox":28s} {"h":>5s} {"vs idle":>8s}')
     for name in sorted(boxes):

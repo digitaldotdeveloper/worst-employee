@@ -1,6 +1,7 @@
 // WORST EMPLOYEE — feel test. Game state, loop, camera, renderer, shift report.
 
-import { VERSION, VIEW, FLOOR_Y, CEIL_Y, ROOF_Y, LEVEL_W, COL, COFFEE, RANKS, QUIET_RANKS, ATTACK } from './config.js';
+import { VERSION, VIEW, FLOOR_Y, CEIL_Y, ROOF_Y, LEVEL_W, COL, COFFEE, RANKS, QUIET_RANKS,
+         ATTACK, ROOMS, DOOR_W, DOOR_H, roomAt } from './config.js';
 import { World } from './engine.js';
 import { FX } from './fx.js';
 import { ART, SPRITES, WORLD, CAST, poseFor, npcPoseName, bossPoseName,
@@ -37,6 +38,7 @@ const S = {
   coffeeMachine: null,
   shiftT: 0,
   look: loadLook() || defaultLook(),
+  room: null,
   hrWatching: false, hrHeat: 0, freeCoffee: false, clientHere: false, dark: false,
   toast: (msg, cls) => toast(msg, cls),
   useArt: true,          // rendered key poses
@@ -222,7 +224,7 @@ function startShift() {
   S.mode = 'play';
   S.time = 0; S.shiftT = 0;
   S.coins = 0; S.damage = 0; S.destroyed = 0; S.annoyed = 0;
-  S.hits = 0; S.playerHits = 0; S.coffees = 0; S.coffeeSpend = 0;
+  S.hits = 0; S.playerHits = 0; S.coffees = 0; S.coffeeSpend = 0; S.annoyCount = 0;
   S.chainsMade = 0; S.bestChain = 0;
   S.productivity = 100; S.anger = 0; S.stageIdx = 0;
   S.speedMul = 1; S.chaosMul = 1; S.boostT = 0;
@@ -231,6 +233,7 @@ function startShift() {
   S.chaos = new ChaosSystem(S);
   S.events = S.events || new EventSystem(S);
   S.events.reset();
+  S.room = null;
   S.hrWatching = false; S.hrHeat = 0; S.freeCoffee = false;
   S.clientHere = false; S.dark = false;
   S.world.onImpact = (a, b, e) => S.chaos.onImpact(a, b, e);
@@ -250,6 +253,35 @@ function startShift() {
 }
 
 let outfitToken = 0;
+
+// Pestering a colleague: no damage, no destruction, but it costs the company
+// real productivity and it winds the boss up. This is the quiet player's way of
+// being the worst employee in the building.
+const JABS = [
+  'Quick question.', 'You busy?', 'Weird smell in here.', 'Is that a new mug?',
+  'Big weekend?', 'Did you get my email?', 'You look tired.', 'We should sync.',
+  "I'll let you get on.", 'Circle back on that?',
+];
+S.annoy = function (c) {
+  c.annoyCd = 1.1;
+  c.annoyed2++;
+  c.mode = 'panic';
+  c.timer = 0.9;
+  c.vx += Math.sign(c.cx - S.player.cx || 1) * 90;
+  if (!c.annoyed) { c.annoyed = true; S.annoyed++; }
+
+  const pay = 55 + c.annoyed2 * 18;
+  S.coins += pay;
+  S.productivity = Math.max(0, S.productivity - 1.1);
+  S.addAnger(2.2);
+  S.annoyCount = (S.annoyCount || 0) + 1;
+
+  FX.float(c.cx, c.y - 12, '+' + pay, '#ffd75e', 12);
+  FX.float(S.player.cx, S.player.y - 22, JABS[S.annoyCount % JABS.length], '#c6ccdd', 10);
+  SFX.ui(true);
+  if (c.annoyed2 === 4) toast(`"${c.name}, could you please stop."`);
+};
+
 async function applyLook() {
   const c = lookColours(S.look);
   const want = lookOutfit(S.look);
@@ -311,6 +343,7 @@ function endShift(promoted = false) {
     ['COMPANY DAMAGE', '$' + S.damage.toLocaleString()],
     ['OBJECTS DESTROYED', S.destroyed],
     ['EMPLOYEES ANNOYED', S.annoyed],
+    ['TIMES YOU PESTERED THEM', S.annoyCount || 0],
     ['COFFEE CONSUMED', S.coffees],
     ['SPENT ON CAPSULES', '$' + S.coffeeSpend],
     ['BOSS ANGER', Math.round(S.anger) + '%'],
@@ -355,6 +388,14 @@ function update(dt) {
   S.world.step(dt);
   S.chaos.step(dt);
   S.events.step(dt);
+
+  // Announce the room you walk into. Rooms are only worth having if arriving in
+  // one is an event.
+  const rm = roomAt(S.player.cx);
+  if (rm && rm.id !== S.room) {
+    if (S.room) { toast(rm.name); SFX.ui(true); }
+    S.room = rm.id;
+  }
   S.player.carryPose();
 
   // coffee machine interaction
@@ -598,6 +639,13 @@ function drawBackground(camX) {
     // screen — a readable silhouette matters more than showing off the wall.
     ctx.fillStyle = 'rgba(12,14,24,.52)';
     ctx.fillRect(camX, CEIL_Y, viewW(), FLOOR_Y - CEIL_Y);
+    // each room gets its own wash so you can feel where you are
+    for (const r of ROOMS) {
+      const a = Math.max(r.x0, camX), b2 = Math.min(r.x1, camX + viewW());
+      if (b2 <= a) continue;
+      ctx.fillStyle = r.tint + '55';
+      ctx.fillRect(a, CEIL_Y, b2 - a, FLOOR_Y - CEIL_Y);
+    }
     const depth = ctx.createLinearGradient(0, CEIL_Y, 0, FLOOR_Y);
     depth.addColorStop(0, 'rgba(8,9,16,.45)');
     depth.addColorStop(0.55, 'rgba(8,9,16,0)');
@@ -638,10 +686,44 @@ function drawBackground(camX) {
 
   ctx.fillStyle = 'rgba(255,255,255,.07)';
   ctx.font = '900 26px system-ui'; ctx.textAlign = 'left';
-  ctx.font = '900 20px system-ui';
-  ctx.fillText("WE'RE A FAMILY", 300, CEIL_Y + 56);
-  ctx.fillText('PRODUCTIVITY MATTERS', 1180, CEIL_Y + 56);
-  ctx.fillText('SYNERGY', 2050, CEIL_Y + 56);
+  ctx.font = '900 18px system-ui';
+  const SIGNS = [[300, "WE'RE A FAMILY"], [1180, 'PRODUCTIVITY MATTERS'],
+                 [2400, 'PLEASE WASH YOUR MUG'], [3020, 'SYNERGY'], [3820, 'RESULTS']];
+  for (const [sx, txt] of SIGNS) ctx.fillText(txt, sx, CEIL_Y + 54);
+
+  // Partition walls with a doorway you walk through. This is what turns one long
+  // corridor into rooms — the wall tints alone read as a gradient, not as having
+  // arrived somewhere. The opening is taller than the player so there is no
+  // collider here at all; you just walk through.
+  for (const r of ROOMS) {
+    if (r.x0 <= 0) continue;
+    const wx = r.x0 - 13;
+    if (wx + 26 < camX - 60 || wx > camX + viewW() + 60) continue;
+    const dx = r.x0 - DOOR_W / 2;
+
+    ctx.fillStyle = '#151824';
+    ctx.fillRect(wx, CEIL_Y - 8, 26, FLOOR_Y - CEIL_Y + 8);
+    ctx.fillStyle = 'rgba(255,255,255,.06)';
+    ctx.fillRect(wx, CEIL_Y - 8, 5, FLOOR_Y - CEIL_Y + 8);
+    ctx.fillStyle = 'rgba(0,0,0,.35)';
+    ctx.fillRect(wx + 21, CEIL_Y - 8, 5, FLOOR_Y - CEIL_Y + 8);
+
+    // the opening — darker than the wall so it reads as depth
+    ctx.fillStyle = '#0b0e15';
+    ctx.fillRect(dx, FLOOR_Y - DOOR_H, DOOR_W, DOOR_H);
+    ctx.fillStyle = 'rgba(120,150,200,.06)';
+    ctx.fillRect(dx + 7, FLOOR_Y - DOOR_H + 7, DOOR_W - 14, DOOR_H - 7);
+    ctx.strokeStyle = '#454c66'; ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.moveTo(dx, FLOOR_Y); ctx.lineTo(dx, FLOOR_Y - DOOR_H);
+    ctx.lineTo(dx + DOOR_W, FLOOR_Y - DOOR_H); ctx.lineTo(dx + DOOR_W, FLOOR_Y);
+    ctx.stroke();
+
+    ctx.fillStyle = 'rgba(230,235,250,.5)';
+    ctx.font = '700 8px system-ui'; ctx.textAlign = 'center';
+    ctx.fillText(r.name, r.x0, FLOOR_Y - DOOR_H - 10);
+    ctx.textAlign = 'left';
+  }
 }
 
 function drawFloor(camX) {
