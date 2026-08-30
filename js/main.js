@@ -6,6 +6,7 @@ import { FX } from './fx.js';
 import { ART, SPRITES, WORLD, poseFor, recolourSprites, drawHuman, drawProp, roundRect } from './art.js';
 import { RIG } from './rig.js';
 import { SFX } from './audio.js';
+import { EventSystem } from './events.js';
 import { IN, initInput, pollInput } from './input.js';
 import { ChaosSystem } from './chaos.js';
 import { Player } from './player.js';
@@ -35,6 +36,8 @@ const S = {
   coffeeMachine: null,
   shiftT: 0,
   look: loadLook() || defaultLook(),
+  hrWatching: false, hrHeat: 0, freeCoffee: false, clientHere: false, dark: false,
+  toast: (msg, cls) => toast(msg, cls),
   useArt: true,          // rendered key poses
   useRig: true,          // the cut-up skeleton — takes priority when loaded
   // Camera zoom is a RENDER-only scale. The player is 62px tall because the
@@ -206,6 +209,10 @@ function startShift() {
 
   S.world = new World();
   S.chaos = new ChaosSystem(S);
+  S.events = S.events || new EventSystem(S);
+  S.events.reset();
+  S.hrWatching = false; S.hrHeat = 0; S.freeCoffee = false;
+  S.clientHere = false; S.dark = false;
   S.world.onImpact = (a, b, e) => S.chaos.onImpact(a, b, e);
 
   S.player = new Player(120);
@@ -311,11 +318,12 @@ function update(dt) {
 
   S.world.step(dt);
   S.chaos.step(dt);
+  S.events.step(dt);
   S.player.carryPose();
 
   // coffee machine interaction
   const cm = S.coffeeMachine;
-  if (cm && !cm.broken && Math.abs(cm.cx - S.player.cx) < 46 && S.boostT <= 0.01) {
+  if (cm && !cm.broken && Math.abs(cm.cx - S.player.cx) < 46 && (S.boostT <= 0.01 || S.freeCoffee)) {
     if (S.player.grounded && Math.abs(S.player.vx) < 40) {
       S.coffees++;
       S.coffeeSpend += COFFEE.capsuleCost;
@@ -353,6 +361,13 @@ function updateHud() {
   SFX.setTension(S.anger / 100);
   $('hAngerStage').textContent = st.name;
   $('hAngerFill').style.width = S.anger + '%';
+
+  const ev = $('eventBar');
+  if (S.events && S.events.active) {
+    ev.classList.remove('hidden');
+    $('eventName').textContent = S.events.active.name;
+    $('eventFill').style.width = (S.events.t / S.events.active.dur * 100) + '%';
+  } else ev.classList.add('hidden');
 
   const w = $('chainWrap');
   if (S.chaos.chain >= 2) {
@@ -500,6 +515,20 @@ function render() {
   const g = ctx.createLinearGradient(0, 0, 0, 70);
   g.addColorStop(0, 'rgba(0,0,0,.5)'); g.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = g; ctx.fillRect(0, 0, VIEW.w, 70);
+  if (S.dark) {
+    ctx.fillStyle = 'rgba(4,5,12,.55)';
+    ctx.fillRect(0, 0, VIEW.w, VIEW.h);
+  }
+  if (S.hrWatching) {
+    // a red creep from the edges: standing still is literally the safe zone
+    const h = Math.min(1, S.hrHeat || 0);
+    const g = ctx.createRadialGradient(VIEW.w / 2, VIEW.h / 2, VIEW.h * 0.25,
+                                       VIEW.w / 2, VIEW.h / 2, VIEW.h * 0.78);
+    g.addColorStop(0, 'rgba(0,0,0,0)');
+    g.addColorStop(1, `rgba(190,30,30,${0.20 + h * 0.5})`);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, VIEW.w, VIEW.h);
+  }
   if (FX.flash > 0) {
     ctx.fillStyle = `rgba(255,90,90,${Math.min(0.5, FX.flash * 0.5)})`;
     ctx.fillRect(0, 0, VIEW.w, VIEW.h);

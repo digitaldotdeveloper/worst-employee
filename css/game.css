@@ -155,3 +155,36 @@ h3{font-size:11px;letter-spacing:.18em;color:#8d93a6;margin:18px 0 7px}
 }
 .soon{margin-left:8px;padding:1px 5px;border-radius:3px;font-size:8px;letter-spacing:.1em;
   background:rgba(255,215,94,.14);color:#ffd75e;border:1px solid rgba(255,215,94,.3)}
+
+/* ---------------- random events ---------------- */
+.event-bar{position:absolute;left:50%;top:8px;transform:translateX(-50%);
+  background:rgba(10,11,14,.72);border:1px solid rgba(255,215,94,.35);
+  border-radius:5px;padding:5px 12px 6px;min-width:190px;text-align:center;
+  backdrop-filter:blur(4px)}
+.event-bar #eventName{font-size:10px;letter-spacing:.18em;font-weight:900;color:#ffd75e}
+.event-fill{height:3px;background:rgba(255,255,255,.16);border-radius:2px;margin-top:5px;overflow:hidden}
+.event-fill i{display:block;height:100%;background:#ffd75e;transition:width .2s linear}
+.toast.event{color:#ffd75e}
+
+/* ---------------- opening (script section 4) ---------------- */
+.intro .pre{opacity:0;animation:introIn .5s ease forwards}
+.intro .l1{animation-delay:.15s}
+.intro .l2{animation-delay:1.05s}
+.intro .l3{animation-delay:1.95s}
+@keyframes introIn{from{opacity:0;transform:translateY(6px);letter-spacing:.5em}
+                   to{opacity:1;transform:none;letter-spacing:.28em}}
+#title h1{opacity:0;animation:titleIn .7s cubic-bezier(.2,.9,.2,1) 2.6s forwards}
+@keyframes titleIn{from{opacity:0;transform:scale(1.18)}to{opacity:1;transform:none}}
+#title .tag,#title .build,#title #btnStart,#title #btnHelp,#title .note,#title a.ghost-btn{
+  opacity:0;animation:fadeUp .5s ease forwards}
+#title .tag{animation-delay:3.1s}
+#title .build{animation-delay:3.25s}
+#title #btnStart{animation-delay:3.4s}
+#title #btnHelp{animation-delay:3.55s}
+#title a.ghost-btn{animation-delay:3.65s}
+#title .note{animation-delay:3.8s}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){
+  .intro .pre,#title h1,#title .tag,#title .build,#title #btnStart,#title #btnHelp,
+  #title .note,#title a.ghost-btn{animation:none;opacity:1}
+}

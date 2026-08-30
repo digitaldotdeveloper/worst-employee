@@ -38,6 +38,10 @@
       <div id="chainBar" class="chain-bar"><i></i></div>
     </div>
 
+    <div id="eventBar" class="event-bar hidden">
+      <div id="eventName">EVENT</div>
+      <div class="event-fill"><i id="eventFill"></i></div>
+    </div>
     <div id="boost" class="boost hidden">&#9749; COFFEE BOOST</div>
     <div id="toast" class="toast"></div>
   </div>
@@ -56,9 +60,11 @@
   <!-- ================= TITLE ================= -->
   <div id="title" class="screen">
     <div class="screen-inner">
-      <p class="pre">LIFE IS EXPENSIVE.</p>
-      <p class="pre">YOU NEED MONEY.</p>
-      <p class="pre">YOU NEED A JOB.</p>
+      <div class="intro">
+        <p class="pre l1">LIFE IS EXPENSIVE.</p>
+        <p class="pre l2">YOU NEED MONEY.</p>
+        <p class="pre l3">YOU NEED A JOB.</p>
+      </div>
       <h1>WORST<br>EMPLOYEE</h1>
       <p class="tag">HATE YOUR JOB? BECOME THE WORST EMPLOYEE.</p>
       <div class="build">FEEL TEST &mdash; GREYBOX BUILD <span id="verTag"></span></div>
@@ -111,6 +117,7 @@
         <div><b>HEAVY HIT</b><span>K &nbsp;|&nbsp; hold HIT</span></div>
         <div><b>DODGE</b><span>SHIFT &nbsp;|&nbsp; DODGE &mdash; brief invulnerability</span></div>
         <div><b>GRAB / THROW</b><span>L &nbsp;|&nbsp; GRAB &mdash; pick a thing up, press again to launch it</span></div>
+        <div><b>SWING IT</b><span>hit while holding &mdash; more reach, far more knockback</span></div>
         <div><b>INTERACT</b><span>walk into the coffee machine</span></div>
       </div>
       <h3>THE POINT</h3>
@@ -119,6 +126,11 @@
       papers &rarr; coworker &rarr; boss. Longer chain, bigger multiplier.</p>
       <p>Productivity going <i>down</i> is the win condition. Fill the boss's anger
       bar to trigger the fight.</p>
+      <h3>EVENTS</h3>
+      <p>The shift interrupts itself. <b>HR INSPECTION</b> pays you to stand
+      perfectly still. <b>FIRE DRILL</b> means nobody is watching. <b>BIG CLIENT</b>
+      makes every bit of chaos cost double. A <b>BUDGET CUT</b> turns half the
+      lights off.</p>
       <button id="btnHelpBack" class="big-btn">GOT IT</button>
     </div>
   </div>

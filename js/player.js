@@ -104,10 +104,14 @@ export class Player extends Body {
   }
 
   _startAttack(kind, step) {
-    this.atk = { kind, step, phase: 'startup', t: 0, hit: new Set() };
+    // Script section 15: a weapon should change what you can DO, not just deal
+    // more damage. Swinging what you are holding gets more reach and far more
+    // knockback than a fist, and the object takes damage too — so a chair is a
+    // few good hits before it becomes debris.
+    const wep = this.carrying;
+    this.atk = { kind, step, phase: 'startup', t: 0, hit: new Set(), wep };
     SFX.whiff();
     this.state = 'attack';
-    if (this.carrying) this._throw();
     if (IN.axis) this.face = Math.sign(IN.axis);
   }
 
@@ -131,10 +135,15 @@ export class Player extends Body {
   }
 
   _swing(d, s, a) {
+    // A held object extends reach by its own size and multiplies the hit.
+    const wep = a.wep && !a.wep.dead ? a.wep : null;
+    const reach = d.reach + (wep ? wep.w * 0.8 + 10 : 0);
+    const hh = d.hh + (wep ? wep.h * 0.5 : 0);
+    const mul = wep ? 1.6 + Math.min(1.2, wep.mass * 0.35) : 1;
     const box = {
-      x: this.face > 0 ? this.x + this.w - 6 : this.x - d.reach + 6,
-      y: this.cy - d.hh / 2,
-      w: d.reach, h: d.hh,
+      x: this.face > 0 ? this.x + this.w - 6 : this.x - reach + 6,
+      y: this.cy - hh / 2,
+      w: reach, h: hh,
     };
     // small lunge on the finisher / heavy
     if (a.phase === 'active' && (d === ATTACK.heavy || a.step === 2)) {
@@ -144,22 +153,28 @@ export class Player extends Body {
     for (const b of s.world.bodies) {
       if (b === this || b.dead || b.held || a.hit.has(b.id)) continue;
       if (b.type === 'deco') continue;
+      if (b === a.wep) continue;
       if (!rectsOverlap(box, b)) continue;
       a.hit.add(b.id);
 
       const dirX = Math.sign(b.cx - this.cx) || this.face;
-      b.vx += dirX * d.kbX / Math.max(0.6, b.mass * 0.5);
-      b.vy += d.kbY / Math.max(0.6, b.mass * 0.5);
+      b.vx += dirX * d.kbX * mul / Math.max(0.6, b.mass * 0.5);
+      b.vy += d.kbY * mul / Math.max(0.6, b.mass * 0.5);
       b.va += dirX * (4 + Math.random() * 5);
       b.flash = 0.14;
 
-      s.damageBody(b, d.dmg, this);
+      s.damageBody(b, d.dmg * mul, this);
       s.chaos.ignite(b, Math.max(1, b.chainDepth), b.label || b.kind);
 
       const hx = this.cx + this.face * 30, hy = this.cy - 4;
       FX.spark(hx, hy, d === ATTACK.heavy ? 16 : 9, '#fff', d === ATTACK.heavy ? 420 : 260);
-      FX.kick(d.shake, d.hitstop);
-      SFX.hit(d === ATTACK.heavy ? 1 : 0.35 + a.step * 0.2);
+      FX.kick(d.shake * (wep ? 1.4 : 1), d.hitstop * (wep ? 1.35 : 1));
+      SFX.hit(Math.min(1, (d === ATTACK.heavy ? 1 : 0.35 + a.step * 0.2) * (wep ? 1.5 : 1)));
+      if (wep) {                       // the weapon wears out as you use it
+        s.damageBody(wep, d.dmg * 0.55, this);
+        wep.flash = 0.12;
+        if (wep.broken) { this.carrying = null; a.wep = null; }
+      }
       s.hits++;
     }
   }
@@ -201,8 +216,18 @@ export class Player extends Body {
   carryPose() {
     if (!this.carrying) return;
     const c = this.carrying;
-    c.x = this.cx + this.face * PLAYER.carryOffset.x - c.w / 2;
-    c.y = this.y + PLAYER.carryOffset.y - c.h / 2;
+    const a = this.atk;
+    if (a && a.wep === c) {
+      // swing arc: back on the wind-up, thrown forward on the active frames
+      const k = a.phase === 'startup' ? -0.5 : (a.phase === 'active' ? 1.5 : 0.7);
+      c.x = this.cx + this.face * (PLAYER.carryOffset.x + 16 * k) - c.w / 2;
+      c.y = this.cy - c.h / 2 - 10 + (a.phase === 'active' ? 6 : -6);
+      c.angle = this.face * (a.phase === 'active' ? 1.1 : -0.7);
+    } else {
+      c.x = this.cx + this.face * PLAYER.carryOffset.x - c.w / 2;
+      c.y = this.y + PLAYER.carryOffset.y - c.h / 2;
+      c.angle = 0;
+    }
     c.vx = this.vx; c.vy = this.vy;
   }
 }
