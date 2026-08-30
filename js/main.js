@@ -1,7 +1,7 @@
 // WORST EMPLOYEE — feel test. Game state, loop, camera, renderer, shift report.
 
 import { VERSION, VIEW, FLOOR_Y, CEIL_Y, ROOF_Y, LEVEL_W, COL, COFFEE, RANKS, QUIET_RANKS,
-         ATTACK, ROOMS, DOOR_W, DOOR_H, roomAt } from './config.js';
+         ATTACK, ROOMS, DOOR_W, DOOR_H, roomAt, FLOORS, CUR } from './config.js';
 import { World } from './engine.js';
 import { FX } from './fx.js';
 import { ART, SPRITES, WORLD, CAST, WEAPON_ART, poseFor, npcPoseName, bossPoseName,
@@ -12,6 +12,8 @@ import { EventSystem } from './events.js';
 import { WEAPONS, SHOP_ORDER, loadCareer, saveCareer, defaultCareer,
          bump, checkUnlocks, buy, hasSkill } from './weapons.js';
 import { Sabotage, RUIN, ruinTier, rankFor } from './sabotage.js';
+import { Story, introScene, HR_X } from './story.js';
+import { Coworker } from './office.js';
 import { IN, initInput, pollInput, resetInput } from './input.js';
 import { ChaosSystem } from './chaos.js';
 import { Player } from './player.js';
@@ -42,6 +44,7 @@ const S = {
   shiftT: 0,
   look: loadLook() || defaultLook(),
   career: loadCareer(),
+  actors: {}, story: null, intro: false,
   ruin: 0, deskDown: 0, knocked: 0, killed: {}, roomKills: {}, jobsDone: 0,
   salaryAcc: 0,
   cleanT: 0,
@@ -76,9 +79,18 @@ const S = {
   damageBody(b, dmg, src) {
     if (!b || b.dead) return;
     if (b.type === 'npc') {
-      // A scrape is not a hit. Only a real blow puts someone on the floor.
-      if (dmg < 18) { b.hurtT = Math.max(b.hurtT, 0.16); return; }
-      b.knock(this);
+      // A scrape is not a hit — but the cutoff has to sit BETWEEN combo beats,
+      // not above them. 14 is above light[1] (12) and below light[2] (15), so
+      // the opening jabs stagger and the string still escalates into a
+      // knockdown. At 18 the first three beats did nothing and it read as
+      // unresponsive.
+      if (dmg < 14) {
+        b.hurtT = Math.max(b.hurtT, 0.22);
+        b.vx += Math.sign(b.cx - (src ? src.cx : b.cx) || 1) * 60;
+        this.addAnger(0.4);
+        return;
+      }
+      b.knock(this, dmg);
       this.knocked = (this.knocked || 0) + 1;
       this.ruin += RUIN.workerDown;
       this.addAnger(1.4);
@@ -317,6 +329,7 @@ function startShift() {
   S.hits = 0; S.playerHits = 0; S.coffees = 0; S.coffeeSpend = 0; S.annoyCount = 0;
   S.chainsMade = 0; S.bestChain = 0;
   S.salary = 0; S.salaryAcc = 0; S.cleanT = 0; S.lastDamage = 0; S.coffeeCd = 0;
+  S.liftCd = 0; S.nearLift = false; fade = 0; S.summoned = false;
   S.ruin = 0; S.deskDown = 0; S.knocked = 0; S.killed = {}; S.roomKills = {}; S.jobsDone = 0;
   S.sabotage = S.sabotage || new Sabotage(S);
   S.career.lastJobs = S.sabotage.roll(S.career.lastJobs);
@@ -336,10 +349,30 @@ function startShift() {
   S.player = new Player(120);
   S.player.equipped = S.career.equipped || 'fists';
   S.world.add(S.player);
-  buildOffice(S.world, S);
+  buildOffice(S.world, S, 'ops');
 
   applyLook();
 
+  // FIRST DAY. You get the tour before you get the controls — every promise
+  // made on it is something you can wreck later, which is the whole joke.
+  S.story = S.story || new Story(S);
+  if (!S.career.hired) {
+    const hr = new Coworker(HR_X, 'DALIA');
+    hr.title = 'HR'; hr.art = 'npc-rita'; hr.homeX = HR_X; hr.mode = 'work';
+    S.world.add(hr); S.coworkers.push(hr);
+    S.actors.hr = hr;
+    const bs = new Coworker(HR_X + 400, 'MR. HALEY');
+    bs.title = 'YOUR MANAGER'; bs.art = 'boss-calm'; bs.mode = 'work'; bs.visible = false;
+    S.world.add(bs); S.coworkers.push(bs);
+    S.actors.boss = bs;
+    S.intro = true;
+    S.story.play(introScene(S));
+  } else {
+    S.intro = false;
+    S.story.done = true;
+  }
+
+  $('hud').classList.remove('scene');
   resetInput();
   FX.clear();
   hide('title'); hide('report'); hide('help'); hide('create'); hide('shop'); hide('boost');
@@ -411,6 +444,34 @@ function bankShift() {
   saveCareer(S.career);
 }
 
+async function drawDialogue() {
+  const st = S.story;
+  const d = $('dlg'), c = $('choices');
+  if (st.choice) {
+    d.classList.remove('hidden');
+    $('dlgWho').textContent = '';
+    $('dlgText').textContent = st.choice.text;
+    if (c._n !== st.choice.opts.length) {
+      c._n = st.choice.opts.length;
+      c.innerHTML = '';
+      st.choice.opts.forEach((o, i) => {
+        const b = document.createElement('button');
+        b.textContent = o.text;
+        b.onclick = () => { c.classList.add('hidden'); c._n = 0; st.pick(i); };
+        c.appendChild(b);
+      });
+    }
+    c.classList.remove('hidden');
+    return;
+  }
+  c.classList.add('hidden'); c._n = 0;
+  if (st.line) {
+    d.classList.remove('hidden');
+    $('dlgWho').textContent = st.line.who || '';
+    $('dlgText').textContent = st.line.text;
+  } else d.classList.add('hidden');
+}
+
 async function applyLook() {
   const c = lookColours(S.look);
   const want = lookOutfit(S.look);
@@ -424,8 +485,50 @@ async function applyLook() {
   if (SPRITES.ready) recolourSprites(S.look, c.skin, c.shirt);
 }
 
+// Riding the lift rebuilds the level in place. The shift, your coins, your ruin
+// and the sabotage jobs all continue — this is one workday across two floors,
+// not two levels.
+let fade = 0;
+function travelTo(floorId) {
+  const F = FLOORS[floorId];
+  if (!F) return;
+  if (F.needRuin && (S.career.ruin || 0) + S.ruin < F.needRuin) {
+    toast(F.locked, 'boss');
+    SFX.ui(false);
+    return;
+  }
+  fade = 1;
+  SFX.ui(true);
+  setTimeout(() => {
+    const keep = S.player;
+    S.world = new World();
+    S.chaos.s = S;
+    S.world.onImpact = (a, b, e) => S.chaos.onImpact(a, b, e);
+    S.world.add(keep);
+    buildOffice(S.world, S, floorId);
+    keep.x = FLOORS[floorId].liftX + (floorId === 'exec' ? 90 : -90);
+    keep.y = FLOOR_Y - keep.h;
+    keep.vx = 0; keep.vy = 0;
+    S.cam.x = Math.max(0, keep.x - 200);
+    S.room = null;
+    applyLook();
+    toast(F.name);
+    if (floorId === 'exec' && S.summoned && S.boss) {
+      setTimeout(() => { if (S.mode === 'play' && S.boss) startBossFight(); }, 900);
+    }
+  }, 260);
+}
+
 function startBossFight() {
   const b = S.boss;
+  // He is on 13. Max out the anger down here and all you get is a summons —
+  // which is the hook: the fight is something you have to go and find.
+  if (!b) {
+    toast('"MY OFFICE. FLOOR THIRTEEN. NOW."', 'boss');
+    SFX.bossRoar();
+    S.summoned = true;
+    return;
+  }
   b.fighting = true;
   b.hp = b.maxHp = 320;
   FX.kick(16, 0.22);
@@ -530,10 +633,36 @@ function update(dt) {
     if (S.boostT <= 0) { S.speedMul = 1; S.chaosMul = 1; hide('boost'); }
   }
 
+  if (S.story && S.story.active) {
+    S.story.step(dt);
+    $('hud').classList.add('scene');
+    show('btnSkip');
+    drawDialogue();
+    // the camera follows whoever is talking/walking
+    const foc = S.story.walks.size
+      ? [...S.story.walks.keys()][0] : S.player;
+    const tx0 = foc.cx - viewW() / 2;
+    S.cam.x += (Math.max(0, Math.min(LEVEL_W - viewW(), tx0)) - S.cam.x) * Math.min(1, dt * 3);
+    const ty0 = FLOOR_Y + 26 - viewH();
+    S.cam.y += (ty0 - S.cam.y) * Math.min(1, dt * 5);
+    S.world.step(dt);
+    FX.step(dt);
+    updateHud();
+    return;
+  }
+  if (S.intro && S.story && S.story.done) {
+    S.intro = false;
+    $('hud').classList.remove('scene');
+    hide('dlg'); hide('choices'); hide('btnSkip');
+    S.career.hired = true;
+    saveCareer(S.career);
+    toast('CLOCK IN. Ruin the day.');
+  }
+
   S.player.update(dt, S);
   S.player.carryPose();
   for (const c of S.coworkers) c.update(dt, S);
-  if (S.boss) S.boss.update(dt, S);
+  if (S.boss && !S.boss.dead) S.boss.update(dt, S);
 
   S.world.step(dt);
   S.chaos.step(dt);
@@ -549,6 +678,16 @@ function update(dt) {
     S.room = rm.id;
   }
   S.player.carryPose();
+
+  // the lift
+  const lf = S.lift;
+  S.nearLift = !!(lf && Math.abs(lf.cx - S.player.cx) < 54 && S.player.grounded);
+  if (S.nearLift && IN.axisY < -0.5 && S.liftCd <= 0) {
+    S.liftCd = 1.2;
+    travelTo(S.floor === 'ops' ? 'exec' : 'ops');
+  }
+  if (S.liftCd > 0) S.liftCd -= dt;
+  if (fade > 0) fade = Math.max(0, fade - dt * 3);
 
   // coffee machine interaction
   const cm = S.coffeeMachine;
@@ -673,6 +812,28 @@ function render() {
     }
   }
 
+  // the lift doors
+  if (S.lift) {
+    const l = S.lift;
+    ctx.fillStyle = '#1b2030';
+    ctx.fillRect(l.x - 4, l.y - 6, l.w + 8, l.h + 6);
+    ctx.fillStyle = '#39405c';
+    ctx.fillRect(l.x, l.y, l.w, l.h);
+    ctx.fillStyle = '#20263a';
+    ctx.fillRect(l.cx - 1.5, l.y + 4, 3, l.h - 4);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#5b6486';
+    ctx.strokeRect(l.x, l.y, l.w, l.h);
+    ctx.fillStyle = '#ffd75e';
+    ctx.font = `700 ${7 / S.zoom * 1.7}px system-ui`; ctx.textAlign = 'center';
+    ctx.fillText(S.floor === 'ops' ? '12' : '13', l.cx, l.y - 10);
+    if (S.nearLift) {
+      ctx.fillStyle = 'rgba(255,215,94,.9)';
+      ctx.font = `800 ${9 / S.zoom * 1.7}px system-ui`;
+      ctx.fillText('HOLD UP', l.cx, l.y - 22);
+    }
+  }
+
   // props — real art when it exists, greybox otherwise
   for (const b of S.world.bodies) {
     if (b.type !== 'prop') continue;
@@ -681,7 +842,7 @@ function render() {
 
   // coworkers — same skeleton as the player, different parts
   for (const c of S.coworkers) {
-    if (c.dead) continue;
+    if (c.dead || c.visible === false) continue;
     if (c.art && CAST.has(c.art)) {
       CAST.draw(ctx, c.art, npcPoseName(c, c.animT),
         c.cx, c.y + c.h, c.h * 1.10, c.face < 0, 1);
@@ -799,6 +960,10 @@ function render() {
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, VIEW.w, VIEW.h);
   }
+  if (fade > 0) {
+    ctx.fillStyle = `rgba(6,7,12,${Math.min(1, fade)})`;
+    ctx.fillRect(0, 0, VIEW.w, VIEW.h);
+  }
   if (FX.flash > 0) {
     ctx.fillStyle = `rgba(255,90,90,${Math.min(0.5, FX.flash * 0.5)})`;
     ctx.fillRect(0, 0, VIEW.w, VIEW.h);
@@ -827,7 +992,7 @@ function drawBackground(camX) {
     ctx.fillStyle = 'rgba(12,14,24,.52)';
     ctx.fillRect(camX, CEIL_Y, viewW(), FLOOR_Y - CEIL_Y);
     // each room gets its own wash so you can feel where you are
-    for (const r of ROOMS) {
+    for (const r of CUR.rooms) {
       const a = Math.max(r.x0, camX), b2 = Math.min(r.x1, camX + viewW());
       if (b2 <= a) continue;
       ctx.fillStyle = r.tint + '55';
@@ -874,15 +1039,17 @@ function drawBackground(camX) {
   ctx.fillStyle = 'rgba(255,255,255,.07)';
   ctx.font = '900 26px system-ui'; ctx.textAlign = 'left';
   ctx.font = '900 18px system-ui';
-  const SIGNS = [[300, "WE'RE A FAMILY"], [1180, 'PRODUCTIVITY MATTERS'],
-                 [2400, 'PLEASE WASH YOUR MUG'], [3020, 'SYNERGY'], [3820, 'RESULTS']];
+  const SIGNS = S.floor === 'exec'
+    ? [[700, 'LEADERSHIP'], [1600, 'CONFIDENTIAL'], [2150, 'RESULTS']]
+    : [[300, "WE'RE A FAMILY"], [1180, 'PRODUCTIVITY MATTERS'],
+       [2400, 'PLEASE WASH YOUR MUG'], [3020, 'SYNERGY'], [3820, 'ADMIN']];
   for (const [sx, txt] of SIGNS) ctx.fillText(txt, sx, CEIL_Y + 54);
 
   // Partition walls with a doorway you walk through. This is what turns one long
   // corridor into rooms — the wall tints alone read as a gradient, not as having
   // arrived somewhere. The opening is taller than the player so there is no
   // collider here at all; you just walk through.
-  for (const r of ROOMS) {
+  for (const r of CUR.rooms) {
     if (r.x0 <= 0) continue;
     const wx = r.x0 - 13;
     if (wx + 26 < camX - 60 || wx > camX + viewW() + 60) continue;
@@ -1025,6 +1192,27 @@ function cycleWeapon() {
   toast(WEAPONS[owned[i]].name);
   SFX.ui(true);
 }
+addEventListener('pointerdown', e => {
+  if (S.story && S.story.active && !S.story.choice && !e.target.closest('button')) S.story.advance();
+});
+addEventListener('keydown', e => {
+  if (S.story && S.story.active && (e.key === ' ' || e.key === 'Enter')) S.story.advance();
+});
+$('btnSkip').onclick = () => {
+  if (!S.story) return;
+  // Run every remaining fx beat so the world ends up in the state the scene
+  // would have left it in — skipping must not strand the boss mid-tour.
+  for (let i = S.story.i; i < S.story.beats.length; i++) {
+    const b = S.story.beats[i];
+    if (b.t === 'fx') { try { b.fn(); } catch (e) {} }
+    if (b.t === 'walk') { const a = S.story.actor(b.who); if (a) a.x = b.x; }
+  }
+  S.story.walks.clear();
+  S.story.done = true;
+  S.story.line = null;
+  S.story.choice = null;
+  SFX.ui(false);
+};
 $('btnSwap').addEventListener('pointerdown', e => { e.preventDefault(); cycleWeapon(); });
 $('btnShopFromReport').onclick = () => { buildShop(); hide('report'); show('shop'); S.shopFrom = 'report'; };
 $('btnShopBack').onclick = () => {

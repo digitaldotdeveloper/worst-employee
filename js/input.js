@@ -4,7 +4,8 @@
 import { ATTACK } from './config.js';
 
 export const IN = {
-  axis: 0,                 // -1..1
+  axis: 0,                 // -1..1 horizontal
+  axisY: 0,                // -1..1 vertical: up is -1
   jump: false, jumpEdge: false,
   dodge: false, dodgeEdge: false,
   grab: false, grabEdge: false,
@@ -17,7 +18,8 @@ const keys = {};
 const held = {};
 const MAP = {
   a: 'left', arrowleft: 'left', d: 'right', arrowright: 'right',
-  w: 'jump', arrowup: 'jump', ' ': 'jump',
+  w: 'up', arrowup: 'up', s: 'down', arrowdown: 'down',
+  ' ': 'jump',
   j: 'light', k: 'heavy', l: 'grab', shift: 'dodge',
 };
 
@@ -62,7 +64,7 @@ export function initInput(canvas) {
 }
 
 // ---------------- touch ----------------
-let stickId = null, stickOx = 0, stickAxis = 0;
+let stickId = null, stickOx = 0, stickOy = 0, stickAxis = 0, stickAxisY = 0;
 
 function setupTouch() {
   const zone = document.getElementById('stickZone');
@@ -73,7 +75,7 @@ function setupTouch() {
   const start = e => {
     for (const t of e.changedTouches) {
       if (stickId !== null) break;
-      stickId = t.identifier; stickOx = t.clientX;
+      stickId = t.identifier; stickOx = t.clientX; stickOy = t.clientY;
       base.style.left = t.clientX + 'px';
       base.style.top = t.clientY + 'px';
       base.classList.add('on');
@@ -85,15 +87,17 @@ function setupTouch() {
     for (const t of e.changedTouches) {
       if (t.identifier !== stickId) continue;
       const dx = Math.max(-46, Math.min(46, t.clientX - stickOx));
-      nub.style.transform = `translate(calc(-50% + ${dx}px),-50%)`;
-      stickAxis = Math.abs(dx) < 8 ? 0 : Math.max(-1, Math.min(1, dx / 38));
+      const dy = Math.max(-46, Math.min(46, t.clientY - stickOy));
+      nub.style.transform = `translate(calc(-50% + ${dx}px),calc(-50% + ${dy}px))`;
+      stickAxis  = Math.abs(dx) < 8 ? 0 : Math.max(-1, Math.min(1, dx / 38));
+      stickAxisY = Math.abs(dy) < 12 ? 0 : Math.max(-1, Math.min(1, dy / 38));
     }
     e.preventDefault();
   };
   const end = e => {
     for (const t of e.changedTouches) {
       if (t.identifier !== stickId) continue;
-      stickId = null; stickAxis = 0;
+      stickId = null; stickAxis = 0; stickAxisY = 0;
       base.classList.remove('on');
       nub.style.transform = 'translate(-50%,-50%)';
     }
@@ -131,8 +135,10 @@ function setupTouch() {
 export function pollInput() {
   IN.axis = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
   if (IN.axis === 0) IN.axis = stickAxis;
+  IN.axisY = (keys.down ? 1 : 0) - (keys.up ? 1 : 0);
+  if (IN.axisY === 0) IN.axisY = stickAxisY;
 
-  const jump = !!keys.jump || !!held.jump;
+  const jump = !!keys.jump || !!keys.up || !!held.jump;
   const dodge = !!keys.dodge || !!held.dodge;
   const grab = !!keys.grab || !!held.grab;
 

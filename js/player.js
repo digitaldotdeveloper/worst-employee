@@ -99,7 +99,17 @@ export class Player extends Body {
     // ---------------- attack start ----------------
     if (IN.heavyEdge) { this._startAttack('heavy', 0); return; }
     if (IN.lightEdge) {
-      const step = (this.comboTimer > 0) ? (this.comboStep % ATTACK.light.length) : 0;
+      // THE STICK PICKS THE MOVE. Holding a direction while you hit skips
+      // straight to the beat that does that job, so the string is something you
+      // steer rather than a fixed five-tap rhythm.
+      //   up    -> the uppercut (launcher)
+      //   down  -> the hook, which stays low and sweeps
+      //   back  -> the spinning kick, which is the reversal
+      let step = (this.comboTimer > 0) ? (this.comboStep % ATTACK.light.length) : 0;
+      const back = IN.axis !== 0 && Math.sign(IN.axis) !== this.face;
+      if (IN.axisY < -0.45) step = 3;
+      else if (IN.axisY > 0.45) step = 2;
+      else if (back) step = 4;
       this._startAttack('light', step);
       return;
     }

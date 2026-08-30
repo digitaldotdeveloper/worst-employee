@@ -2,7 +2,7 @@
 // Script section 10 — objects must interact physically, not decorate.
 
 import { Body } from './engine.js';
-import { FLOOR_Y, LEVEL_W, COL, ANGER_STAGES, ROOMS } from './config.js';
+import { FLOOR_Y, LEVEL_W, COL, ANGER_STAGES, ROOMS, FLOORS, FLOOR_ROOMS, CUR } from './config.js';
 import { FX } from './fx.js';
 import { SFX } from './audio.js';
 
@@ -51,6 +51,7 @@ export class Coworker extends Body {
   update(dt, s) {
     this.animT += dt;
     if (this.hurtT > 0) this.hurtT -= dt;
+    if (s.story && s.story.active) { this.vx *= 0.7; return; }
     if (this.annoyCd > 0) this.annoyCd -= dt;
     if (this.mode === 'down') {
       this.downT -= dt;
@@ -85,11 +86,15 @@ export class Coworker extends Body {
     }
   }
 
-  knock(s) {
-    if (this.mode === 'down') return;
+  // Downtime scales with the blow. A chain tick drops you briefly; a hammer
+  // flattens you. A re-knock EXTENDS the stay rather than being ignored, or
+  // combo beats 2-5 land on a downed body and visibly do nothing.
+  knock(s, dmg = 38) {
+    const t = 0.8 + Math.min(1.5, dmg / 38 * 1.5) + Math.random() * 0.3;
+    if (this.mode === 'down') { this.downT = Math.max(this.downT, t); return; }
     this.mode = 'down';
     this.hurtT = 0.3;
-    this.downT = 1.4 + Math.random() * 0.9;
+    this.downT = t;
     this.va = (Math.random() - 0.5) * 12;
     if (!this.annoyed) { this.annoyed = true; s.annoyed++; }
   }
@@ -114,6 +119,7 @@ export class Boss extends Body {
   update(dt, s) {
     this.animT += dt;
     if (this.hurtT > 0) this.hurtT -= dt;
+    if (s.story && s.story.active) { this.vx *= 0.7; return; }
     if (this.swingT > 0) this.swingT -= dt;
 
     if (!this.fighting) {
@@ -194,7 +200,25 @@ function workstation(world, x, opt = {}) {
   return d;
 }
 
-export function buildOffice(world, s) {
+// The lift. A prop you cannot break, that you ride by pressing UP next to it.
+function lift(world, s, x) {
+  const b = makeProp('cabinet', x);
+  b.kind = 'lift'; b.label = 'LIFT';
+  b.w = 46; b.h = 96; b.y = FLOOR_Y - 96;
+  b.grabbable = false; b.static = true; b.solid = false;
+  b.hp = 1e9; b.value = 0; b.isLift = true;
+  world.add(b);
+  s.lift = b;
+  return b;
+}
+
+export function buildOffice(world, s, floorId = 'ops') {
+  const F = FLOORS[floorId] || FLOORS.ops;
+  CUR.rooms = FLOOR_ROOMS[floorId] || FLOOR_ROOMS.ops;
+  CUR.floor = floorId;
+  s.floor = floorId;
+  world.levelW = F.w;
+  if (floorId === 'exec') return buildExec(world, s, F);
   world.levelW = LEVEL_W;
   world.statics.length = 0;
   s.coworkers = [];
@@ -265,10 +289,60 @@ export function buildOffice(world, s) {
     world.add(c); s.coworkers.push(c);
   }
 
-  const boss = new Boss(3900);
+  lift(world, s, F.liftX);
+
+  // The boss is NOT here. He is on 13, which is the whole point: after the tour
+  // you don't see him again until you can get up there.
+  s.boss = null;
+
+  return {};
+}
+
+// ---------------------------------------------------------------
+// FLOOR 13 — where the money is. Fewer people, better furniture, and the man
+// himself. Everything up here is worth more to break.
+// ---------------------------------------------------------------
+function buildExec(world, s, F) {
+  world.statics.length = 0;
+  s.coworkers = [];
+  const P = (kind, x) => world.add(makeProp(kind, x));
+
+  lift(world, s, F.liftX);
+
+  // lift lobby — deliberately empty and expensive-looking
+  P('plant', 260); P('plant', 430);
+
+  // boardroom — one enormous table, twelve chairs, nothing useful
+  for (let i = 0; i < 5; i++) desk(world, 640 + i * 120);
+  for (let i = 0; i < 8; i++) {
+    world.add(makeProp('chair', 620 + i * 120, FLOOR_Y - PROPS.chair.h));
+  }
+  P('stack', 760); P('mug', 900); P('stack', 1080); P('mug', 1220);
+  P('monitor', 1000);
+  P('plant', 1440);
+
+  // the executive assistant, guarding the door
+  const pa = new Coworker(1660, 'DALIA');
+  pa.title = 'EXECUTIVE ASSISTANT';
+  pa.art = 'npc-rita';
+  pa.homeX = 1660;
+  world.add(pa); s.coworkers.push(pa);
+  workstation(world, 1560, { phone: true });
+  P('cabinet', 1730);
+  P('printer', 1900);
+
+  // the boss's office
+  const bd = desk(world, 2180);
+  P('monitor', 2196); P('stack', 2250); P('phone', 2286);
+  world.add(makeProp('chair', 2140, FLOOR_Y - PROPS.chair.h));
+  P('cabinet', 2080);
+  P('plant', 2420);
+  P('extinguisher', 2500);
+  P('coffee', 2340);
+
+  const boss = new Boss(2300);
   world.add(boss);
   s.boss = boss;
-
   return {};
 }
 

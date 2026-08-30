@@ -23,6 +23,32 @@ export const LEVEL_W = 4400;                      // office width
 // tint, and they are separated by partition walls with doorways you walk through.
 export const DOOR_W = 74;                         // gap you walk through
 export const DOOR_H = 104;                        // taller than the player
+// Two floors. The boss is NOT on your floor — you never meet him again after the
+// tour until you can reach the executive floor, which is the progression gate
+// and the reason the lift exists at all.
+export const FLOORS = {
+  ops:  { id:'ops',  name:'FLOOR 12 — OPERATIONS', w:4400, liftX:4300 },
+  exec: { id:'exec', name:'FLOOR 13 — EXECUTIVE',  w:2600, liftX:120,
+          needRuin: 2500,
+          locked: 'The lift needs an executive pass. Ruin enough of floor 12 and they will hand you one.' },
+};
+
+export const FLOOR_ROOMS = {
+  ops: [
+    { id:'reception', name:'RECEPTION',   x0:0,    x1:640,  tint:'#2f3346' },
+    { id:'openplan',  name:'OPEN PLAN',   x0:640,  x1:2180, tint:'#262a38' },
+    { id:'break',     name:'BREAK ROOM',  x0:2180, x1:2900, tint:'#33301f' },
+    { id:'meeting',   name:'MEETING ROOM',x0:2900, x1:3560, tint:'#232b39' },
+    { id:'admin',     name:'ADMIN',       x0:3560, x1:4400, tint:'#2b2f3f' },
+  ],
+  exec: [
+    { id:'lift',      name:'LIFT LOBBY',      x0:0,    x1:520,  tint:'#3a3348' },
+    { id:'boardroom', name:'BOARDROOM',       x0:520,  x1:1500, tint:'#2b3040' },
+    { id:'pa',        name:"EXECUTIVE ASSISTANT", x0:1500, x1:1980, tint:'#333a4e' },
+    { id:'boss',      name:"THE BOSS'S OFFICE", x0:1980, x1:2600, tint:'#42302c' },
+  ],
+};
+
 export const ROOMS = [
   { id:'reception', name:'RECEPTION',        x0:0,    x1:640,  tint:'#2f3346' },
   { id:'openplan',  name:'OPEN PLAN',        x0:640,  x1:2180, tint:'#262a38' },
@@ -30,7 +56,9 @@ export const ROOMS = [
   { id:'meeting',   name:'MEETING ROOM',     x0:2900, x1:3560, tint:'#232b39' },
   { id:'boss',      name:"THE BOSS'S OFFICE",x0:3560, x1:4400, tint:'#3a2b2b' },
 ];
-export const roomAt = x => ROOMS.find(r => x >= r.x0 && x < r.x1) || ROOMS[0];
+// The active floor's rooms. Set by buildOffice; roomAt() follows it.
+export const CUR = { rooms: FLOOR_ROOMS.ops, floor: 'ops' };
+export const roomAt = x => CUR.rooms.find(r => x >= r.x0 && x < r.x1) || CUR.rooms[0];
 
 // PACE. Everything here was roughly 40% faster and it read as twitchy rather
 // than punchy — you could cross the office before a swing finished, so nothing

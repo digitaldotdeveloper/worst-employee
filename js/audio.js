@@ -237,17 +237,105 @@ S.promote = function () {
 };
 
 // ---------------------------------------------------------------- music
-// A two-bar loop scheduled a little ahead of playback. Deliberately plain and
-// low in the mix: office muzak that gets more agitated as the boss does.
+//
+// "Original comedic cartoon soundtrack: fast tempo, playful brass, pizzicato
+// strings, quirky percussion, exaggerated slapstick energy, seamless loop, no
+// vocals, completely original."
+//
+// Synthesised, not sampled — which makes it original by construction, costs
+// nothing, adds zero bytes, and lets the arrangement react to the game: the
+// tempo climbs and the brass gets ruder as the boss's anger rises.
+//
+// Four voices, scheduled a little ahead of playback:
+//   PIZZ   plucked bass — very short decay, that dry "boing" walk
+//   BRASS  sawtooth through a fast filter sweep — staccato stabs on offbeats
+//   XYLO   bright triangle blips — the slapstick melody
+//   PERC   woodblock, shaker, kick, snap
+//
+// 8 sections x 4 bars at ~150bpm is a hair under a minute, and the loop point
+// is bar 0 of section 0, so it joins seamlessly.
+
 let musicTimer = null;
-let step = 0;
+let step = 0;             // 16th notes since the loop began
 let nextTime = 0;
 let tension = 0;
 
-const BASS = [0, 0, 3, 3, 5, 5, 3, 3, 0, 0, -2, -2, -4, -4, -2, -2];
-const LEAD = [12, null, 15, null, 14, null, 12, null, 10, null, 12, null, 15, null, 17, null];
-const ROOT = 110;                             // A2
-const semi = n => ROOT * Math.pow(2, n / 12);
+const BPM = 150;
+const SIXTEENTH = () => 60 / (BPM + tension * 26) / 4;
+const BARS = 32;
+const STEPS = BARS * 16;
+
+// D natural minor with a comedy flat-five. Semitones from D2.
+const D2 = 73.42;
+const semi = n => D2 * Math.pow(2, n / 12);
+
+// ── the walking pizzicato bass — the engine of the whole thing ──────────────
+const BASS = [
+  0, 0, 7, 0, 3, 3, 10, 3, 5, 5, 12, 5, 3, 3, 2, 1,
+  0, 0, 7, 0, 3, 3, 10, 3, 5, 7, 8, 9, 10, 11, 12, 13,
+  -2, -2, 5, -2, 1, 1, 8, 1, 3, 3, 10, 3, 5, 5, 4, 3,
+  0, 0, 7, 0, 3, 3, 10, 3, 5, 5, 12, 5, 7, 6, 5, -1,
+];
+
+// ── brass stabs: sparse, rude, always slightly late ────────────────────────
+// [step within the 64-step section, chord root]
+const STABS = [
+  [6, 12], [14, 15], [22, 12], [30, 10],
+  [38, 12], [46, 17], [54, 15], [62, 19],
+];
+
+// ── the xylophone tune, 16ths, null = rest ─────────────────────────────────
+const TUNE = [
+  24, null, 26, 27, null, 24, null, 22, 24, null, 27, null, 29, null, 27, 26,
+  24, null, 22, 20, null, 22, null, 24, 22, null, 20, null, 19, null, null, null,
+  27, null, 29, 31, null, 29, null, 27, 26, null, 24, null, 22, null, 24, 26,
+  24, null, null, 19, null, 22, null, 24, 26, 27, 26, 24, 22, 20, 19, null,
+];
+
+function pluck(t, freq, dur, peak, type = 'triangle') {
+  const o = ctx.createOscillator();
+  o.type = type;
+  o.frequency.setValueAtTime(freq, t);
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(peak, t + 0.006);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g); g.connect(musicGain);
+  o.start(t); o.stop(t + dur + 0.04);
+}
+
+function brass(t, freq, dur, peak) {
+  // sawtooth through a filter that snaps open — the classic cartoon parp
+  const o = ctx.createOscillator();
+  o.type = 'sawtooth';
+  o.frequency.setValueAtTime(freq * 0.985, t);
+  o.frequency.linearRampToValueAtTime(freq, t + 0.05);
+  const f = ctx.createBiquadFilter();
+  f.type = 'lowpass';
+  f.Q.value = 7;
+  f.frequency.setValueAtTime(freq * 1.2, t);
+  f.frequency.exponentialRampToValueAtTime(Math.min(7000, freq * 7), t + 0.05);
+  f.frequency.exponentialRampToValueAtTime(freq * 1.6, t + dur);
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(peak, t + 0.02);
+  g.gain.setValueAtTime(peak, t + dur * 0.55);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(f); f.connect(g); g.connect(musicGain);
+  o.start(t); o.stop(t + dur + 0.05);
+}
+
+function woodblock(t, peak, hz = 1500) {
+  const o = ctx.createOscillator();
+  o.type = 'square';
+  o.frequency.setValueAtTime(hz, t);
+  o.frequency.exponentialRampToValueAtTime(hz * 0.55, t + 0.03);
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(peak, t);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
+  o.connect(g); g.connect(musicGain);
+  o.start(t); o.stop(t + 0.07);
+}
 
 S.setTension = function (v) { tension = Math.max(0, Math.min(1, v)); };
 
@@ -255,9 +343,9 @@ S.startMusic = function () {
   if (!ctx || musicTimer || !this.musicOn) return;
   musicGain.gain.cancelScheduledValues(ctx.currentTime);
   musicGain.gain.setValueAtTime(0.0001, ctx.currentTime);
-  musicGain.gain.exponentialRampToValueAtTime(0.5, ctx.currentTime + 1.5);
-  nextTime = ctx.currentTime + 0.1;
-  musicTimer = setInterval(() => this._pump(), 60);
+  musicGain.gain.exponentialRampToValueAtTime(0.55, ctx.currentTime + 1.2);
+  nextTime = ctx.currentTime + 0.12;
+  musicTimer = setInterval(() => this._pump(), 45);
 };
 
 S.stopMusic = function () {
@@ -271,78 +359,59 @@ S.stopMusic = function () {
 
 S._pump = function () {
   if (!ctx) return;
-  const spb = 60 / (96 + tension * 34) / 2;          // eighth notes, faster under pressure
-  while (nextTime < ctx.currentTime + 0.35) {
+  const sp = SIXTEENTH();
+  while (nextTime < ctx.currentTime + 0.30) {
     const t = nextTime;
-    const i = step % 16;
+    const s16 = step % STEPS;          // position in the whole loop
+    const sec = Math.floor(s16 / 64);  // which 4-bar section
+    const p = s16 % 64;                // position in the section
+    const beat = p % 4;
 
-    // bass
-    const bo = ctx.createOscillator();
-    bo.type = 'triangle';
-    bo.frequency.value = semi(BASS[i]);
-    const bg = ctx.createGain();
-    bg.gain.setValueAtTime(0.0001, t);
-    bg.gain.exponentialRampToValueAtTime(0.22, t + 0.01);
-    bg.gain.exponentialRampToValueAtTime(0.0001, t + spb * 0.9);
-    bo.connect(bg); bg.connect(musicGain);
-    bo.start(t); bo.stop(t + spb);
-
-    // lead, thinner and only on the offbeats
-    const ln = LEAD[i];
-    if (ln !== null) {
-      const lo = ctx.createOscillator();
-      lo.type = tension > 0.6 ? 'square' : 'sine';
-      lo.frequency.value = semi(ln);
-      const lg = ctx.createGain();
-      lg.gain.setValueAtTime(0.0001, t);
-      lg.gain.exponentialRampToValueAtTime(0.06 + tension * 0.05, t + 0.02);
-      lg.gain.exponentialRampToValueAtTime(0.0001, t + spb * 1.6);
-      lo.connect(lg); lg.connect(musicGain);
-      lo.start(t); lo.stop(t + spb * 1.8);
+    // ---- pizzicato bass, every 8th ----
+    if (p % 2 === 0) {
+      const n = BASS[(sec % 4) * 16 + (p >> 2)] ?? 0;
+      pluck(t, semi(n), sp * 1.7, 0.30, 'triangle');
+      pluck(t, semi(n) * 2.01, sp * 0.9, 0.07, 'sine');   // string body
     }
 
-    // hat on every other eighth
-    if (i % 2 === 0) {
-      const h = noiseVoice(t, 0.03, 0.05 + tension * 0.04, 7000);
-      h.connect(musicGain);
+    // ---- brass stabs ----
+    for (const [at, note] of STABS) {
+      if (p !== at) continue;
+      const loud = 0.11 + tension * 0.07;
+      brass(t, semi(note), sp * 2.4, loud);
+      brass(t, semi(note + 7), sp * 2.2, loud * 0.55);
+      if (tension > 0.55) brass(t, semi(note + 3), sp * 2.0, loud * 0.4);
     }
-    // kick on the bar
-    if (i % 8 === 0) {
+
+    // ---- xylophone tune: sections 1 and 3 carry it ----
+    if (sec % 2 === 1) {
+      const n = TUNE[p];
+      if (n !== null && n !== undefined) {
+        pluck(t, semi(n), sp * 2.2, 0.10, 'triangle');
+        pluck(t, semi(n) * 2, sp * 1.1, 0.045, 'sine');
+      }
+    }
+
+    // ---- percussion ----
+    if (p % 8 === 0) {                                    // kick
       const k = ctx.createOscillator();
       k.type = 'sine';
-      k.frequency.setValueAtTime(120, t);
-      k.frequency.exponentialRampToValueAtTime(45, t + 0.11);
+      k.frequency.setValueAtTime(140, t);
+      k.frequency.exponentialRampToValueAtTime(46, t + 0.1);
       const kg = ctx.createGain();
       kg.gain.setValueAtTime(0.0001, t);
-      kg.gain.exponentialRampToValueAtTime(0.3, t + 0.008);
+      kg.gain.exponentialRampToValueAtTime(0.30, t + 0.006);
       kg.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
       k.connect(kg); kg.connect(musicGain);
       k.start(t); k.stop(t + 0.2);
     }
+    if (p % 8 === 4) woodblock(t, 0.16, 1200);            // backbeat block
+    if (beat === 2) woodblock(t, 0.05, 2400);             // shaker-ish tick
+    if (p === 62 && sec % 2 === 1) {                       // slapstick fill
+      for (let i = 0; i < 4; i++) woodblock(t + i * sp * 0.5, 0.13, 900 + i * 420);
+    }
 
-    nextTime += spb;
+    nextTime += sp;
     step++;
   }
 };
-
-function noiseVoice(t, dur, peak, hz) {
-  if (!noiseBuf) {
-    noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 1.2, ctx.sampleRate);
-    const d = noiseBuf.getChannelData(0);
-    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-  }
-  const s = ctx.createBufferSource();
-  s.buffer = noiseBuf;
-  const f = ctx.createBiquadFilter();
-  f.type = 'highpass';
-  f.frequency.value = hz;
-  s.connect(f);
-  const g = ctx.createGain();
-  g.gain.setValueAtTime(0.0001, t);
-  g.gain.exponentialRampToValueAtTime(peak, t + 0.004);
-  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  f.connect(g);
-  s.start(t, Math.random() * 0.4);
-  s.stop(t + dur + 0.05);
-  return g;
-}
