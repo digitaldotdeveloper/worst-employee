@@ -4,6 +4,7 @@
 import { Body } from './engine.js';
 import { FLOOR_Y, LEVEL_W, COL, ANGER_STAGES } from './config.js';
 import { FX } from './fx.js';
+import { SFX } from './audio.js';
 
 // kind -> { w,h,mass,hp,value,label,color }
 export const PROPS = {
@@ -39,6 +40,7 @@ export class Coworker extends Body {
     this.annoyed = false;
     this.animT = Math.random() * 4;
     this.label = 'COWORKER';
+    this.art = null;          // set by buildOffice
   }
 
   update(dt, s) {
@@ -97,11 +99,13 @@ export class Boss extends Body {
     this.animT = 0;
     this.label = 'BOSS';
     this.homeX = x;
+    this.swingT = 0;
   }
 
   update(dt, s) {
     this.animT += dt;
     if (this.hurtT > 0) this.hurtT -= dt;
+    if (this.swingT > 0) this.swingT -= dt;
 
     if (!this.fighting) {
       // patrols near his office and glares
@@ -124,6 +128,7 @@ export class Boss extends Body {
       this.vx *= 0.86;
       if (this.attackCd <= 0) {
         this.attackCd = 1.15 + Math.random() * 0.7;
+        this.swingT = 0.32;
         this.swing(s);
       }
     }
@@ -134,12 +139,14 @@ export class Boss extends Body {
     const box = { x: this.face > 0 ? this.x + this.w : this.x - 62, y: this.y + 10, w: 62, h: 50 };
     FX.spark(this.cx + this.face * 34, this.cy, 10, '#ff9a9a', 300);
     FX.kick(5, 0.03);
+    SFX.whiff();
     if (p.iframes > 0) { FX.float(p.cx, p.y - 10, 'DODGED', '#7fd1ff', 13); return; }
     if (p.x < box.x + box.w && p.x + p.w > box.x && p.y < box.y + box.h && p.y + p.h > box.y) {
       p.vx += this.face * 520; p.vy -= 240;
       p.hurtT = 0.35;
       s.playerHits++;
       FX.kick(9, 0.09);
+      SFX.hit(0.9);
       FX.float(p.cx, p.y - 10, 'OW', '#ff7b7b', 15);
     }
   }
@@ -189,9 +196,11 @@ export function buildOffice(world, s) {
 
   // coworkers
   const names = ['SAMI', 'RITA', 'OMAR', 'LEA', 'KARIM', 'NOUR'];
+  const arts = ['npc-sami', 'npc-rita', 'npc-omar'];
   s.coworkers = [];
   for (let i = 0; i < names.length; i++) {
     const c = new Coworker(340 + i * 360, names[i]);
+    c.art = arts[i % arts.length];       // three bodies, reused down the floor
     world.add(c); s.coworkers.push(c);
   }
 

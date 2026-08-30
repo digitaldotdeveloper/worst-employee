@@ -318,3 +318,70 @@ export function recolourSprites(look, skinHex, shirtHex) {
     SPRITES.tinted[name] = c;
   }
 }
+
+// ---------------------------------------------------------------
+// PROP + BACKGROUND ART
+// Props keep their greybox collider and gain a sprite drawn slightly larger
+// than it — art that exactly matches its collision box reads as a box.
+// ---------------------------------------------------------------
+export const WORLD = {
+  ready: false,
+  props: {},
+  meta: null,
+  bg: {},
+
+  async load(base = 'assets/') {
+    try {
+      const r = await fetch(base + 'props/props.json');
+      if (r.ok) {
+        this.meta = (await r.json()).props || {};
+        await Promise.all(Object.keys(this.meta).map(name => new Promise(res => {
+          const im = new Image();
+          im.onload = () => { this.props[name] = im; res(); };
+          im.onerror = res;
+          im.src = base + 'props/' + name + '.png';
+        })));
+      }
+    } catch (e) { /* greybox */ }
+
+    await Promise.all(['bg-wall', 'bg-ceiling', 'bg-floor'].map(n => new Promise(res => {
+      const im = new Image();
+      im.onload = () => { this.bg[n] = im; res(); };
+      im.onerror = res;
+      im.src = base + 'bg/' + n + '.jpg';
+    })));
+
+    this.ready = Object.keys(this.props).length > 0;
+    return this.ready;
+  },
+
+  drawProp(ctx, b, t) {
+    const key = b.broken ? (b.kind + '-broken') : b.kind;
+    const im = this.props[key] || this.props[b.kind];
+    if (!im) return false;
+    const m = this.meta[key] || this.meta[b.kind];
+    const ss = (m && m.ss) || 2;
+    const w = im.width / ss, h = im.height / ss;
+
+    ctx.save();
+    ctx.translate(b.cx, b.cy);
+    ctx.rotate(b.angle);
+
+    const hot = b.chaosUntil > t;
+    if (hot) {                       // chaotic things glow, same as greybox did
+      ctx.shadowColor = '#ffd75e';
+      ctx.shadowBlur = 14;
+    }
+    ctx.drawImage(im, -w / 2, -h / 2, w, h);
+    ctx.shadowBlur = 0;
+
+    if (b.flash > 0) {               // white impact flash, masked to the sprite
+      ctx.globalCompositeOperation = 'source-atop';
+      ctx.fillStyle = `rgba(255,255,255,${Math.min(0.85, b.flash * 5)})`;
+      ctx.fillRect(-w / 2, -h / 2, w, h);
+      ctx.globalCompositeOperation = 'source-over';
+    }
+    ctx.restore();
+    return true;
+  },
+};

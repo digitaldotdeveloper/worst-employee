@@ -8,6 +8,7 @@
 
 import { CHAOS, VIEW } from './config.js';
 import { FX } from './fx.js';
+import { SFX } from './audio.js';
 
 export class ChaosSystem {
   constructor(state) {
@@ -38,6 +39,7 @@ export class ChaosSystem {
     if (depth >= 2) {
       FX.float(body.cx, body.y - 12, `x${depth}`, '#ffd75e', 13 + Math.min(depth, 9));
       FX.kick(1.5 + depth * 0.5, 0);
+      SFX.coin(depth);
     }
   }
 
@@ -67,8 +69,9 @@ export class ChaosSystem {
   cash() {
     if (this.chain >= 2) {
       const n = this.chain;
-      FX.float(this.s.cam.x + VIEW.w / 2, 190, `CHAOS ×${n}`, '#ffd75e', 30);
-      FX.float(this.s.cam.x + VIEW.w / 2, 218, `+${this.pending.toLocaleString()} coins`, '#fff', 15);
+      FX.float(this.s.cam.x + VIEW.w / this.s.zoom / 2, this.s.cam.y + 90, `CHAOS ×${n}`, '#ffd75e', 30);
+      FX.float(this.s.cam.x + VIEW.w / this.s.zoom / 2, this.s.cam.y + 118, `+${this.pending.toLocaleString()} coins`, '#fff', 15);
+      SFX.chain(n);
       this.s.chainsMade++;
       if (n > this.s.bestChain) this.s.bestChain = n;
       this.s.addAnger(Math.min(14, 1.6 * n));

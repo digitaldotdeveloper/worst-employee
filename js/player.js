@@ -6,6 +6,7 @@ import { PLAYER, ATTACK, FLOOR_Y } from './config.js';
 import { Body, rectsOverlap } from './engine.js';
 import { FX } from './fx.js';
 import { IN } from './input.js';
+import { SFX } from './audio.js';
 
 export class Player extends Body {
   constructor(x) {
@@ -36,6 +37,7 @@ export class Player extends Body {
     // landing squash
     if (this.grounded && !this.wasGrounded) {
       this.squash = 0.84; FX.kick(1.2, 0);
+      SFX.land(Math.min(1, Math.abs(this.vy) / 900));
     }
     this.wasGrounded = this.grounded;
     this.squash += (1 - this.squash) * Math.min(1, dt * 14);
@@ -53,6 +55,7 @@ export class Player extends Body {
       this.iframes = PLAYER.dodgeIFrames;
       if (IN.axis) this.face = Math.sign(IN.axis);
       FX.kick(2, 0);
+      SFX.dodge();
       FX.spark(this.cx, this.cy + 14, 5, 'rgba(255,255,255,.5)', 130);
       return;
     }
@@ -94,6 +97,7 @@ export class Player extends Body {
       this.buffer = 0; this.coyote = 0; this.grounded = false;
       this.squash = 1.16;
       FX.spark(this.cx, this.y + this.h, 4, 'rgba(255,255,255,.35)', 90);
+      SFX.jump();
     }
     // variable jump height — release early, rise less
     if (!IN.jump && this.vy < -220) this.vy += 2600 * dt;
@@ -101,6 +105,7 @@ export class Player extends Body {
 
   _startAttack(kind, step) {
     this.atk = { kind, step, phase: 'startup', t: 0, hit: new Set() };
+    SFX.whiff();
     this.state = 'attack';
     if (this.carrying) this._throw();
     if (IN.axis) this.face = Math.sign(IN.axis);
@@ -154,6 +159,7 @@ export class Player extends Body {
       const hx = this.cx + this.face * 30, hy = this.cy - 4;
       FX.spark(hx, hy, d === ATTACK.heavy ? 16 : 9, '#fff', d === ATTACK.heavy ? 420 : 260);
       FX.kick(d.shake, d.hitstop);
+      SFX.hit(d === ATTACK.heavy ? 1 : 0.35 + a.step * 0.2);
       s.hits++;
     }
   }
@@ -172,6 +178,7 @@ export class Player extends Body {
       best.held = true; best.va = 0; best.angle = 0;
       this.carrying = best;
       FX.float(best.cx, best.y - 8, 'GRABBED', '#7fd1ff', 11);
+      SFX.grab();
     }
   }
 
@@ -188,6 +195,7 @@ export class Player extends Body {
     b.chainDepth = Math.max(1, b.chainDepth);
     this.carrying = null;
     FX.kick(3, 0.02);
+    SFX.throw_();
   }
 
   carryPose() {

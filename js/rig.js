@@ -293,3 +293,82 @@ RIG.applyLook = function (choices) {
     }
   }
 };
+
+// ---------------------------------------------------------------
+// EXTRA CAST
+// Coworkers and the boss were generated in the SAME rig pose as the player, so
+// they slice with the same code and animate off the same skeleton. One pose
+// prompt gets reused for the whole cast instead of a bespoke sprite set each.
+// ---------------------------------------------------------------
+RIG.cast = {};
+
+RIG.loadCast = async function (names, base = 'assets/rig/') {
+  await Promise.all(names.map(async name => {
+    let meta;
+    try {
+      const r = await fetch(base + name + '/rig.json');
+      if (!r.ok) return;
+      meta = await r.json();
+    } catch (e) { return; }
+    const img = {};
+    await Promise.all(Object.keys(meta.parts).map(part => new Promise(res => {
+      const im = new Image();
+      im.onload = () => { img[part] = im; res(); };
+      im.onerror = res;
+      im.src = base + name + '/' + part + '.png';
+    })));
+    const rest = {};
+    for (const [bone, [a, b]] of Object.entries(meta.bones)) {
+      rest[bone] = (!b || !meta.joints[a] || !meta.joints[b]) ? -90
+        : Math.atan2(meta.joints[b][1] - meta.joints[a][1],
+                     meta.joints[b][0] - meta.joints[a][0]) / D;
+    }
+    rest.head = -90;
+    if (Object.keys(img).length >= 8) this.cast[name] = { meta, img, rest };
+  }));
+  return Object.keys(this.cast).length;
+};
+
+// Draw any loaded cast member with the shared skeleton maths.
+RIG.drawCast = function (ctx, name, pose, x, groundY, height, flip, alpha = 1) {
+  const c = this.cast[name];
+  if (!c) return false;
+  const saveMeta = this.meta, saveImg = this.img, saveRest = this.rest, saveAct = this.active;
+  this.meta = c.meta; this.img = c.img; this.rest = c.rest; this.active = null;
+  const ok = this.draw(ctx, pose, x, groundY, height, flip, alpha);
+  this.meta = saveMeta; this.img = saveImg; this.rest = saveRest; this.active = saveAct;
+  return ok;
+};
+
+// Poses for characters that are not the player.
+RIG.npcPose = function (n, t, mode) {
+  if (mode === 'down') return { ...POSES.hurt, torso: -150, head: -160 };
+  if (mode === 'panic') {
+    const f = (t * 11) % 4;
+    const i = Math.floor(f), k = f - i;
+    const a = POSES.run[i], b = POSES.run[(i + 1) % 4];
+    const out = {};
+    for (const key in a) out[key] = a[key] + (b[key] - a[key]) * k;
+    return { ...POSES.idle, ...out };
+  }
+  if (mode === 'work') {
+    // leaning at a desk, one arm forward on a keyboard
+    return { ...POSES.idle, torso: -84, head: -80,
+      'arm-front-upper': 55, 'arm-front-fore': 25,
+      'arm-back-upper': 70, 'arm-back-fore': 40 };
+  }
+  const bob = Math.sin(t * 2.2) * 2;
+  return { ...POSES.idle, torso: -90 + bob * 0.4 };
+};
+
+RIG.bossPose = function (b, t) {
+  if (!b.fighting) return { ...POSES.idle, torso: -88,
+    'arm-front-upper': 70, 'arm-front-fore': 40, 'arm-back-upper': 105, 'arm-back-fore': 135 };
+  if (b.swingT > 0) return POSES.attackHit;
+  const f = (t * 8) % 4;
+  const i = Math.floor(f), k = f - i;
+  const a = POSES.run[i], bb = POSES.run[(i + 1) % 4];
+  const out = {};
+  for (const key in a) out[key] = a[key] + (bb[key] - a[key]) * k;
+  return { ...POSES.idle, ...out };
+};

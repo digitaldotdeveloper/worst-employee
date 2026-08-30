@@ -69,7 +69,9 @@ export const FX = {
     }
   },
 
-  draw(ctx) {
+  // `ts` is 1/zoom: floating numbers are positioned in world space but should
+  // read at a constant size on screen, not balloon as the camera zooms in.
+  draw(ctx, ts = 1) {
     for (const p of parts) {
       const a = Math.max(0, p.life / p.max);
       ctx.globalAlpha = a;
@@ -86,8 +88,8 @@ export const FX = {
     for (const f of floats) {
       const a = Math.min(1, f.life / f.max * 1.6);
       ctx.globalAlpha = a;
-      ctx.font = `900 ${f.size}px system-ui`;
-      ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,.65)';
+      ctx.font = `900 ${Math.max(7, f.size * ts)}px system-ui`;
+      ctx.lineWidth = 3 * ts; ctx.strokeStyle = 'rgba(0,0,0,.65)';
       ctx.strokeText(f.text, f.x, f.y);
       ctx.fillStyle = f.col;
       ctx.fillText(f.text, f.x, f.y);

@@ -1,0 +1,95 @@
+{
+ "_comment": "Written by tools/cutout-world.py. Sizes are supersampled by `ss`; divide to get logical px.",
+ "props": {
+  "bin-broken": {
+   "w": 56,
+   "h": 35,
+   "ss": 2
+  },
+  "bin": {
+   "w": 49,
+   "h": 61,
+   "ss": 2
+  },
+  "chair-broken": {
+   "w": 66,
+   "h": 29,
+   "ss": 2
+  },
+  "chair": {
+   "w": 52,
+   "h": 80,
+   "ss": 2
+  },
+  "coffee": {
+   "w": 61,
+   "h": 79,
+   "ss": 2
+  },
+  "cooler-broken": {
+   "w": 61,
+   "h": 64,
+   "ss": 2
+  },
+  "cooler": {
+   "w": 50,
+   "h": 122,
+   "ss": 2
+  },
+  "desk": {
+   "w": 196,
+   "h": 94,
+   "ss": 2
+  },
+  "extinguisher": {
+   "w": 37,
+   "h": 67,
+   "ss": 2
+  },
+  "monitor-broken": {
+   "w": 70,
+   "h": 55,
+   "ss": 2
+  },
+  "monitor": {
+   "w": 28,
+   "h": 56,
+   "ss": 2
+  },
+  "mug": {
+   "w": 33,
+   "h": 29,
+   "ss": 2
+  },
+  "phone": {
+   "w": 37,
+   "h": 26,
+   "ss": 2
+  },
+  "plant-broken": {
+   "w": 51,
+   "h": 29,
+   "ss": 2
+  },
+  "plant": {
+   "w": 51,
+   "h": 65,
+   "ss": 2
+  },
+  "printer-broken": {
+   "w": 92,
+   "h": 66,
+   "ss": 2
+  },
+  "printer": {
+   "w": 94,
+   "h": 60,
+   "ss": 2
+  },
+  "stack": {
+   "w": 47,
+   "h": 22,
+   "ss": 2
+  }
+ }
+}

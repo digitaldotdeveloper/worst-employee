@@ -1,10 +1,11 @@
 // WORST EMPLOYEE — feel test. Game state, loop, camera, renderer, shift report.
 
-import { VERSION, VIEW, FLOOR_Y, LEVEL_W, COL, COFFEE, RANKS, ATTACK } from './config.js';
+import { VERSION, VIEW, FLOOR_Y, CEIL_Y, ROOF_Y, LEVEL_W, COL, COFFEE, RANKS, ATTACK } from './config.js';
 import { World } from './engine.js';
 import { FX } from './fx.js';
-import { ART, SPRITES, poseFor, recolourSprites, drawHuman, drawProp, roundRect } from './art.js';
+import { ART, SPRITES, WORLD, poseFor, recolourSprites, drawHuman, drawProp, roundRect } from './art.js';
 import { RIG } from './rig.js';
+import { SFX } from './audio.js';
 import { IN, initInput, pollInput } from './input.js';
 import { ChaosSystem } from './chaos.js';
 import { Player } from './player.js';
@@ -15,6 +16,8 @@ const cv = document.getElementById('game');
 const ctx = cv.getContext('2d');
 const $ = id => document.getElementById(id);
 const HAS_TOUCH = matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0;
+const viewW = () => VIEW.w / S.zoom;
+const viewH = () => VIEW.h / S.zoom;
 
 // ---------------------------------------------------------------
 // STATE
@@ -34,6 +37,11 @@ const S = {
   look: loadLook() || defaultLook(),
   useArt: true,          // rendered key poses
   useRig: true,          // the cut-up skeleton — takes priority when loaded
+  // Camera zoom is a RENDER-only scale. The player is 62px tall because the
+  // physics and combat timings were tuned at that size and they should not move;
+  // at 1:1 he is 11% of screen height, which reads as a distant doll rather than
+  // a brawler. Zooming the view fixes the framing and touches no gameplay number.
+  zoom: 2.15,
 
   addAnger(v) {
     if (this.boss && this.boss.fighting) return;
@@ -66,6 +74,10 @@ const S = {
       this.damage += b.value;
       this.productivity = Math.max(0, this.productivity - 1.6);
       this.addAnger(b.value > 500 ? 5 : 2);
+      const mat = ({ monitor: 'glass', stack: 'paper', printer: 'plastic', bin: 'metal',
+                     phone: 'plastic', mug: 'glass', cooler: 'glass', coffee: 'metal',
+                     extinguisher: 'metal', chair: 'plastic' })[b.kind] || 'plastic';
+      SFX.smash(mat, Math.min(1, b.value / 1200));
       FX.debris(b.cx, b.cy, 12, b.color || COL.prop);
       FX.float(b.cx, b.y - 6, `-$${b.value.toLocaleString()}`, '#ff8a5c', 12);
       if (b.kind === 'stack' || b.kind === 'printer') FX.paper(b.cx, b.cy, 16);
@@ -141,7 +153,7 @@ function buildOptionRows() {
       const b = document.createElement('button');
       b.className = 'sw' + (def.kind === 'colour' ? ' col' : '');
       if (def.kind === 'colour') b.style.background = v; else b.textContent = v;
-      b.onclick = () => { S.look[key] = i; refreshSwatches(); saveLook(S.look); applyLook(); };
+      b.onclick = () => { S.look[key] = i; refreshSwatches(); saveLook(S.look); applyLook(); SFX.ui(); };
       b.dataset.key = key; b.dataset.i = i;
       sws.appendChild(b);
     });
@@ -182,6 +194,8 @@ function openCreator() {
 // GAME FLOW
 // ---------------------------------------------------------------
 function startShift() {
+  SFX.resume();
+  SFX.startMusic();
   S.mode = 'play';
   S.time = 0; S.shiftT = 0;
   S.coins = 0; S.damage = 0; S.destroyed = 0; S.annoyed = 0;
@@ -221,6 +235,8 @@ function startBossFight() {
   b.hp = b.maxHp = 320;
   FX.kick(16, 0.22);
   FX.flash = 1;
+  SFX.bossRoar();
+  SFX.setTension(1);
   toast('"I HAVE HAD ENOUGH!"', 'boss');
 }
 
@@ -264,6 +280,8 @@ function endShift(promoted = false) {
     .map(([k, v]) => `<div><span class="lk">${k}</span><span class="lv">${v}</span></div>`)
     .join('');
   $('reportRank').textContent = promoted ? 'PROMOTION APPROVED' : rank;
+  SFX.stopMusic();
+  if (promoted) SFX.promote(); else SFX.ui(false);
   S.lastShare =
     `WORST EMPLOYEE\nProductivity: ${prod}%\nCompany damage: $${S.damage.toLocaleString()}\n` +
     `Chaos combo: ×${S.bestChain}\nChaos score: ${score.toLocaleString()}\nRank: ${rank}`;
@@ -306,6 +324,7 @@ function update(dt) {
       S.chaosMul = COFFEE.chaosMul;
       S.productivity = Math.max(0, S.productivity - 0.4);
       show('boost');
+      SFX.coffee();
       FX.float(cm.cx, cm.y - 10, '+COFFEE', '#ffd9a8', 13);
       if (S.coffees === 12) toast('"WE SPENT $400 ON COFFEE CAPSULES THIS WEEK."');
     }
@@ -315,8 +334,12 @@ function update(dt) {
   if (S.chaos.alive) S.productivity = Math.max(0, S.productivity - dt * 3);
 
   // camera
-  const tx = S.player.cx - VIEW.w / 2 + S.player.face * 60;
-  S.cam.x += (Math.max(0, Math.min(LEVEL_W - VIEW.w, tx)) - S.cam.x) * Math.min(1, dt * 6);
+  const tx = S.player.cx - viewW() / 2 + S.player.face * 40;
+  S.cam.x += (Math.max(0, Math.min(LEVEL_W - viewW(), tx)) - S.cam.x) * Math.min(1, dt * 6);
+  // Keep the floor near the bottom of the frame rather than centring on the
+  // player, so jumps show headroom instead of sliding the whole office down.
+  const ty = FLOOR_Y + 26 - viewH();
+  S.cam.y += (ty - S.cam.y) * Math.min(1, dt * 5);
 
   FX.step(dt);
   updateHud();
@@ -327,6 +350,7 @@ function updateHud() {
   $('hDamage').textContent = '$' + S.damage.toLocaleString();
   $('hProd').textContent = Math.max(0, S.productivity).toFixed(0) + '%';
   const st = angerStage(S.anger);
+  SFX.setTension(S.anger / 100);
   $('hAngerStage').textContent = st.name;
   $('hAngerFill').style.width = S.anger + '%';
 
@@ -343,28 +367,30 @@ function updateHud() {
 // ---------------------------------------------------------------
 function render() {
   const camX = S.cam.x + (FX.shake ? (Math.random() - 0.5) * FX.shake * 2 : 0);
-  const camY = (FX.shake ? (Math.random() - 0.5) * FX.shake * 2 : 0);
+  const camY = S.cam.y + (FX.shake ? (Math.random() - 0.5) * FX.shake * 2 : 0);
 
   ctx.fillStyle = COL.bgFar;
   ctx.fillRect(0, 0, VIEW.w, VIEW.h);
 
   ctx.save();
+  ctx.scale(S.zoom, S.zoom);
   ctx.translate(-camX, -camY);
 
   drawBackground(camX);
 
-  // floor
-  ctx.fillStyle = COL.floor;
-  ctx.fillRect(0, FLOOR_Y, LEVEL_W, VIEW.h - FLOOR_Y + 40);
-  ctx.strokeStyle = COL.floorLn; ctx.lineWidth = 1;
-  for (let x = 0; x < LEVEL_W; x += 60) {
-    ctx.beginPath(); ctx.moveTo(x, FLOOR_Y); ctx.lineTo(x - 30, VIEW.h + 40); ctx.stroke();
-  }
-  ctx.strokeStyle = '#3d4356'; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.moveTo(0, FLOOR_Y); ctx.lineTo(LEVEL_W, FLOOR_Y); ctx.stroke();
+  drawFloor(camX);
 
-  // desks
+  // desks — real art when loaded
   for (const d of S.world.statics) {
+    const im = WORLD.props && WORLD.props.desk;
+    if (im) {
+      // Top-align to the collider, not bottom-align: things rest on d.y, so the
+      // drawn desktop has to sit exactly there or props look sunk into it.
+      const w = d.w * 1.08;
+      const h = w * (im.height / im.width);
+      ctx.drawImage(im, d.x + (d.w - w) / 2, d.y - 2, w, h);
+      continue;
+    }
     ctx.fillStyle = '#39405a';
     roundRect(ctx, d.x, d.y, d.w, d.h, 3); ctx.fill();
     ctx.fillStyle = '#2b3049';
@@ -374,37 +400,58 @@ function render() {
     roundRect(ctx, d.x, d.y, d.w, d.h, 3); ctx.stroke();
   }
 
-  // props
-  for (const b of S.world.bodies) {
-    if (b.type === 'prop') drawProp(ctx, b, S.time);
+  // contact shadows first — nothing reads as standing on a floor without one
+  if (WORLD.ready) {
+    ctx.fillStyle = 'rgba(0,0,0,.30)';
+    for (const b of S.world.bodies) {
+      if (b.type !== 'prop' || b.y + b.h < FLOOR_Y - 6) continue;
+      ctx.beginPath();
+      ctx.ellipse(b.cx, FLOOR_Y + 1, b.w * 0.52, 3.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
 
-  // coworkers
+  // props — real art when it exists, greybox otherwise
+  for (const b of S.world.bodies) {
+    if (b.type !== 'prop') continue;
+    if (!(WORLD.ready && WORLD.drawProp(ctx, b, S.time))) drawProp(ctx, b, S.time);
+  }
+
+  // coworkers — same skeleton as the player, different parts
   for (const c of S.coworkers) {
     if (c.dead) continue;
-    drawHuman(ctx, c, {
-      body: c.mode === 'down' ? COL.npcHurt : COL.npc,
-      dark: '#4a4f63', t: c.animT, flip: c.face < 0,
-      state: c.mode === 'panic' ? 'run' : 'idle',
-      alpha: 1, face: null,
-    });
+    if (c.art && RIG.cast[c.art]) {
+      RIG.drawCast(ctx, c.art, RIG.npcPose(c, c.animT, c.mode),
+        c.cx, c.y + c.h, c.h * 1.06, c.face < 0, 1);
+    } else {
+      drawHuman(ctx, c, {
+        body: c.mode === 'down' ? COL.npcHurt : COL.npc,
+        dark: '#4a4f63', t: c.animT, flip: c.face < 0,
+        state: c.mode === 'panic' ? 'run' : 'idle',
+      });
+    }
   }
 
   // boss
   if (S.boss && !S.boss.dead) {
     const b = S.boss;
-    drawHuman(ctx, b, {
-      body: b.hurtT > 0 ? '#fff' : COL.boss, dark: COL.bossD,
-      t: b.animT, flip: b.face < 0,
-      state: b.fighting ? 'run' : 'idle',
-    });
+    const bossArt = b.fighting ? 'boss-rage' : 'boss-calm';
+    if (RIG.cast[bossArt]) {
+      RIG.drawCast(ctx, bossArt, RIG.bossPose(b, b.animT),
+        b.cx, b.y + b.h, b.h * 1.06, b.face < 0, b.hurtT > 0 ? 0.6 : 1);
+    } else {
+      drawHuman(ctx, b, {
+        body: b.hurtT > 0 ? '#fff' : COL.boss, dark: COL.bossD,
+        t: b.animT, flip: b.face < 0, state: b.fighting ? 'run' : 'idle',
+      });
+    }
     if (b.fighting) {
       const w = 90, hp = Math.max(0, b.hp / b.maxHp);
       ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(b.cx - w / 2, b.y - 18, w, 6);
       ctx.fillStyle = '#ff5c5c'; ctx.fillRect(b.cx - w / 2, b.y - 18, w * hp, 6);
     }
-    ctx.fillStyle = '#ff9a9a'; ctx.font = '700 9px system-ui'; ctx.textAlign = 'center';
-    ctx.fillText('BOSS', b.cx, b.y - 24);
+    ctx.fillStyle = '#ff9a9a'; ctx.font = `700 ${9 / S.zoom * 1.7}px system-ui`; ctx.textAlign = 'center';
+    ctx.fillText('BOSS', b.cx, b.y - 18);
   }
 
   // player — real sprites when they have loaded, layered greybox rig otherwise
@@ -434,9 +481,9 @@ function render() {
     });
     ctx.restore();
   }
-  ctx.fillStyle = 'rgba(255,255,255,.55)';
-  ctx.font = '700 8px system-ui'; ctx.textAlign = 'center';
-  ctx.fillText(S.look.name || 'YOU', p.cx, p.y - 8);
+  ctx.fillStyle = 'rgba(255,255,255,.5)';
+  ctx.font = `700 ${8 / S.zoom * 1.6}px system-ui`; ctx.textAlign = 'center';
+  ctx.fillText(S.look.name || 'YOU', p.cx, p.y - 6);
 
   // attack arc tell
   if (p.atk && p.atk.phase === 'active') {
@@ -446,53 +493,102 @@ function render() {
     roundRect(ctx, bx, p.cy - d.hh / 2, d.reach, d.hh, 8); ctx.fill();
   }
 
-  FX.draw(ctx);
+  FX.draw(ctx, 1 / S.zoom);
   ctx.restore();
 
   // ceiling vignette + hit flash
-  const g = ctx.createLinearGradient(0, 0, 0, 90);
-  g.addColorStop(0, 'rgba(0,0,0,.45)'); g.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = g; ctx.fillRect(0, 0, VIEW.w, 90);
+  const g = ctx.createLinearGradient(0, 0, 0, 70);
+  g.addColorStop(0, 'rgba(0,0,0,.5)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, VIEW.w, 70);
   if (FX.flash > 0) {
     ctx.fillStyle = `rgba(255,90,90,${Math.min(0.5, FX.flash * 0.5)})`;
     ctx.fillRect(0, 0, VIEW.w, VIEW.h);
   }
 }
 
-function drawBackground(camX) {
-  // back wall
-  ctx.fillStyle = COL.bgWall;
-  ctx.fillRect(0, 90, LEVEL_W, FLOOR_Y - 90);
-
-  // windows, parallax-free (they are the wall)
-  for (let x = 60; x < LEVEL_W; x += 260) {
-    ctx.fillStyle = COL.window;
-    roundRect(ctx, x, 130, 150, 120, 4); ctx.fill();
-    ctx.fillStyle = 'rgba(255,255,255,.05)';
-    roundRect(ctx, x + 8, 138, 60, 104, 3); ctx.fill();
-    ctx.strokeStyle = COL.bgTrim; ctx.lineWidth = 5;
-    roundRect(ctx, x, 130, 150, 120, 4); ctx.stroke();
+function tileStrip(im, camX, y, h, parallax) {
+  // Parallax means the layer scrolls slower than the camera, which is what
+  // gives a flat side-on office any sense of depth at all.
+  const w = im.width * (h / im.height);
+  const off = ((camX * parallax) % w + w) % w;
+  const start = camX - off;
+  for (let x = start; x < camX + viewW() + w; x += w) {
+    ctx.drawImage(im, x, y, w + 1, h);      // +1 hides sub-pixel seams
   }
-  // ceiling strip + lights
-  ctx.fillStyle = COL.bgTrim;
-  ctx.fillRect(0, 60, LEVEL_W, 30);
-  for (let x = 120; x < LEVEL_W; x += 300) {
-    ctx.fillStyle = 'rgba(255,246,208,.75)';
-    roundRect(ctx, x, 78, 100, 8, 4); ctx.fill();
-    const g = ctx.createLinearGradient(0, 86, 0, 300);
-    g.addColorStop(0, 'rgba(255,246,208,.06)'); g.addColorStop(1, 'rgba(255,246,208,0)');
+}
+
+function drawBackground(camX) {
+  const bgW = WORLD.bg['bg-wall'], bgC = WORLD.bg['bg-ceiling'], bgF = WORLD.bg['bg-floor'];
+
+  if (bgW) {
+    tileStrip(bgW, camX, CEIL_Y, FLOOR_Y - CEIL_Y, 0.35);
+    // darken the wall so the characters stay the brightest thing on screen
+    // Push the backdrop back so the characters are the brightest thing on
+    // screen — a readable silhouette matters more than showing off the wall.
+    ctx.fillStyle = 'rgba(12,14,24,.52)';
+    ctx.fillRect(camX, CEIL_Y, viewW(), FLOOR_Y - CEIL_Y);
+    const depth = ctx.createLinearGradient(0, CEIL_Y, 0, FLOOR_Y);
+    depth.addColorStop(0, 'rgba(8,9,16,.45)');
+    depth.addColorStop(0.55, 'rgba(8,9,16,0)');
+    depth.addColorStop(1, 'rgba(8,9,16,.35)');
+    ctx.fillStyle = depth;
+    ctx.fillRect(camX, CEIL_Y, viewW(), FLOOR_Y - CEIL_Y);
+  } else {
+    ctx.fillStyle = COL.bgWall;
+    ctx.fillRect(0, CEIL_Y, LEVEL_W, FLOOR_Y - CEIL_Y);
+    for (let x = 60; x < LEVEL_W; x += 260) {
+      ctx.fillStyle = COL.window;
+      roundRect(ctx, x, CEIL_Y + 26, 150, 96, 4); ctx.fill();
+      ctx.strokeStyle = COL.bgTrim; ctx.lineWidth = 5;
+      roundRect(ctx, x, CEIL_Y + 26, 150, 96, 4); ctx.stroke();
+    }
+  }
+
+  if (bgC) {
+    tileStrip(bgC, camX, ROOF_Y, CEIL_Y - ROOF_Y, 0.55);
+    ctx.fillStyle = 'rgba(12,14,24,.45)';
+    ctx.fillRect(camX, ROOF_Y, viewW(), CEIL_Y - ROOF_Y);
+  } else {
+    ctx.fillStyle = COL.bgTrim;
+    ctx.fillRect(0, ROOF_Y, LEVEL_W, CEIL_Y - ROOF_Y);
+  }
+
+  // light pools on the floor, drawn regardless — they sell the fluorescent strips
+  for (let x = Math.floor(camX / 300) * 300; x < camX + viewW() + 300; x += 300) {
+    const g = ctx.createLinearGradient(0, CEIL_Y, 0, FLOOR_Y);
+    g.addColorStop(0, 'rgba(255,246,208,.09)');
+    g.addColorStop(1, 'rgba(255,246,208,0)');
     ctx.fillStyle = g;
     ctx.beginPath();
-    ctx.moveTo(x, 86); ctx.lineTo(x + 100, 86);
-    ctx.lineTo(x + 160, 320); ctx.lineTo(x - 60, 320);
+    ctx.moveTo(x, CEIL_Y); ctx.lineTo(x + 110, CEIL_Y);
+    ctx.lineTo(x + 170, FLOOR_Y); ctx.lineTo(x - 60, FLOOR_Y);
     ctx.closePath(); ctx.fill();
   }
-  // wall signage — comedy is free here
-  ctx.fillStyle = 'rgba(255,255,255,.10)';
+
+  ctx.fillStyle = 'rgba(255,255,255,.07)';
   ctx.font = '900 26px system-ui'; ctx.textAlign = 'left';
-  ctx.fillText("WE'RE A FAMILY", 300, 300);
-  ctx.fillText('PRODUCTIVITY MATTERS', 1180, 300);
-  ctx.fillText('SYNERGY', 2050, 300);
+  ctx.font = '900 20px system-ui';
+  ctx.fillText("WE'RE A FAMILY", 300, CEIL_Y + 56);
+  ctx.fillText('PRODUCTIVITY MATTERS', 1180, CEIL_Y + 56);
+  ctx.fillText('SYNERGY', 2050, CEIL_Y + 56);
+}
+
+function drawFloor(camX) {
+  const bgF = WORLD.bg['bg-floor'];
+  if (bgF) {
+    tileStrip(bgF, camX, FLOOR_Y - 4, viewH() + 44, 1);
+    ctx.fillStyle = 'rgba(14,16,26,.55)';
+    ctx.fillRect(camX, FLOOR_Y - 4, viewW(), viewH() + 44);
+  } else {
+    ctx.fillStyle = COL.floor;
+    ctx.fillRect(0, FLOOR_Y, LEVEL_W, VIEW.h - FLOOR_Y + 40);
+    ctx.strokeStyle = COL.floorLn; ctx.lineWidth = 1;
+    for (let x = 0; x < LEVEL_W; x += 60) {
+      ctx.beginPath(); ctx.moveTo(x, FLOOR_Y); ctx.lineTo(x - 30, VIEW.h + 40); ctx.stroke();
+    }
+  }
+  ctx.strokeStyle = 'rgba(0,0,0,.45)'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(camX, FLOOR_Y); ctx.lineTo(camX + viewW(), FLOOR_Y); ctx.stroke();
 }
 
 // ---------------------------------------------------------------
@@ -527,17 +623,20 @@ SPRITES.load().then(ok => {
   console.log(ok ? 'player sprites loaded: ' + Object.keys(SPRITES.img).length
                  : 'no player sprites');
 });
+WORLD.load().then(ok => console.log(ok ? 'world art loaded: ' + Object.keys(WORLD.props).length + ' props' : 'no world art'));
 RIG.load().then(async ok => {
   if (!ok) { console.log('no rig — falling back to key poses'); return; }
   const n = await RIG.loadVariants();
-  console.log('rig loaded: ' + Object.keys(RIG.img).length + ' parts, ' + n + ' variants');
+  const c = await RIG.loadCast(['npc-sami', 'npc-rita', 'npc-omar', 'boss-calm', 'boss-rage']);
+  console.log('rig loaded: ' + Object.keys(RIG.img).length + ' parts, ' + n + ' variants, ' + c + ' cast');
   applyLook();
 });
 initInput(cv);
 resize();
 requestAnimationFrame(frame);
 
-$('btnStart').onclick = openCreator;
+for (const b of document.querySelectorAll('button')) b.addEventListener('pointerdown', () => SFX.resume());
+$('btnStart').onclick = () => { SFX.resume(); SFX.ui(); openCreator(); };
 $('btnAgain').onclick = startShift;
 $('btnHired').onclick = () => {
   S.look.name = ($('cName').value || 'FIRASS').trim().toUpperCase().slice(0, 12);

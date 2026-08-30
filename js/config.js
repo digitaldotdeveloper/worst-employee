@@ -9,6 +9,12 @@ export const VERSION = '0.1.0';
 export const VIEW = { w: 960, h: 540, minW: 760, maxW: 1400 };
 export const GRAVITY = 2100;                      // px/s^2
 export const FLOOR_Y = 470;                       // office floor line
+// Ceiling height, in world px above the floor. The greybox office was 412px of
+// wall for a 62px character — 6.6 character-heights, so once the camera zoomed
+// in to make the cast readable most of the frame was empty wall. A real office
+// is about 1.5x a person; this is a bit more for headroom over a jump.
+export const CEIL_Y = FLOOR_Y - 168;
+export const ROOF_Y = CEIL_Y - 42;                // ceiling tile strip sits here
 export const LEVEL_W = 2600;                      // office width
 
 export const PLAYER = {
