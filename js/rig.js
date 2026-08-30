@@ -91,8 +91,8 @@ const POSES = {
 // rest of the arm still shows. The forearm stays in front so a punch reads.
 const ORDER = [
   'arm-back-upper', 'arm-back-fore',
-  'leg-back-thigh', 'leg-back-shin',
-  'leg-front-thigh', 'leg-front-shin',
+  'leg-back-thigh', 'leg-back-shin', 'leg-back-foot',
+  'leg-front-thigh', 'leg-front-shin', 'leg-front-foot',
   'arm-front-upper',
   'torso', 'head',
   'arm-front-fore',
@@ -104,6 +104,8 @@ const PARENT = {
   'arm-back-fore': 'arm-back-upper',
   'leg-front-shin': 'leg-front-thigh',
   'leg-back-shin': 'leg-back-thigh',
+  'leg-front-foot': 'leg-front-shin',
+  'leg-back-foot': 'leg-back-shin',
 };
 
 export const RIG = {
@@ -167,7 +169,9 @@ export const RIG = {
     if (!this.ready) return false;
     const m = this.meta;
     const s = height / m.standingH;
-    const src = this.tinted || this.img;
+    const act = this.active;
+    const src = (this.tinted && !act) ? this.tinted : (act ? act.img : this.img);
+    const geo = act ? act.parts : m.parts;
 
     ctx.save();
     ctx.globalAlpha = alpha;
@@ -184,28 +188,51 @@ export const RIG = {
 
     ctx.translate(0, -hipUp + bob);
 
-    const angleOf = bone => (pose[bone] !== undefined ? pose[bone] : POSES.idle[bone] ?? this.rest[bone]);
+    // A bone the pose does not mention and that has a parent stays rigid to that
+    // parent — which is what feet want almost always. Without this the shoes
+    // would have to be posed by hand in every single state.
+    const cache = {};
+    const angleOf = bone => {
+      if (cache[bone] !== undefined) return cache[bone];
+      let v;
+      if (pose[bone] !== undefined) v = pose[bone];
+      else if (PARENT[bone]) v = this.rest[bone] + (angleOf(PARENT[bone]) - this.rest[PARENT[bone]]);
+      else v = POSES.idle[bone] ?? this.rest[bone];
+      cache[bone] = v;
+      return v;
+    };
+
+    // A bone hangs off its parent's TIP, and that tip has already moved if the
+    // parent rotated. Resolving each origin from the parent's rest joint instead
+    // compounds the error down the chain — it is what left the shoes floating
+    // beside the legs rather than on the end of them.
+    const boneLen = b => {
+      const [a2, b2] = m.bones[b];
+      return (!b2 || !J[a2] || !J[b2]) ? 0
+        : Math.hypot(J[b2][0] - J[a2][0], J[b2][1] - J[a2][1]);
+    };
+    const origins = {};
+    const originOf = bone => {
+      if (origins[bone]) return origins[bone];
+      const parent = PARENT[bone];
+      let o;
+      if (parent) {
+        const po = originOf(parent);
+        const ang = angleOf(parent) * D;
+        const len = boneLen(parent);
+        o = [po[0] + Math.cos(ang) * len, po[1] + Math.sin(ang) * len];
+      } else {
+        o = local(m.bones[bone][0]);
+      }
+      origins[bone] = o;
+      return o;
+    };
 
     for (const bone of ORDER) {
       const im = src[bone];
-      const info = m.parts[bone];
-      if (!im || !info) continue;
-
-      const [ja] = m.bones[bone];
-      let ox, oy;
-      const parent = PARENT[bone];
-      if (parent) {
-        // hang off the parent's tip so a bent elbow stays attached
-        const [pa, pb] = m.bones[parent];
-        const [pax, pay] = local(pa);
-        const len = Math.hypot(J[pb][0] - J[pa][0], J[pb][1] - J[pa][1]);
-        const pang = angleOf(parent) * D;
-        ox = pax + Math.cos(pang) * len;
-        oy = pay + Math.sin(pang) * len;
-      } else {
-        [ox, oy] = local(ja);
-      }
-
+      const info = geo[bone];
+      if (!im || !info || !m.bones[bone]) continue;
+      const [ox, oy] = originOf(bone);
       ctx.save();
       ctx.translate(ox, oy);
       ctx.rotate((angleOf(bone) - this.rest[bone]) * D);
@@ -218,3 +245,51 @@ export const RIG = {
 };
 
 export { POSES as RIG_POSES };
+
+// ---------------------------------------------------------------
+// PART SWAPPING — the reason the rig exists.
+// A variant is the same rig pose with one thing changed, sliced to just the
+// parts that thing owns. Swapping one in is a dictionary write, and it applies
+// to every animation state at once because the animation is angles, not frames.
+// ---------------------------------------------------------------
+RIG.variants = null;
+RIG.vparts = {};        // "hair-curls" -> { head: Image }
+RIG.vmeta = {};         // "hair-curls" -> its rig.json
+
+RIG.loadVariants = async function (base = 'assets/rig/') {
+  try {
+    const r = await fetch(base + 'variants.json');
+    if (!r.ok) return 0;
+    this.variants = (await r.json()).variants || {};
+  } catch (e) { return 0; }
+
+  await Promise.all(Object.entries(this.variants).map(async ([name, v]) => {
+    try {
+      const m = await (await fetch(base + name + '/rig.json')).json();
+      this.vmeta[name] = m;
+    } catch (e) { return; }
+    this.vparts[name] = {};
+    await Promise.all(v.parts.map(part => new Promise(res => {
+      const im = new Image();
+      im.onload = () => { this.vparts[name][part] = im; res(); };
+      im.onerror = res;
+      im.src = base + name + '/' + part + '.png';
+    })));
+  }));
+  return Object.keys(this.vparts).length;
+};
+
+// Build the part set for a look. Base parts, then each chosen option's parts
+// laid over the top.
+RIG.applyLook = function (choices) {
+  this.active = { img: { ...this.img }, parts: { ...this.meta.parts } };
+  for (const key of choices) {
+    const v = this.vparts[key];
+    const m = this.vmeta[key];
+    if (!v || !m) continue;
+    for (const [part, im] of Object.entries(v)) {
+      this.active.img[part] = im;
+      if (m.parts[part]) this.active.parts[part] = m.parts[part];
+    }
+  }
+};

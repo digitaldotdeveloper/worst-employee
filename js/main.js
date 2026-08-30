@@ -9,7 +9,7 @@ import { IN, initInput, pollInput } from './input.js';
 import { ChaosSystem } from './chaos.js';
 import { Player } from './player.js';
 import { buildOffice, angerStage } from './office.js';
-import { OPTIONS, defaultLook, randomLook, saveLook, loadLook, drawCharacter, drawPortrait, lookColours } from './character.js';
+import { OPTIONS, defaultLook, randomLook, saveLook, loadLook, drawCharacter, drawPortrait, lookColours, lookVariants } from './character.js';
 
 const cv = document.getElementById('game');
 const ctx = cv.getContext('2d');
@@ -125,6 +125,15 @@ function buildOptionRows() {
     row.className = 'orow';
     const lab = document.createElement('label');
     lab.textContent = def.label;
+    // Accessories are not rig parts yet — glasses, a tie and a cap all live on
+    // parts something else already owns. Say so rather than shipping a control
+    // that quietly does nothing.
+    if (key === 'accessory' && RIG.ready) {
+      const note = document.createElement('span');
+      note.className = 'soon';
+      note.textContent = 'NEXT BATCH';
+      lab.appendChild(note);
+    }
     row.appendChild(lab);
     const sws = document.createElement('div');
     sws.className = 'swatches';
@@ -132,7 +141,7 @@ function buildOptionRows() {
       const b = document.createElement('button');
       b.className = 'sw' + (def.kind === 'colour' ? ' col' : '');
       if (def.kind === 'colour') b.style.background = v; else b.textContent = v;
-      b.onclick = () => { S.look[key] = i; refreshSwatches(); saveLook(S.look); };
+      b.onclick = () => { S.look[key] = i; refreshSwatches(); saveLook(S.look); applyLook(); };
       b.dataset.key = key; b.dataset.i = i;
       sws.appendChild(b);
     });
@@ -151,11 +160,20 @@ let pvT = 0;
 function drawPreview(dt) {
   pvT += dt;
   pvx.clearRect(0, 0, pv.width, pv.height);
-  drawPortrait(pvx, pv.width / 2, pv.height - 34, 3.4, S.look, pvT);
+  // Show the real rig so the creator previews what you actually get, not a
+  // greybox approximation of it.
+  if (RIG.ready) {
+    RIG.draw(pvx, RIG.poseFor({ grounded: true, vx: 0, vy: 0, atk: null,
+      dodgeT: 0, hurtT: 0, carrying: null }, pvT),
+      pv.width / 2, pv.height - 26, 210, false, 1);
+  } else {
+    drawPortrait(pvx, pv.width / 2, pv.height - 34, 3.4, S.look, pvT);
+  }
 }
 
 function openCreator() {
   hide('title'); show('create');
+  applyLook();
   $('cName').value = S.look.name || 'FIRASS';
   buildOptionRows();
 }
@@ -191,6 +209,7 @@ function startShift() {
 }
 
 function applyLook() {
+  if (RIG.ready) RIG.applyLook(lookVariants(S.look));
   if (!SPRITES.ready) return;
   const c = lookColours(S.look);
   recolourSprites(S.look, c.skin, c.shirt);
@@ -508,9 +527,11 @@ SPRITES.load().then(ok => {
   console.log(ok ? 'player sprites loaded: ' + Object.keys(SPRITES.img).length
                  : 'no player sprites');
 });
-RIG.load().then(ok => {
-  console.log(ok ? 'rig loaded: ' + Object.keys(RIG.img).length + ' parts'
-                 : 'no rig — falling back to key poses');
+RIG.load().then(async ok => {
+  if (!ok) { console.log('no rig — falling back to key poses'); return; }
+  const n = await RIG.loadVariants();
+  console.log('rig loaded: ' + Object.keys(RIG.img).length + ' parts, ' + n + ' variants');
+  applyLook();
 });
 initInput(cv);
 resize();
@@ -525,7 +546,7 @@ $('btnHired').onclick = () => {
 };
 $('btnRandom').onclick = () => {
   Object.assign(S.look, randomLook($('cName').value));
-  refreshSwatches(); saveLook(S.look);
+  refreshSwatches(); saveLook(S.look); applyLook();
 };
 $('cName').oninput = () => { S.look.name = $('cName').value.toUpperCase(); };
 $('btnEnd').onclick = () => endShift(false);

@@ -331,3 +331,23 @@ export function lookColours(look) {
     hair: val(look, 'hairColour'),
   };
 }
+
+// Creator option -> rig variant folder. The first value of each list is what the
+// base render already wears, so it maps to nothing.
+const VARIANT_OF = {
+  hair:     { buzz: 'hair-buzz', curls: 'hair-curls', bun: 'hair-bun',
+              long: 'hair-long', spiky: 'hair-spiky' },
+  shirt:    { polo: 'shirt-polo', buttonup: 'shirt-buttonup', hoodie: 'shirt-hoodie',
+              vest: 'shirt-vest', tank: 'shirt-tank' },
+  trousers: { jeans: 'trousers-jeans', shorts: 'trousers-shorts', cargo: 'trousers-cargo' },
+  shoes:    { formal: 'shoes-formal', boots: 'shoes-boots', sandals: 'shoes-sandals' },
+};
+
+export function lookVariants(look) {
+  const out = [];
+  for (const key of Object.keys(VARIANT_OF)) {
+    const v = VARIANT_OF[key][val(look, key)];
+    if (v) out.push(v);
+  }
+  return out;
+}

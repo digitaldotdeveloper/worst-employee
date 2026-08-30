@@ -261,12 +261,36 @@ def main():
 
         lx0 = min(c[1] for c in lower) - BLEED
         lx1 = max(c[2] for c in lower) + BLEED
+        # Split the shoe off at the ankle. Trousers and shoes both live on the
+        # lower leg, so without this cut you could pick one or the other but
+        # never combine them.
+        lower_rows = [c for c in cols if c[0] >= knee_y]
+        widths = [c[2] - c[1] for c in lower_rows]
+        shin_w = np.median(widths[:max(1, len(widths) // 2)])   # upper half = shin
+        # The shoe is wider than the shin - except on a leg angled away from the
+        # camera, where it foreshortens and never gets wide enough. Fall back to
+        # a proportional cut so both legs always split.
+        ankle_y = None
+        for y, cx0, cx1 in lower_rows:
+            if y > knee_y + 8 and (cx1 - cx0) > shin_w * 1.35:
+                ankle_y = y
+                break
+        if ankle_y is None:
+            ankle_y = int(knee_y + (foot_y - knee_y) * 0.72)
+            print(f'  ankle-{side}  width test failed, using proportional cut')
+        ankle_row = min(lower_rows, key=lambda c: abs(c[0] - ankle_y))
+        ankle_x = (ankle_row[1] + ankle_row[2]) // 2
+
         parts[f'leg-{side}-shin'] = (
-            cut(rgba, lx0, knee_y - BLEED, lx1, foot_y + 3), (knee_x, knee_y))
+            cut(rgba, lx0, knee_y - BLEED, lx1, ankle_y + BLEED), (knee_x, knee_y))
+        parts[f'leg-{side}-foot'] = (
+            cut(rgba, lx0, ankle_y - BLEED, lx1, foot_y + 3), (ankle_x, ankle_y))
 
         foot_row = max(cols, key=lambda c: c[0])
         joints[f'knee-{side}'] = [int(knee_x), int(knee_y)]
+        joints[f'ankle-{side}'] = [int(ankle_x), int(ankle_y)]
         joints[f'foot-{side}'] = [int((foot_row[1] + foot_row[2]) // 2), int(foot_y)]
+        print(f'  ankle-{side}  y{ankle_y}  (shin width {shin_w:.0f})')
 
     print(f'knee line   y{knee_y}')
 
@@ -291,9 +315,11 @@ def main():
                 'arm-back-upper': ['shoulder-back', 'elbow-back'],
                 'arm-back-fore': ['elbow-back', 'fist-back'],
                 'leg-front-thigh': ['hip', 'knee-front'],
-                'leg-front-shin': ['knee-front', 'foot-front'],
+                'leg-front-shin': ['knee-front', 'ankle-front'],
+                'leg-front-foot': ['ankle-front', 'foot-front'],
                 'leg-back-thigh': ['hip', 'knee-back'],
-                'leg-back-shin': ['knee-back', 'foot-back'],
+                'leg-back-shin': ['knee-back', 'ankle-back'],
+                'leg-back-foot': ['ankle-back', 'foot-back'],
             },
             'parts': {}}
 

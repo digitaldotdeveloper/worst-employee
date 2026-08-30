@@ -1,0 +1,135 @@
+{
+ "_comment": "Written by tools/rig-slice.py. Pivots are in source-image pixels; the game scales them by standingH.",
+ "source": "hair-curls",
+ "figure": {
+  "x0": 306,
+  "y0": 51,
+  "x1": 716,
+  "y1": 502
+ },
+ "groundY": 502,
+ "centreX": 507,
+ "standingH": 451,
+ "joints": {
+  "neck": [
+   507,
+   160
+  ],
+  "hip": [
+   507,
+   362
+  ],
+  "shoulder-front": [
+   542,
+   193
+  ],
+  "elbow-front": [
+   610,
+   193
+  ],
+  "fist-front": [
+   674,
+   193
+  ],
+  "shoulder-back": [
+   472,
+   193
+  ],
+  "elbow-back": [
+   386,
+   193
+  ],
+  "fist-back": [
+   307,
+   193
+  ],
+  "knee-back": [
+   384,
+   422
+  ],
+  "ankle-back": [
+   345,
+   468
+  ],
+  "foot-back": [
+   345,
+   487
+  ],
+  "knee-front": [
+   599,
+   422
+  ],
+  "ankle-front": [
+   653,
+   465
+  ],
+  "foot-front": [
+   650,
+   487
+  ]
+ },
+ "lines": {
+  "shoulderY": 193,
+  "hipY": 362,
+  "kneeY": 422,
+  "neckY": 168
+ },
+ "bones": {
+  "torso": [
+   "hip",
+   "neck"
+  ],
+  "head": [
+   "neck",
+   null
+  ],
+  "arm-front-upper": [
+   "shoulder-front",
+   "elbow-front"
+  ],
+  "arm-front-fore": [
+   "elbow-front",
+   "fist-front"
+  ],
+  "arm-back-upper": [
+   "shoulder-back",
+   "elbow-back"
+  ],
+  "arm-back-fore": [
+   "elbow-back",
+   "fist-back"
+  ],
+  "leg-front-thigh": [
+   "hip",
+   "knee-front"
+  ],
+  "leg-front-shin": [
+   "knee-front",
+   "ankle-front"
+  ],
+  "leg-front-foot": [
+   "ankle-front",
+   "foot-front"
+  ],
+  "leg-back-thigh": [
+   "hip",
+   "knee-back"
+  ],
+  "leg-back-shin": [
+   "knee-back",
+   "ankle-back"
+  ],
+  "leg-back-foot": [
+   "ankle-back",
+   "foot-back"
+  ]
+ },
+ "parts": {
+  "head": {
+   "w": 84,
+   "h": 112,
+   "px": 32,
+   "py": 109
+  }
+ }
+}

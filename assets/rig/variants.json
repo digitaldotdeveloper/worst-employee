@@ -1,0 +1,133 @@
+{
+ "_comment": "Written by tools/slice-variants.py. Each entry is one character-creator option and the rig parts it replaces.",
+ "variants": {
+  "hair-bun": {
+   "group": "hair",
+   "parts": [
+    "head"
+   ]
+  },
+  "hair-buzz": {
+   "group": "hair",
+   "parts": [
+    "head"
+   ]
+  },
+  "hair-curls": {
+   "group": "hair",
+   "parts": [
+    "head"
+   ]
+  },
+  "hair-long": {
+   "group": "hair",
+   "parts": [
+    "head"
+   ]
+  },
+  "hair-spiky": {
+   "group": "hair",
+   "parts": [
+    "head"
+   ]
+  },
+  "shirt-buttonup": {
+   "group": "shirt",
+   "parts": [
+    "arm-back-fore",
+    "arm-back-upper",
+    "arm-front-fore",
+    "arm-front-upper",
+    "torso"
+   ]
+  },
+  "shirt-hoodie": {
+   "group": "shirt",
+   "parts": [
+    "arm-back-fore",
+    "arm-back-upper",
+    "arm-front-fore",
+    "arm-front-upper",
+    "torso"
+   ]
+  },
+  "shirt-polo": {
+   "group": "shirt",
+   "parts": [
+    "arm-back-fore",
+    "arm-back-upper",
+    "arm-front-fore",
+    "arm-front-upper",
+    "torso"
+   ]
+  },
+  "shirt-tank": {
+   "group": "shirt",
+   "parts": [
+    "arm-back-fore",
+    "arm-back-upper",
+    "arm-front-fore",
+    "arm-front-upper",
+    "torso"
+   ]
+  },
+  "shirt-vest": {
+   "group": "shirt",
+   "parts": [
+    "arm-back-fore",
+    "arm-back-upper",
+    "arm-front-fore",
+    "arm-front-upper",
+    "torso"
+   ]
+  },
+  "shoes-boots": {
+   "group": "shoes",
+   "parts": [
+    "leg-back-foot",
+    "leg-front-foot"
+   ]
+  },
+  "shoes-formal": {
+   "group": "shoes",
+   "parts": [
+    "leg-back-foot",
+    "leg-front-foot"
+   ]
+  },
+  "shoes-sandals": {
+   "group": "shoes",
+   "parts": [
+    "leg-back-foot",
+    "leg-front-foot"
+   ]
+  },
+  "trousers-cargo": {
+   "group": "trousers",
+   "parts": [
+    "leg-back-shin",
+    "leg-back-thigh",
+    "leg-front-shin",
+    "leg-front-thigh"
+   ]
+  },
+  "trousers-jeans": {
+   "group": "trousers",
+   "parts": [
+    "leg-back-shin",
+    "leg-back-thigh",
+    "leg-front-shin",
+    "leg-front-thigh"
+   ]
+  },
+  "trousers-shorts": {
+   "group": "trousers",
+   "parts": [
+    "leg-back-shin",
+    "leg-back-thigh",
+    "leg-front-shin",
+    "leg-front-thigh"
+   ]
+  }
+ }
+}

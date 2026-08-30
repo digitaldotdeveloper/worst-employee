@@ -1,15 +1,15 @@
 {
  "_comment": "Written by tools/rig-slice.py. Pivots are in source-image pixels; the game scales them by standingH.",
- "source": "rig-a",
+ "source": "trousers-shorts",
  "figure": {
-  "x0": 304,
+  "x0": 311,
   "y0": 51,
-  "x1": 716,
-  "y1": 517
+  "x1": 715,
+  "y1": 530
  },
- "groundY": 517,
+ "groundY": 530,
  "centreX": 518,
- "standingH": 466,
+ "standingH": 479,
  "joints": {
   "neck": [
    518,
@@ -17,62 +17,62 @@
   ],
   "hip": [
    518,
-   349
+   353
   ],
   "shoulder-front": [
    554,
-   194
+   198
   ],
   "elbow-front": [
-   615,
-   194
+   607,
+   198
   ],
   "fist-front": [
-   673,
-   194
+   657,
+   198
   ],
   "shoulder-back": [
    482,
-   194
+   198
   ],
   "elbow-back": [
-   390,
-   194
+   394,
+   198
   ],
   "fist-back": [
-   306,
-   194
+   313,
+   198
   ],
   "knee-back": [
-   421,
-   417
+   453,
+   425
   ],
   "ankle-back": [
-   372,
-   470
+   417,
+   481
   ],
   "foot-back": [
-   365,
-   491
+   414,
+   504
   ],
   "knee-front": [
-   608,
-   417
+   589,
+   425
   ],
   "ankle-front": [
-   658,
-   456
+   642,
+   470
   ],
   "foot-front": [
-   650,
-   491
+   630,
+   504
   ]
  },
  "lines": {
-  "shoulderY": 194,
-  "hipY": 349,
-  "kneeY": 417,
-  "neckY": 171
+  "shoulderY": 198,
+  "hipY": 353,
+  "kneeY": 425,
+  "neckY": 173
  },
  "bones": {
   "torso": [
@@ -125,76 +125,28 @@
   ]
  },
  "parts": {
-  "head": {
-   "w": 85,
-   "h": 111,
-   "px": 46,
-   "py": 108
-  },
-  "torso": {
-   "w": 95,
-   "h": 196,
-   "px": 51,
-   "py": 193
-  },
-  "arm-front-upper": {
-   "w": 67,
-   "h": 36,
-   "px": 3,
-   "py": 18
-  },
-  "arm-front-fore": {
-   "w": 64,
-   "h": 28,
-   "px": 3,
-   "py": 22
-  },
-  "arm-back-upper": {
-   "w": 98,
-   "h": 36,
-   "px": 95,
-   "py": 18
-  },
-  "arm-back-fore": {
-   "w": 89,
-   "h": 39,
-   "px": 86,
-   "py": 17
-  },
   "leg-back-thigh": {
-   "w": 124,
-   "h": 74,
-   "px": 123,
+   "w": 89,
+   "h": 78,
+   "px": 85,
    "py": 3
   },
   "leg-back-shin": {
-   "w": 104,
-   "h": 59,
-   "px": 72,
-   "py": 3
-  },
-  "leg-back-foot": {
-   "w": 49,
-   "h": 27,
-   "px": 23,
+   "w": 75,
+   "h": 62,
+   "px": 52,
    "py": 3
   },
   "leg-front-thigh": {
-   "w": 109,
-   "h": 74,
+   "w": 88,
+   "h": 78,
    "px": -2,
    "py": 3
   },
   "leg-front-shin": {
-   "w": 115,
-   "h": 45,
-   "px": 22,
-   "py": 3
-  },
-  "leg-front-foot": {
-   "w": 86,
-   "h": 39,
-   "px": 43,
+   "w": 106,
+   "h": 51,
+   "px": 17,
    "py": 3
   }
  }
