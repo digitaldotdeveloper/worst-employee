@@ -493,12 +493,139 @@ function bleep(t, dur, loud = 0.13) {
 // stack five screams into a wall of noise.
 const voiceBusy = new Map();
 
+// Level guard for the reactions below. TWO things make a syllable jump out of
+// the band, and neither of them is the gain you asked for:
+//
+//   * THE FUNDAMENTAL PARKING ON F1. The formant is a Q=7 bandpass with unity
+//     gain at its centre. Normally a mid harmonic carries the vowel at 1/n of
+//     the oscillator's amplitude, but when the pitch glide happens to sit the
+//     FUNDAMENTAL itself on F1, the loudest partial there is goes through at
+//     full scale. This is the exact mirror of the `mutter` bug — same cause,
+//     opposite sign — and it is why these are voice-dependent: F1 is scaled by
+//     each character's `fscale` and the pitch by their own `f0`.
+//   * A SQUARE WAVE. A unit square puts 4/pi into its fundamental where a
+//     sawtooth puts 2/pi — exactly twice — so a parked syllable is twice as
+//     loud again on the square voices (Omar, Sami, Karim, Nour).
+//
+// Both at once is what measured Sami's "HEY" at 0.565 and Nour's squeak at
+// 0.451 — LOUDER than hit(1.0) at 0.49 — while the same two shapes sat at
+// 0.09-0.20 on everyone else. This ducks that case and only that case: it
+// never boosts, so no quiet variant gets quieter, and a syllable whose pitch
+// is nowhere near F1 passes through untouched.
+function fitLoud(v, vowel, fLo, fHi, loud) {
+  const F1 = VOWELS[vowel % VOWELS.length][0] * v.fscale;
+  const r = Math.log(Math.sqrt(fLo * fHi) / F1);
+  const parked = Math.exp(-(r * r) / 0.15);      // 1.0 when the pitch is on F1
+  return loud / (1 + (v.wave === 'square' ? 1.6 : 0.42) * parked);
+}
+
+// ------------------------------------------------------------ hurt reactions
+//
+// FIVE reactions per character, not one. The old `hurt` was a single falling
+// vowel with a little jitter on it, which meant a fight was that one noise on
+// repeat and it read as placeholder because it was one. These are five
+// different PERFORMANCES of being hit with a keyboard — an indignant yelp, an
+// offended "HEY", a winded oof, a theatrical wounded groan, and an undignified
+// squeak — and they differ in vowel, pitch contour, syllable count and length.
+// Not in gain. Five copies of the same shape at five volumes is the same sound.
+//
+// THEY STAY INSIDE THE CHARACTER. Every pitch below is a multiple of that
+// voice's own `f0`, every duration is divided by its own `rate`, the wave is
+// its own, and syllable() parks the formants at its own `fscale`. So Sami's
+// five all sound like Sami being hit five ways, and Omar's five all sound like
+// Omar. A shared pool of five yelps everyone drew from would be a worse bug
+// than the one this fixes — it would erase the characters.
+//
+// ONE RULE BEFORE YOU EDIT THESE: every syllable has to GLIDE. The formant
+// pair is a Q=7 bandpass — about a seventh of an octave wide — and a voice's
+// harmonics are spaced f0 apart, so a HELD note at a high f0 can sit with every
+// harmonic falling between the two bands and come out near silent. That is
+// exactly the trap that made `mutter` measure 0.014. A glide of ~1.3x or more
+// sweeps harmonics through both bands and guarantees the sound is there.
+// Flatten one of these into a held tone and you will lose it, and the gain
+// knob will not bring it back.
+//
+// Each builder schedules its own sound and returns how long the character
+// should stay locked afterwards.
+const HURT_VARIANTS = [
+  // 0 — YELP. Short, high, indignant. Over before you can place it. "AY!"
+  (t, v, p, rnd) => {
+    const dur = rnd(0.11, 0.15) / v.rate;
+    const f = v.f0 * rnd(2.3, 2.7) * (1 + p * 0.18);
+    const to = f * rnd(0.50, 0.60);
+    syllable(t, v, dur, f, to, 0, fitLoud(v, 0, f, to, 0.62 + p * 0.30), 0.03);
+    return dur + 0.20;
+  },
+
+  // 1 — "HEY!". Two syllables that RISE — the only one that goes up, which is
+  // what makes it read as offended rather than hurt. Front vowels, e then i.
+  (t, v, p, rnd) => {
+    const a = rnd(0.09, 0.12) / v.rate;
+    const b = rnd(0.15, 0.20) / v.rate;
+    const f = v.f0 * rnd(1.45, 1.70) * (1 + p * 0.15);
+    syllable(t,     v, a * 0.95, f,        f * 1.38, 1, fitLoud(v, 1, f, f * 1.38, 0.70 + p * 0.34), 0.02);
+    syllable(t + a, v, b,        f * 1.38, f * 1.90, 2, fitLoud(v, 2, f * 1.38, f * 1.90, 0.73 + p * 0.36), 0.04);
+    return a + b + 0.22;
+  },
+
+  // 2 — OOF. Winded. A low breath puff of noise under one collapsing back
+  // vowel, so it is the only one with air in it as well as voice.
+  (t, v, p, rnd) => {
+    noise(t, 0.10 / v.rate, 0.34 + p * 0.16, 780, 0.8, 'lowpass');
+    const dur = rnd(0.18, 0.24) / v.rate;
+    const f = v.f0 * rnd(1.55, 1.80) * (1 + p * 0.12);
+    const to = f * rnd(0.58, 0.66);
+    syllable(t + 0.01, v, dur, f, to, 3, fitLoud(v, 3, f, to, 0.60 + p * 0.28), 0.02);
+    return dur + 0.24;
+  },
+
+  // 3 — GROAN. Theatrical, wounded, far longer than the injury deserves. Two
+  // long sagging syllables with real vibrato on them. This is the one that
+  // makes a fight feel like a workplace incident report.
+  (t, v, p, rnd) => {
+    const a = rnd(0.22, 0.30) / v.rate;
+    const b = rnd(0.30, 0.42) / v.rate;
+    const f = v.f0 * rnd(1.90, 2.20) * (1 + p * 0.15);
+    syllable(t,     v, a * 1.05, f,        f * 0.70, 0, fitLoud(v, 0, f, f * 0.70, 0.52 + p * 0.26), 0.045);
+    syllable(t + a, v, b,        f * 0.72, f * 0.46, 3, fitLoud(v, 3, f * 0.72, f * 0.46, 0.50 + p * 0.24), 0.065);
+    return a + b + 0.28;
+  },
+
+  // 4 — SQUEAK. Undignified. Pitch shoots UP to twice where it started and is
+  // cut off by a tiny second syllable, like a noise someone did not mean to
+  // make. The one that gets a laugh out of a low voice.
+  (t, v, p, rnd) => {
+    const a = rnd(0.075, 0.10) / v.rate;
+    const b = rnd(0.05, 0.075) / v.rate;
+    const f = v.f0 * rnd(2.0, 2.4);
+    const up = f * rnd(1.70, 2.00);
+    syllable(t,             v, a, f,        up,       1, fitLoud(v, 1, f, up, 0.76 + p * 0.36), 0.03);
+    syllable(t + a + 0.01,  v, b, f * 1.55, f * 1.05, 2, fitLoud(v, 2, f * 1.55, f * 1.05, 0.63 + p * 0.31), 0.02);
+    return a + b + 0.22;
+  },
+];
+
+// Never the same reaction twice running for the same person — that is what
+// actually kills the repetition; five variants picked with replacement would
+// still play a pair back to back one time in five. Uniform over the other four.
+const lastHurt = new Map();
+function pickHurt(key) {
+  const n = HURT_VARIANTS.length;
+  const last = lastHurt.get(key);
+  let i = Math.floor(Math.random() * (last === undefined ? n : n - 1));
+  if (last !== undefined && i >= last) i++;
+  lastHurt.set(key, i);
+  return i;
+}
+
 /**
  * who   'player' | 'boss' | a coworker's name — anything unknown gets a
  *        stable voice from its hash
  * kind  'hurt' | 'scream' | 'curse' | 'mutter'
+ * variant  test hook only — forces one of the five hurt reactions so the
+ *        level meter can address them individually. Play never passes it.
  */
-SFX.voice = function (who, kind = 'hurt', power = 0.5) {
+SFX.voice = function (who, kind = 'hurt', power = 0.5, variant = null) {
   if (!this.ready || !this.enabled) return;
   const v = voiceOf(who);
   const now = ctx.currentTime;
@@ -555,16 +682,13 @@ SFX.voice = function (who, kind = 'hurt', power = 0.5) {
     }
     busy = n * step + 0.25;
   } else {
-    // hurt: one or two falling syllables — "ow", "ar-gh"
-    const n = Math.random() < 0.35 ? 2 : 1;
-    const step = rnd(0.10, 0.15) / v.rate;
-    for (let i = 0; i < n; i++) {
-      const f = v.f0 * rnd(1.5, 2.1) * (1 + p * 0.25);
-      syllable(t, v, step * 0.95, f, f * rnd(0.55, 0.72), i ? pick() : (Math.random() < 0.6 ? 0 : 3),
-               0.55 + p * 0.33, 0.03);
-      t += step;
-    }
-    busy = n * step + 0.18;
+    // hurt: one of five reactions, never the one this person just used.
+    const i = variant == null ? pickHurt(key)
+                              : ((variant % HURT_VARIANTS.length) + HURT_VARIANTS.length) % HURT_VARIANTS.length;
+    // The floor keeps the per-person lock at the ~0.3s it has always been, so
+    // a five-beat combo still cannot stack five yelps however short the
+    // reaction is or however fast the character talks.
+    busy = Math.max(0.3, HURT_VARIANTS[i](t, v, p, rnd));
   }
 
   voiceBusy.set(key, now + busy);

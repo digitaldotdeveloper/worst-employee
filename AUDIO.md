@@ -103,6 +103,65 @@ Fires at: knockdowns, both places a coworker hits back, the panic transition (a
 third of them, not all), the boss taking a hit, losing his temper, going down,
 and being pestered.
 
+### The five hurt reactions
+`hurt` used to be one falling vowel with jitter on it, so every NPC made
+essentially the same noise every time and a fight was that noise on repeat. It
+is now **five different performances of being hit**, in `HURT_VARIANTS`:
+
+| # | reaction | shape |
+|---|---|---|
+| 0 | `yelp` | one short high syllable, sharp fall — "AY!" |
+| 1 | `HEY` | two syllables that **rise** — the only one that goes up, which is what makes it read as offended rather than hurt |
+| 2 | `oof` | winded: a low noise breath puff under one collapsing back vowel — the only one with air in it |
+| 3 | `groan` | two long sagging syllables with real vibrato, far longer than the injury deserves |
+| 4 | `squeak` | pitch shoots up to twice where it started, cut off by a tiny second syllable |
+
+They vary vowel, contour, syllable count and length — **not gain**. Five copies
+of one shape at five volumes is still one sound.
+
+**They stay inside the character.** Every pitch is a multiple of that voice's
+own `f0`, every duration is divided by its own `rate`, the wave is its own, and
+`syllable()` parks the formants at its own `fscale`. Sami's five all sound like
+Sami. A shared pool everyone drew from would be a worse bug than the one this
+fixed — it would erase the cast.
+
+`pickHurt` is **uniform over the other four**, per person, so the same
+character never plays the same reaction twice running. Picking freely from five
+would repeat back-to-back one time in five, which is the thing you actually
+hear. Measured over 200k draws: 20.1/19.9/20.1/20.1/19.9%, zero immediate
+repeats. The per-person lock is floored at `Math.max(0.3, ...)` so a five-beat
+combo still cannot stack five yelps however short the reaction or fast the
+character.
+
+`SFX.voice(who, 'hurt', power, variant)` takes an optional fourth argument that
+forces one variant. It is a **test hook for the level meter only** — play never
+passes it.
+
+### fitLoud — the level trap that runs the other way
+Two things make a syllable jump out of the band, and neither is the gain:
+
+* **The fundamental parking on F1.** The formant is a Q=7 bandpass at unity
+  gain. Normally a mid harmonic carries the vowel at 1/n of the oscillator's
+  amplitude — but when the pitch glide happens to sit the *fundamental* on F1,
+  the loudest partial goes through at full scale. This is the exact mirror of
+  the `mutter` bug in section 6: same cause, opposite sign.
+* **A square wave.** A unit square puts 4/pi into its fundamental where a
+  sawtooth puts 2/pi — **exactly twice** — so a parked syllable is twice as
+  loud again on the square voices (Omar, Sami, Karim, Nour).
+
+Both at once measured **Sami's "HEY" at 0.565 and Nour's squeak at 0.451,
+louder than `hit(1.0)` at 0.49**, while the same two shapes sat at 0.09-0.20 on
+everyone else. `fitLoud()` ducks that case and only that case — it never
+boosts, so nothing quiet gets quieter. It took the 45-cell spread from
+0.085-0.565 down to 0.081-0.279.
+
+And the rule underneath all of it: **every syllable has to glide.** The formant
+pair is about a seventh of an octave wide and a voice's harmonics are spaced
+`f0` apart, so a *held* note at a high `f0` can land every harmonic between the
+two bands and come out near silent. A glide of ~1.3x or more sweeps harmonics
+through both bands and guarantees the sound exists. Flatten one of these into a
+held tone and no amount of gain will bring it back.
+
 ---
 
 ## 3. Music — `js/music.js`
@@ -205,14 +264,21 @@ ear. Peak amplitude:
 | `bossRoar` | 0.16 |
 | footstep, next to you | 0.15 |
 | `throw_` (mug → cabinet) | 0.079 – 0.140 |
-| voices: scream | 0.14 – 0.25 |
-| voices: curse | 0.13 – 0.15 |
-| voices: hurt | 0.12 – 0.18 |
+| voices: scream | 0.12 – 0.26 |
+| voices: curse | 0.13 – 0.18 |
+| voices: hurt, all 5 x all 9 voices | 0.081 – 0.279 |
 | `promote` / `coin` | 0.12 / 0.11 |
 | voices: mutter | 0.095 |
 | `grab` (mug → cabinet) | 0.085 – 0.126 |
 | coffee | 0.074 |
 | footstep, 350px away | 0.026 |
+
+The hurt figure is 45 cells — five reactions across all nine voices, four
+firings each, peak on the master bus with the game not running. Per-reaction
+means: yelp 0.157, HEY 0.155, oof 0.159, groan 0.159, squeak 0.146 — deliberately
+flat, so which reaction you get is a change of character and not a change of
+volume. `hit(1.0)` metered 0.47-0.53 on the same rig, `smash` glass 0.17. The
+single reaction these replaced measured 0.09-0.29 with an 0.51 outlier on Omar.
 
 Footsteps attenuate 0.15 → 0.084 → 0.026 → silent at 0 / 150 / 350 / 600px.
 Grab and throw track mass by spectral centroid: papers 4244 Hz, mug 3486, chair
