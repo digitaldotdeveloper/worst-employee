@@ -2,7 +2,7 @@
 // mostly about frame timing: startup / active / recover, buffered jumps,
 // coyote time, dodge i-frames, and a 3-hit light combo with a chain window.
 
-import { PLAYER, ATTACK, FLOOR_Y, SLAP } from './config.js';
+import { PLAYER, ATTACK, FLOOR_Y, SLAP, CARRY } from './config.js';
 import { Body, rectsOverlap } from './engine.js';
 import { FX } from './fx.js';
 import { IN } from './input.js';
@@ -27,6 +27,7 @@ export class Player extends Body {
     this.carrying = null;
     this.holdingPerson = false;
     this.slapCd = 0;
+    this.heaveT = 0;
     this.buffered = null;
     this.bufferT = 0;
     this.equipped = null;   // weapon id — NEVER goes in `carrying` (see weapons.js D1)
@@ -79,6 +80,18 @@ export class Player extends Body {
     }
     if (this.hitFlash > 0) this.hitFlash -= dt;
 
+    // THE HEAVE. Set when you pick something up, scaled by its mass. While it
+    // runs you are committed: you cannot walk or swing, and the heavier the
+    // thing the longer that lasts. This is where "different feeling per object"
+    // actually lives — the stat table always differed, the moment of lifting
+    // never did.
+    if (this.heaveT > 0) {
+      this.heaveT -= dt;
+      this.vx *= 0.62;
+      this.state = 'idle';
+      return;
+    }
+
     // FLOORED. Nothing responds until you get back up, which is the price of
     // wading into a room you have spent all morning annoying.
     if (this.downT > 0) {
@@ -86,6 +99,7 @@ export class Player extends Body {
       this.vx *= 0.82;
       this.state = 'hurt';
       if (this.carrying) { this.carrying.held = false; this.carrying = null; this.holdingPerson = false; }
+      this.heaveT = 0;
       if (this.downT <= 0) {
         this.hp = Math.round(this.maxHp * 0.6);
         this.iframes = 1.1;                 // a moment to get clear
@@ -231,7 +245,12 @@ export class Player extends Body {
     }
 
     // ---------------- move ----------------
-    const target = IN.axis * PLAYER.speed * s.speedMul;
+    // What you are carrying is now in your legs. A filing cabinet (mass 5.5) is
+    // a shuffle; a mug (0.4) is barely felt. Clamped so heavy never becomes
+    // stuck — being unable to move is not weight, it is a bug that looks like one.
+    const load = this.carrying ? (this.carrying.mass || 1) : 0;
+    const carryMul = Math.max(CARRY.minSpeed, 1 - load * CARRY.slowPerMass);
+    const target = IN.axis * PLAYER.speed * s.speedMul * carryMul;
     const ctl = this.grounded ? 1 : PLAYER.airControl;
     if (IN.axis) {
       this.face = Math.sign(IN.axis);
@@ -512,7 +531,12 @@ export class Player extends Body {
     if (best) {
       best.held = true; best.va = 0; best.angle = 0; best.wake();
       this.carrying = best;
-      FX.float(best.cx, best.y - 8, 'GRABBED', '#7fd1ff', 11);
+      // THE HEAVE. Picking something up used to be instantaneous whatever it
+      // weighed, which is most of why every prop felt the same in the hand.
+      this.heaveT = Math.min(CARRY.heaveMax,
+        CARRY.heaveMin + (best.mass || 1) * CARRY.heavePerMass);
+      FX.float(best.cx, best.y - 8, (best.mass || 1) >= 3 ? 'HEAVE' : 'GRABBED',
+               '#7fd1ff', 11);
       const gs = propStyle(best.kind);
       SFX.grab(gs ? gs.style : 'light', best.mass || 1);
     }
@@ -534,8 +558,11 @@ export class Player extends Body {
     }
     b.x = this.cx + this.face * 22;
     b.y = this.cy - b.h / 2 - 10;
-    b.vx = this.face * PLAYER.throwSpeed;
-    b.vy = PLAYER.throwLift;
+    // A printer does not fly like a sheet of paper. Same clamp reasoning as the
+    // walk: heavy throws short, never drops at your feet.
+    const tm = Math.max(CARRY.throwMin, 1 - (b.mass || 1) * CARRY.throwPerMass);
+    b.vx = this.face * PLAYER.throwSpeed * tm;
+    b.vy = PLAYER.throwLift * tm;
     b.va = this.face * 12;
     b.chaosUntil = this.s.time + 3.0;   // in-flight props stay hot long enough to land
     b.chainDepth = Math.max(1, b.chainDepth);

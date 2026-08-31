@@ -111,6 +111,21 @@ export const ATTACK = {
 // connecting with nothing in the first place.
 export const SLAP = { cd: 0.26, contact: 0.19, recover: 0.10 };
 
+// WEIGHT. Prop masses already ran 0.4 (mug) to 5.5 (filing cabinet) — a 14x
+// spread that changed nothing you could feel. You snatched a cabinet as fast as
+// a phone, walked at full speed carrying it, and threw a sheet of paper on the
+// same arc as a printer. The stats existed; the FEEL of picking something up
+// did not, which is why every prop played the same in the hand.
+export const CARRY = {
+  slowPerMass:  0.085,   // fraction of top speed lost per unit of mass
+  minSpeed:     0.45,    // a cabinet is a shuffle, never a standstill
+  heavePerMass: 0.055,   // seconds of pickup lockout per unit of mass
+  heaveMin:     0.05,    // even a mug has a beat, so light still reads as light
+  heaveMax:     0.40,
+  throwPerMass: 0.085,   // heavy things go shorter and drop sooner
+  throwMin:     0.40,
+};
+
 export const CHAOS = {
   minEnergy: 130,        // impact speed needed to make a thing "chaotic"
   // 2.4s was long enough that a chain essentially never lapsed during ordinary
