@@ -2,14 +2,14 @@
 // mostly about frame timing: startup / active / recover, buffered jumps,
 // coyote time, dodge i-frames, and a 3-hit light combo with a chain window.
 
-import { PLAYER, ATTACK, FLOOR_Y } from './config.js';
+import { PLAYER, ATTACK, FLOOR_Y, SLAP } from './config.js';
 import { Body, rectsOverlap } from './engine.js';
 import { FX } from './fx.js';
 import { IN } from './input.js';
 import { SFX } from './audio.js';
 import { WEAPONS, statsFor, propStats, propStyle, bump, hasSkill } from './weapons.js';
 import { Music } from './music.js';
-import { handAt, poseFor } from './art.js';
+import { handAt, poseFor, castHeadAt } from './art.js';
 
 export class Player extends Body {
   constructor(x) {
@@ -68,7 +68,15 @@ export class Player extends Body {
     if (this.iframes > 0) this.iframes -= dt;
     if (this.hurtT > 0) this.hurtT -= dt;
     if (this.landT > 0) this.landT -= dt;
-    if (this.slapCd > 0) this.slapCd -= dt;
+    if (this.slapCd > 0) {
+      this.slapCd -= dt;
+      // Land the blow when the window reaches the contact beat. Guarded by
+      // slapHit so a long frame cannot resolve the same slap twice.
+      if (!this.slapHit && this.slapCd <= SLAP.contact) {
+        this.slapHit = true;
+        this._slapContact(s);
+      }
+    }
     if (this.hitFlash > 0) this.hitFlash -= dt;
 
     // FLOORED. Nothing responds until you get back up, which is the price of
@@ -110,12 +118,15 @@ export class Player extends Body {
     this.squash += (1 - this.squash) * Math.min(1, dt * 14);
 
     // ---------------- dodge ----------------
+    // HOISTED ABOVE BOTH BRANCHES. This was declared inside the dodge-ACTIVE
+    // branch below and also read from the dodge-START branch after it, where
+    // there is no binding at all — a ReferenceError on every press of dodge.
+    // Guarding a dead reference is not the same as scoping it correctly, and
+    // the guard is what made it look finished.
+    const rc = WEAPONS.rocketchair && this.equipped === 'rocketchair'
+      ? WEAPONS.rocketchair.charge : null;   // inert while the chair is cut
     if (this.dodgeT > 0) {
       this.dodgeT -= dt;
-      // Inert while the rocket chair is cut from the catalogue; the optional
-      // chaining is what keeps that a no-op instead of a TypeError.
-      const rc = WEAPONS.rocketchair && this.equipped === 'rocketchair'
-        ? WEAPONS.rocketchair.charge : null;
       const spd = rc ? rc.speed : PLAYER.dodgeSpeed;
       const dur = rc ? rc.time : PLAYER.dodgeTime;
       this.vx = this.face * spd * (this.dodgeT / dur + 0.35);
@@ -252,12 +263,30 @@ export class Player extends Body {
   // not a combo beat: it is fast, repeatable, does almost no damage and a lot of
   // ruin. Humiliation, not violence.
   _slap(s) {
+    if (!this.carrying) return;
+    this.slapCd = SLAP.cd;
+    this.slapHit = false;       // the blow itself lands on the contact beat
+  }
+
+  // The impact, fired from update() when the window reaches SLAP_CONTACT rather
+  // than the moment the button went down. The slap used to resolve instantly on
+  // a single drawn frame, so it connected with nothing: the sparks appeared
+  // while the arm was still back and the hand never arrived.
+  _slapContact(s) {
     const v = this.carrying;
     if (!v) return;
     v.slaps = (v.slaps || 0) + 1;
     v.hurtT = 0.25;
-    this.slapCd = 0.26;
-    FX.spark(v.cx + this.face * 12, v.cy - 10, 7, '#ffd9d9', 220);
+
+    // Aim at the face they are actually wearing. `v.cy - 10` was a fixed offset
+    // off body CENTRE, so it hit the chest — and stayed on the chest whether
+    // they were upright, doubled over or slumped. castHeadAt derives the head
+    // from the frame on screen; the fallback keeps the old point if a character
+    // has no head anchors (the rig path), because no sparks is worse than low ones.
+    const hd = castHeadAt(v);
+    FX.spark(hd ? hd.x + this.face * hd.r * 0.45 : v.cx + this.face * 12,
+             hd ? hd.y : v.cy - 10,
+             7, '#ffd9d9', 220);
     FX.kick(4, 0.05);
     SFX.hit(0.30 + Math.min(0.4, v.slaps * 0.05));
     s.onSlap && s.onSlap(v, v.slaps);
