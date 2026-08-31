@@ -218,9 +218,22 @@ def head_of(path, standing_h):
             aspect = min(w, h) / float(max(w, h))
             # dark dominates; shape only breaks ties between two faces-ish blobs
             score = min(dark, 0.35) * 10.0 + fill * 2.0 + aspect
-            if score > best_score:
-                best_score = score
-                best = ((x0 + x1) / 2.0, (y0 + y1) / 2.0, rad)
+            cand = ((x0 + x1) / 2.0, (y0 + y1) / 2.0, rad)
+            # TIE-BREAK ON HEIGHT. npc-rita's `held` frame has both hands raised
+            # in front of her chest: a compact, round, high-contrast skin blob
+            # that scored just above her actual face and put every expression on
+            # her knuckles. Shape and features cannot separate a face from a
+            # pair of hands — but a face is almost always the HIGHER of two
+            # close candidates, and hands are what tend to sit below it.
+            #
+            # A tie-break, deliberately, not a rule: a clearly better-scoring
+            # blob lower down still wins, which is what keeps crouched and
+            # prone poses (getup, dodge, down) working — there is no competing
+            # higher candidate in those, so the tie-break never fires.
+            if best is None or score > best_score * 1.25:
+                best_score, best = score, cand
+            elif score > best_score * 0.80 and cand[1] < best[1] - rad * 0.5:
+                best_score, best = max(best_score, score), cand
         if best is not None and best_score > 2.0:
             break
     if best is None:
@@ -256,6 +269,25 @@ def main(write):
             print('  !! %s: no heads found' % ap)
             continue
         med = float(np.median([v[2] for v in found.values()]))
+        # HAND-MEASURED OVERRIDES, APPLIED LAST. Some frames cannot be won by
+        # any heuristic — npc-rita's `held` has her hands raised in front of her
+        # face, so the two are one connected skin blob in the drawing itself.
+        # An explicit, documented, short override table beats an ever-more
+        # baroque scoring function that still gets it wrong.
+        ov_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                               'head-overrides.json')
+        if os.path.exists(ov_path):
+            try:
+                ov = (json.load(open(ov_path, encoding='utf-8')) or {}).get('heads') or {}
+            except Exception:
+                ov = {}
+            set_name = os.path.basename(folder)
+            for k, v in ov.items():
+                st, _, po = k.partition('/')
+                if st == set_name and po in found:
+                    found[po] = list(v)
+                    print('    override: %s/%s -> %s' % (st, po, v))
+
         # Keep the detected centre, replace the detected size. See HEAD_R.
         target = round(HEAD_R * d['standingH'], 1)
         clamped = sum(1 for v in found.values() if abs(v[2] - target) / target > CLAMP)

@@ -1,0 +1,9 @@
+{
+  "_comment": "Hand-measured head anchors for frames the detector cannot win, applied LAST by fix-heads.py. Keyed '<set>/<pose>': [cx, cy, radius]. Keep this SHORT — it is an escape hatch, not a place to hide a broken detector. Add an entry only after looking at the frame with the anchor drawn on it, and say why.",
+  "heads": {
+    "npc-rita/held": [57.5, 19.0, 13.0]
+  },
+  "_why": {
+    "npc-rita/held": "Both hands are raised in front of her face, so face and hands survive erosion as ONE 280px blob spanning y 10-48. No amount of shape, feature or height scoring separates them because they are physically connected in the drawing. Measured from the blob's top edge instead. The detector put it at y=33.5, between face and hands, which drew every expression on her knuckles."
+  }
+}
