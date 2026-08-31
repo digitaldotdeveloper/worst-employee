@@ -896,6 +896,12 @@ function startBossFight() {
   toast('"I HAVE HAD ENOUGH!"', 'boss');
 }
 
+// WHICH BOSS ART. One expression, used by the renderer and by tools/verify.js,
+// because the two drifting apart is how the defeated boss ended up rendering
+// standing upright: `bossDown()` clears `fighting`, that flipped the art to
+// boss-calm, and boss-calm has no `down` frame so CAST.draw fell back to idle.
+function bossArtFor(b) { return (b.fighting || b.defeated) ? 'boss-rage' : 'boss-calm'; }
+
 function bossDown() {
   const b = S.boss;
   b.fighting = false;
@@ -1327,7 +1333,11 @@ function render() {
   // boss
   if (S.boss && !S.boss.dead) {
     const b = S.boss;
-    const bossArt = b.fighting ? 'boss-rage' : 'boss-calm';
+    // `bossDown()` clears `fighting` and sets `defeated`, which used to flip the
+    // art back to boss-calm — and boss-calm has no `down` frame, so CAST.draw
+    // fell back to `idle` and the KNOCKED-OUT boss rendered standing bolt
+    // upright. He was enraged when you put him there; he stays in that art.
+    const bossArt = bossArtFor(b);
     if (CAST.has(bossArt)) {
       CAST.draw(ctx, bossArt, bossPoseName(b, b.animT),
         b.cx, b.y + b.h, b.h * 1.10, b.face < 0, b.hurtT > 0 ? 0.65 : 1);
@@ -1755,4 +1765,4 @@ addEventListener('keydown', e => {
 
 // Art hookup point. When sprites exist, uncomment and point at the files.
 // ART.load({ 'player.idle': { src:'assets/player/idle.png', frames:6, fps:8 } });
-window.WE = { S, ART, FX, SPRITES, RIG, CAST, applyLook, poseFor, npcPoseName };   // handy in the mobile console
+window.WE = { S, ART, FX, SPRITES, RIG, CAST, applyLook, poseFor, npcPoseName, bossPoseName, bossArtFor };   // handy in the mobile console

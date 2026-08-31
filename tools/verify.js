@@ -1,0 +1,333 @@
+// VERIFY — does the art the game asks for actually exist, and does it play?
+//
+//   node tools/verify.js            static coverage only, no browser
+//   node tools/verify.js --live     also drive the game and check it animates
+//
+// ---------------------------------------------------------------------------
+// WHY THIS EXISTS
+//
+// Every animation bug found in pass 13 was found by DIFFING THE POSE SELECTORS
+// AGAINST THE FRAME FOLDERS, not by playing the game. That is not a coincidence
+// and it is not luck:
+//
+//   CAST.draw()    falls back to `idle` when a pose is missing.
+//   SPRITES.draw() does the same.
+//
+// Which is correct for rendering — a missing frame must never be a black box or
+// a crash — and it means a missing frame is INVISIBLE. It does not throw, it
+// does not warn, it just quietly plays the wrong animation forever. Four
+// separate features had been shipping like that for weeks:
+//
+//   * the player had `downT = 2.2` on a knockout and no `down` frame, so
+//     main.js rotated the STANDING hurt frame 77 degrees to fake lying down
+//   * coworkers fought back by playing `run-1..4`
+//   * "SIT AT YOUR DESK TO BEGIN" pointed at a desk that was not yours, and
+//     the player had no `sit` frame
+//   * every scripted walk was frozen on frame one
+//
+// None of that is visible in a screenshot. All of it is visible in a diff.
+// So: the selectors are the spec, the folders are the implementation, and this
+// compares them. Run it after every generation pass and after any edit to
+// poseFor / npcPoseName / bossPoseName.
+// ---------------------------------------------------------------------------
+
+const fs = require('fs');
+const path = require('path');
+
+const ROOT = path.dirname(__dirname);
+const ART = fs.readFileSync(path.join(ROOT, 'js', 'art.js'), 'utf8');
+
+let fail = 0;
+const bad = m => { fail++; console.log('  FAIL  ' + m); };
+const ok = m => console.log('  ok    ' + m);
+
+// --------------------------------------------------------------- the spec
+// Pull the quoted pose names out of each selector. Deliberately regex over the
+// source rather than a hand-kept list: a hand-kept list drifts the moment
+// somebody adds a pose, and a drifted checklist is worse than none.
+function selector(name) {
+  const re = new RegExp('(?:export )?function ' + name + '\\s*\\([^)]*\\)\\s*\\{');
+  const m = re.exec(ART);
+  if (!m) return null;
+  let i = m.index + m[0].length, depth = 1;
+  while (i < ART.length && depth > 0) {
+    if (ART[i] === '{') depth++;
+    else if (ART[i] === '}') depth--;
+    i++;
+  }
+  return ART.slice(m.index, i);
+}
+
+// Words that appear in quotes inside a selector but are NOT pose names: they are
+// mode names, attack kinds and phase names being compared against.
+const NOT_A_POSE = new Set(['fight', 'panic', 'work', 'heavy', 'startup', 'down-mode']);
+
+function posesIn(src) {
+  if (!src) return [];
+  return [...new Set((src.match(/'[a-z0-9][a-z0-9-]*'/g) || [])
+    .map(s => s.slice(1, -1))
+    .filter(s => !NOT_A_POSE.has(s)))];
+}
+
+const comboBlock = /const COMBO = \[[\s\S]*?\];/.exec(ART);
+const PLAYER_POSES = [...new Set([
+  ...posesIn(selector('poseFor')),
+  ...posesIn(comboBlock && comboBlock[0]),
+])].sort();
+const NPC_POSES = posesIn(selector('npcPoseName')).sort();
+const BOSS_POSES = posesIn(selector('bossPoseName')).sort();
+
+// ------------------------------------------------------- the implementation
+function anchors(rel) {
+  const p = path.join(ROOT, rel, 'anchors.json');
+  if (!fs.existsSync(p)) return null;
+  return JSON.parse(fs.readFileSync(p, 'utf8'));
+}
+
+const PLAYER_SETS = fs.readdirSync(path.join(ROOT, 'assets', 'player'))
+  .filter(d => fs.existsSync(path.join(ROOT, 'assets', 'player', d, 'anchors.json')));
+const CAST_SETS = fs.readdirSync(path.join(ROOT, 'assets', 'cast'))
+  .filter(d => fs.existsSync(path.join(ROOT, 'assets', 'cast', d, 'anchors.json')));
+
+console.log('\n=== POSE COVERAGE ===');
+console.log(`selectors ask for: player ${PLAYER_POSES.length}, npc ${NPC_POSES.length}, boss ${BOSS_POSES.length}`);
+
+function coverage(label, rel, want) {
+  const a = anchors(rel);
+  if (!a) return bad(`${label}: no anchors.json`);
+  const have = new Set(a.poses);
+  const missing = want.filter(p => !have.has(p));
+  if (missing.length) bad(`${label}: ${a.poses.length} frames, MISSING ${missing.join(' ')}`);
+  else ok(`${label}: ${a.poses.length} frames, all ${want.length} requested poses present`);
+}
+
+// The boss has TWO art sets and `bossPoseName` does not map onto them evenly:
+//   const bossArt = (b.fighting || b.defeated) ? 'boss-rage' : 'boss-calm';
+// so the fighting poses can only ever be asked of boss-rage, and boss-calm is
+// only ever asked for the states he can be in while NOT fighting. Checking the
+// flat selector list against both sets reports two frames that are unreachable
+// by construction — and a checker that cries wolf is a checker nobody runs.
+const BOSS_CALM_REACHABLE = BOSS_POSES.filter(p => !/^c\d-(wind|hit)$/.test(p) && p !== 'down');
+
+for (const s of PLAYER_SETS) coverage('player/' + s, `assets/player/${s}`, PLAYER_POSES);
+for (const s of CAST_SETS) {
+  const want = s === 'boss-calm' ? BOSS_CALM_REACHABLE
+             : s === 'boss-rage' ? BOSS_POSES
+             : NPC_POSES;
+  coverage('cast/' + s, `assets/cast/${s}`, want);
+}
+
+// ------------------------------------------------------------------ anchors
+// A frame that exists but is anchored wrong is the other half of the problem:
+// it draws, so nothing looks broken, it just floats or sinks.
+console.log('\n=== ANCHORS ===');
+const PRONE = new Set(['down']);
+const CROUCHED = new Set(['sit', 'getup', 'land', 'c4-wind', 'dodge', 'held']);
+
+for (const [label, rel] of [
+  ...PLAYER_SETS.map(s => ['player/' + s, `assets/player/${s}`]),
+  ...CAST_SETS.map(s => ['cast/' + s, `assets/cast/${s}`]),
+]) {
+  const a = anchors(rel);
+  if (!a) continue;
+  const issues = [];
+
+  // Every face in the game stops drawing if this is missing, and nothing
+  // throws. It has been silently dropped by a repack before.
+  if (!a.heads) issues.push('NO heads block — every facial expression is dead');
+  else {
+    const noHead = a.poses.filter(p => !a.heads[p]);
+    if (noHead.length) issues.push(`no head for ${noHead.join(' ')}`);
+  }
+
+  // Feet on the floor. Prone frames anchor to their own bottom, and airborne
+  // and crouched frames are legitimately off it, so only standing poses count.
+  const AIR = new Set(['jump-up', 'jump-apex', 'fall', 'air-hit']);
+  for (const p of a.poses) {
+    if (PRONE.has(p) || CROUCHED.has(p) || AIR.has(p)) continue;
+    const b = a.poseBottom && a.poseBottom[p];
+    if (b == null) continue;
+    if (Math.abs(b - a.groundY) > 14) {
+      issues.push(`${p} stands ${(b - a.groundY).toFixed(0)}px off the ground line`);
+    }
+  }
+  if (issues.length) bad(`${label}: ` + issues.join('; '));
+  else ok(`${label}: heads present, every standing pose on the ground line`);
+}
+
+// -------------------------------------------------------------------- live
+if (!process.argv.includes('--live')) {
+  console.log(fail ? `\n${fail} PROBLEM(S)\n` : '\nall static checks passed\n');
+  process.exit(fail ? 1 : 0);
+}
+
+// Needs the game served locally and Playwright borrowed from the Gemini
+// dashboard — this repo has no dependencies of its own and is not getting any.
+const PW = 'C:/Users/it/Desktop/Gemini Prompt Sender/dashboard/node_modules/playwright-core';
+const URL = process.env.URL || 'http://127.0.0.1:4320/';
+
+(async () => {
+  const { chromium } = require(PW);
+  const b = await chromium.launch({
+    channel: 'chrome',
+    args: ['--no-sandbox', '--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--disk-cache-size=1'],
+  });
+  const ctx = await b.newContext({
+    viewport: { width: 960, height: 540 },
+    extraHTTPHeaders: { 'Cache-Control': 'no-cache' },
+  });
+  const p = await ctx.newPage();
+  const errs = [];
+  p.on('pageerror', e => errs.push(e.message));
+  p.on('console', m => { if (m.type() === 'error') errs.push('console: ' + m.text()); });
+
+  console.log('\n=== LIVE ===  ' + URL);
+  await p.goto(URL, { waitUntil: 'networkidle' });
+  await p.evaluate(() => localStorage.clear());
+  await p.reload({ waitUntil: 'networkidle' });
+  await p.waitForTimeout(4200);
+
+  // A patch landing between `async` and `function` kills the whole module graph
+  // with no useful error. This has happened twice.
+  if (!(await p.evaluate(() => !!window.WE))) {
+    bad('window.WE missing — the module graph did not load');
+    console.log(errs.slice(0, 4).join('\n'));
+    await b.close();
+    process.exit(1);
+  }
+  ok('module graph loaded');
+
+  await p.click('#btnFree'); await p.waitForTimeout(500);
+  await p.click('#btnHired', { force: true }); await p.waitForTimeout(800);
+
+  // THE TOUR. Story beats tween `x` with `vx` pinned to zero, so a walk cycle
+  // that reads `vx` alone renders everybody standing still and sliding.
+  const seenP = new Set(), seenB = new Set();
+  for (let i = 0; i < 600; i++) {
+    await p.waitForTimeout(90);
+    const s = await p.evaluate(() => {
+      const S = window.WE.S;
+      if (!S.story || !S.story.active) return 'over';
+      if (S.story.choice) { S.story.pick(1); return 'q'; }
+      const bo = S.actors.boss;
+      return {
+        pl: window.WE.poseFor(S.player, S.player.animT || 0),
+        bo: bo && bo.visible ? window.WE.npcPoseName(bo, bo.animT || 0) : null,
+      };
+    });
+    if (s === 'over') break;
+    if (s === 'q') continue;
+    seenP.add(s.pl);
+    if (s.bo) seenB.add(s.bo);
+  }
+  const walked = [...seenP].filter(x => x.startsWith('walk-')).length;
+  walked >= 3 ? ok(`tour: player walks (${walked} walk frames)`)
+              : bad(`tour: player used ${walked} walk frames — scripted walks are not animating`);
+  const bWalk = [...seenB].filter(x => x.startsWith('walk-')).length;
+  bWalk >= 3 ? ok(`tour: boss walks (${bWalk} walk frames)`)
+             : bad(`tour: boss used ${bWalk} walk frames`);
+  [...seenB].includes('point') ? ok('tour: boss points at what he is describing')
+                               : bad('tour: boss never points');
+
+  if (await p.isVisible('#btnSkip')) { await p.click('#btnSkip', { force: true }); await p.waitForTimeout(900); }
+
+  // YOUR DESK — the intro's closing instruction has to actually do something.
+  const desk = await p.evaluate(() => {
+    const S = window.WE.S;
+    if (!S.playerDesk) return null;
+    S.player.x = S.playerDesk.x + 20; S.player.vx = 0;
+    return S.playerDesk.label;
+  });
+  if (!desk) bad('no player desk — "SIT AT YOUR DESK TO BEGIN" points at nothing');
+  else {
+    await p.waitForTimeout(300);
+    await p.evaluate(() => window.WE.S.tryInteract());
+    await p.waitForTimeout(600);
+    const st = await p.evaluate(() => ({
+      sitting: window.WE.S.player.sitting,
+      pose: window.WE.poseFor(window.WE.S.player, 1),
+    }));
+    st.sitting && st.pose === 'sit' ? ok(`desk: sits at "${desk}" and plays the sit frame`)
+                                    : bad(`desk: sitting=${st.sitting} pose=${st.pose}`);
+    await p.evaluate(() => { window.WE.S.player.sitting = false; });
+  }
+
+  // THE COMBO. Every beat needs its own wind-up, or the chain reads as four
+  // impacts with no anticipation between them.
+  const combo = new Set();
+  for (let k = 0; k < 5; k++) {
+    await p.keyboard.press('j');
+    for (let i = 0; i < 8; i++) {
+      await p.waitForTimeout(28);
+      combo.add(await p.evaluate(() => window.WE.poseFor(window.WE.S.player, window.WE.S.player.animT)));
+    }
+    await p.waitForTimeout(90);
+  }
+  const winds = [...combo].filter(x => /^c\d-wind$/.test(x)).length;
+  winds >= 4 ? ok(`combo: ${winds} distinct wind-ups`)
+             : bad(`combo: only ${winds} wind-ups — beats are reusing hit frames`);
+
+  // FLOORED. `downT` was set for weeks with no frame behind it.
+  await p.evaluate(() => {
+    const S = window.WE.S;
+    S.player.iframes = 0; S.player.hp = 1; S.player.takeHit(S, 50);
+  });
+  const floored = [];
+  for (let i = 0; i < 26; i++) {
+    await p.waitForTimeout(100);
+    const q = await p.evaluate(() => window.WE.poseFor(window.WE.S.player, 1));
+    if (floored[floored.length - 1] !== q) floored.push(q);
+  }
+  floored[0] === 'down' && floored.includes('getup')
+    ? ok('floored: down -> getup -> up')
+    : bad('floored: ' + floored.join(' -> '));
+
+  // THE TELEGRAPH. An instant hit is not a fight, it is a tax.
+  await p.evaluate(() => {
+    const S = window.WE.S; const c = S.coworkers[0];
+    c.x = S.player.cx + 30; c.y = 470 - c.h; c.vx = 0;
+    c.fighting = true; c.mode = 'fight'; c.timer = 9; c.swingCd = 0; c.swingT = 0;
+    S.player.iframes = 99;
+  });
+  const np = new Set();
+  for (let i = 0; i < 70; i++) {
+    await p.waitForTimeout(35);
+    np.add(await p.evaluate(() => {
+      const c = window.WE.S.coworkers[0];
+      return window.WE.npcPoseName(c, c.animT || 1);
+    }));
+  }
+  np.has('wind') && np.has('swing')
+    ? ok('fight-back: winds up, then swings')
+    : bad('fight-back: poses were ' + [...np].sort().join(' '));
+
+  // THE BOSS ON THE CARPET. `bossDown()` clears `fighting`, which used to flip
+  // the art to boss-calm — a set with no `down` frame — so the defeated boss
+  // silently fell back to `idle` and stood there. The ending depends on him
+  // being on the floor, and nothing about the failure was visible in code.
+  const ko = await p.evaluate(() => {
+    const S = window.WE.S;
+    if (!S.boss) {
+      // He is on 13 until you go up. Fabricate the state the ending produces.
+      S.boss = { fighting: true, defeated: false, hurtT: 0, animT: 1, vx: 0,
+                 cx: 0, cy: 0, x: 0, y: 0, w: 40, h: 70, face: 1 };
+    }
+    const b = S.boss;
+    b.fighting = false; b.defeated = true; b.hurtT = 0; b.vx = 0;
+    const art = window.WE.bossArtFor(b);
+    const pose = window.WE.npcPoseName && window.WE.bossPoseName
+      ? window.WE.bossPoseName(b, b.animT) : null;
+    return { art, pose, hasFrame: window.WE.CAST.hasPose(art, pose) };
+  });
+  ko.pose === 'down' && ko.hasFrame
+    ? ok(`boss KO: draws ${ko.art}/${ko.pose} — he stays on the floor`)
+    : bad(`boss KO: art=${ko.art} pose=${ko.pose} frameExists=${ko.hasFrame} `
+          + '— the defeated boss renders standing');
+
+  errs.length ? bad('runtime errors:\n        ' + errs.slice(0, 4).join('\n        '))
+              : ok('no runtime errors');
+
+  await b.close();
+  console.log(fail ? `\n${fail} PROBLEM(S)\n` : '\nall checks passed\n');
+  process.exit(fail ? 1 : 0);
+})().catch(e => { console.error('verify crashed: ' + e.message); process.exit(1); });
