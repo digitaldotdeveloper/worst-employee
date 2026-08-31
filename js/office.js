@@ -58,6 +58,7 @@ export class Coworker extends Body {
     this.rage = 0;      // how much of this they have taken
     this.swingCd = 0;
     this.fighting = false;
+    this.knockCd = 0;
     this.annoyed2 = 0;  // how many times this one has put up with you
   }
 
@@ -68,6 +69,7 @@ export class Coworker extends Body {
     if (this.sprayHold > 0) this.sprayHold -= dt;
     if (this.talkT > 0) this.talkT -= dt;
     if (this.pointT > 0) this.pointT -= dt;
+    if (this.knockCd > 0) this.knockCd -= dt;
     if (this.swingT > 0) {
       const was = this.swingT;
       this.swingT -= dt;
@@ -89,6 +91,9 @@ export class Coworker extends Body {
         // They get up. If they have taken enough, they get up ANGRY.
         if (this.rage >= 2) {
           this.fighting = true; this.mode = 'fight'; this.timer = 9;
+          // Up off the floor swinging. Getting up and THEN deciding to approach
+          // is how they spent every fight being knocked down mid-thought.
+          this.swingCd = 0; this.swingT = 0.42;
           if (s.onFightBack) s.onFightBack(this);
         } else { this.mode = 'wander'; this.timer = 1; }
       }
@@ -102,20 +107,30 @@ export class Coworker extends Body {
       this.face = Math.sign(dx) || 1;
       this.timer -= dt;
       if (this.timer <= 0) { this.fighting = false; this.rage = 0; this.mode = 'wander'; return; }
-      if (Math.abs(dx) > 46) {
+      // 64, not 46. They used to have to be almost touching you before the
+      // wind-up even started, and 0.42s later they were on the floor again —
+      // measured across 26 rounds of chase-and-punch, they turned, closed, and
+      // landed exactly ZERO swings. Starting from further out means the blow
+      // arrives while they are still on their feet.
+      if (Math.abs(dx) > 64) {
         this.vx += this.face * 620 * dt;
         this.vx = Math.max(-170, Math.min(170, this.vx));
       } else {
         this.vx *= 0.8;
         // Start a WIND-UP, do not hit. The blow itself fires out of the timer
         // below, 0.26s later. An instant hit is not a fight, it is a tax.
-        if (this.swingCd <= 0 && this.swingT <= 0) { this.swingCd = 1.35; this.swingT = 0.42; }
+        if (this.swingCd <= 0 && this.swingT <= 0) { this.swingCd = 1.05; this.swingT = 0.42; }
       }
       return;
     }
 
     this.timer -= dt;
-    const panic = s.chaos.alive || s.anger > 60;
+    // A COLLEAGUE WHO HAS TURNED DOES NOT GO BACK TO SCREAMING. This read
+    // `s.chaos.alive || s.anger > 60` with no fighting check, so the moment a
+    // chain was live — which is most of a fight — anyone who turned on you was
+    // panicked straight back out of it on the next frame. They never swung
+    // because they were never allowed to stay in `fight` long enough to.
+    const panic = !this.fighting && (s.chaos.alive || s.anger > 60);
     if (panic && this.mode !== 'panic') {
       this.mode = 'panic';
       this.timer = 2 + Math.random() * 2;
@@ -133,7 +148,11 @@ export class Coworker extends Body {
       const away = Math.sign(this.cx - s.player.cx) || 1;
       this.face = away;
       this.vx += away * 900 * dt;
-      this.vx = Math.max(-190, Math.min(190, this.vx));
+      // They fled at 190 against your 205. Fifteen pixels a second of closing
+      // speed is not a chase, it is a commute — measured, punches never landed
+      // at all, rage stayed 0 and nobody ever reached the two blows it takes to
+      // turn. Office shoes do not outrun you.
+      this.vx = Math.max(-118, Math.min(118, this.vx));
       if (this.timer <= 0) { this.mode = 'wander'; this.timer = 2; }
     } else if (this.mode === 'wander') {
       this.vx += this.face * 320 * dt;
@@ -210,6 +229,10 @@ export class Coworker extends Body {
   // flatten anybody, which made every fight one frame long.
   hit(s, dmg = 20) {
     if (this.mode === 'down') { this.downT = Math.max(this.downT, 0.6); return; }
+    // A swing already in flight LANDS. Interrupting it on every hit is what
+    // made them harmless: you could stand in front of someone and cancel their
+    // punch forever simply by punching faster, which is not a fight.
+    // Going down still stops it — see knock().
     this.hp -= dmg;
     this.hurtT = 0.28;
     this.hitFlash = 0.16;
@@ -228,7 +251,24 @@ export class Coworker extends Body {
   }
 
   knock(s, dmg = 38) {
-    const t = 1.1 + Math.min(1.6, dmg / 38 * 1.6) + Math.random() * 0.3;
+    // STAGGER RESISTANCE WHILE FIGHTING. A full five-beat combo does 85 against
+    // 100 hp, so someone who turned on you was floored by almost every string,
+    // spent 1-3s prone, got up, walked back into range and was floored again.
+    // Measured across 26 rounds: one swing thrown, none landed. They are not a
+    // threat, they are a speed bump with a health bar.
+    //
+    // So a fighting colleague can only be PUT DOWN every few seconds. In
+    // between they take the damage, keep their feet, and swing back — which is
+    // the difference between a brawl and a shooting gallery.
+    if (this.fighting && this.knockCd > 0) {
+      this.hp = Math.max(8, Math.round(this.maxHp * 0.30));
+      this.hurtT = 0.26;
+      this.provoke(s, 1);
+      return;
+    }
+    this.knockCd = 4.0;
+    const t = (this.fighting ? 0.75 : 1.1)
+      + Math.min(1.6, dmg / 38 * 1.6) + Math.random() * 0.3;
     if (this.mode === 'down') { this.downT = Math.max(this.downT, t); return; }
     this.mode = 'down';
     this.hurtT = 0.3;

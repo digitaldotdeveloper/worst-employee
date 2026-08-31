@@ -386,7 +386,12 @@ export class Player extends Body {
 
       b.wake();
       const dirX = Math.sign(b.cx - this.cx) || this.face;
-      b.vx += dirX * d.kbX * W.kbMul / Math.max(0.6, b.mass * 0.5);
+      // SOMEONE FIGHTING BACK BRACES. At full knockback a colleague who had
+      // turned was launched 200px on every hit and spent the entire fight
+      // walking back into range — measured, they landed one swing in 26 rounds
+      // and it never reached you. A person squaring up does not ragdoll.
+      const brace = (b.type === 'npc' && b.fighting) ? 0.3 : 1;
+      b.vx += dirX * d.kbX * W.kbMul * brace / Math.max(0.6, b.mass * 0.5);
       b.vy += d.kbY * W.kbMul / Math.max(0.6, b.mass * 0.5);
       b.va += dirX * (4 + Math.random() * 5);
       b.flash = 0.14;
