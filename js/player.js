@@ -20,6 +20,10 @@ export class Player extends Body {
     this.comboStep = 0; this.comboTimer = 0;
     this.dodgeT = 0; this.dodgeCd = 0; this.iframes = 0; this.hurtT = 0; this.landT = 0;
     this.carrying = null;
+    this.holdingPerson = false;
+    this.slapCd = 0;
+    this.buffered = null;
+    this.bufferT = 0;
     this.equipped = null;   // weapon id — NEVER goes in `carrying` (see weapons.js D1)
     this.lastDodge = 99;
     this._plough = new Set();
@@ -38,6 +42,7 @@ export class Player extends Body {
     if (this.iframes > 0) this.iframes -= dt;
     if (this.hurtT > 0) this.hurtT -= dt;
     if (this.landT > 0) this.landT -= dt;
+    if (this.slapCd > 0) this.slapCd -= dt;
     this.lastDodge += dt;
 
     // landing squash
@@ -91,12 +96,39 @@ export class Player extends Body {
     }
 
     // ---------------- attack ----------------
-    if (this.atk) { this._stepAttack(dt, s); return; }
+    if (this.atk) {
+      // Buffer a press made mid-swing and fire it the instant recovery ends.
+      if (IN.lightEdge) this.buffered = { kind: 'light', y: IN.axisY, back: IN.axis !== 0 && Math.sign(IN.axis) !== this.face };
+      else if (IN.heavyEdge) this.buffered = { kind: 'heavy' };
+      if (this.buffered) this.bufferT = 0.22;
+      if (this.bufferT > 0) this.bufferT -= dt; else this.buffered = null;
+      this._stepAttack(dt, s);
+      return;
+    }
+
+    // a press buffered during the last swing fires now
+    if (this.buffered) {
+      const q = this.buffered;
+      this.buffered = null;
+      if (q.kind === 'heavy') { this._startAttack('heavy', 0); return; }
+      let step = (this.comboTimer > 0) ? (this.comboStep % ATTACK.light.length) : 0;
+      if (q.y < -0.45) step = 3;
+      else if (q.y > 0.45) step = 2;
+      else if (q.back) step = 4;
+      this._startAttack('light', step);
+      return;
+    }
 
     // ---------------- grab / throw ----------------
     if (IN.grabEdge) this._grabOrThrow(s);
 
     // ---------------- attack start ----------------
+    // holding someone? every hit is a slap
+    if (this.holdingPerson && this.carrying) {
+      if ((IN.lightEdge || IN.heavyEdge) && this.slapCd <= 0) { this._slap(s); return; }
+      if (IN.lightEdge || IN.heavyEdge) return;
+    }
+
     if (IN.heavyEdge) { this._startAttack('heavy', 0); return; }
     if (IN.lightEdge) {
       // THE STICK PICKS THE MOVE. Holding a direction while you hit skips
@@ -141,6 +173,21 @@ export class Player extends Body {
     }
     // variable jump height — release early, rise less
     if (!IN.jump && this.vy < -220) this.vy += 2600 * dt;
+  }
+
+  // SLAP. Only available while you have hold of someone, and it is deliberately
+  // not a combo beat: it is fast, repeatable, does almost no damage and a lot of
+  // ruin. Humiliation, not violence.
+  _slap(s) {
+    const v = this.carrying;
+    if (!v) return;
+    v.slaps = (v.slaps || 0) + 1;
+    v.hurtT = 0.25;
+    this.slapCd = 0.26;
+    FX.spark(v.cx + this.face * 12, v.cy - 10, 7, '#ffd9d9', 220);
+    FX.kick(4, 0.05);
+    SFX.hit(0.30 + Math.min(0.4, v.slaps * 0.05));
+    s.onSlap && s.onSlap(v, v.slaps);
   }
 
   _startAttack(kind, step) {
@@ -272,34 +319,26 @@ export class Player extends Body {
   _grabOrThrow(s) {
     if (this.carrying) { this._throw(); return; }
 
-    // A coworker within arm's reach takes priority over a prop. Annoying people
-    // is the whole premise of the game and it needs to be a thing you can DO,
-    // not just a side effect of breaking their monitor — especially now that
-    // destruction is opt-in and a quiet playthrough is a real option.
+    // PEOPLE ARE NOT PROPS. A colleague in reach is always grabbable — no
+    // build-up, no gate — and grabbing one puts you in a different state from
+    // carrying a monitor: while you have hold of someone, HIT slaps them
+    // instead of swinging them, and GRAB again throws them.
     let victim = null, vd = 999;
     for (const c of s.coworkers) {
-      if (c.dead || c.mode === 'down' || c.annoyCd > 0) continue;
+      if (c.dead || c.held || c.visible === false) continue;
       const dx = Math.abs(c.cx - this.cx), dy = Math.abs(c.cy - this.cy);
-      if (dx > 56 || dy > 44) continue;
+      if (dx > 52 || dy > 46) continue;
       if (dx < vd) { vd = dx; victim = c; }
     }
     if (victim) {
-      // Tap = pester. But if they are already fed up with you, you pick them
-      // clean up off the floor instead — which is both funnier and a much
-      // bigger act of sabotage than anything you can do to a printer.
-      if (victim.annoyed2 >= 2 && !victim.held) {
-        victim.held = true;
-        victim.mode = 'panic';
-        victim.hoisted = true;
-        this.carrying = victim;
-        s.hoisted = (s.hoisted || 0) + 1;
-        FX.float(victim.cx, victim.y - 16, 'HOISTED', '#ff9a5c', 13);
-        SFX.grab();
-        SFX.hit(0.4);
-        s.toast(`"PUT ME DOWN"  — ${victim.name}, ${victim.title || 'staff'}`);
-        return;
-      }
-      s.annoy(victim);
+      victim.held = true;
+      victim.hoisted = true;
+      victim.mode = 'panic';
+      victim.slaps = 0;
+      this.carrying = victim;
+      this.holdingPerson = true;
+      s.onGrabPerson && s.onGrabPerson(victim);
+      SFX.grab();
       return;
     }
 
@@ -323,6 +362,7 @@ export class Player extends Body {
     const b = this.carrying;
     if (!b) return;
     b.held = false;
+    this.holdingPerson = false;
     if (b.hoisted) {
       // A hurled colleague is a projectile AND a casualty.
       b.hoisted = false;

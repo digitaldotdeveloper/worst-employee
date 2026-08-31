@@ -270,3 +270,39 @@ h3{font-size:11px;letter-spacing:.18em;color:#8d93a6;margin:18px 0 7px}
 .skip{position:absolute;right:12px;top:12px;pointer-events:auto;z-index:30;
   background:rgba(10,11,14,.7);border:1px solid rgba(255,255,255,.2);color:#c6ccdd;
   border-radius:6px;padding:7px 12px;font:800 9px/1 system-ui;letter-spacing:.14em;cursor:pointer}
+
+/* ---------------- combo counter ---------------- */
+.combo-wrap{position:absolute;left:50%;top:120px;transform:translateX(-50%);text-align:center;
+  opacity:0;transition:opacity .12s;pointer-events:none}
+.combo-wrap.on{opacity:1}
+.combo-n{font-size:34px;font-weight:900;color:#7fd1ff;letter-spacing:.02em;
+  text-shadow:0 2px 0 #14405e,0 0 20px rgba(127,209,255,.45)}
+.combo-bar{width:96px;height:3px;background:rgba(255,255,255,.16);border-radius:2px;
+  margin:3px auto 0;overflow:hidden}
+.combo-bar i{display:block;height:100%;background:#7fd1ff}
+.combo-hint{margin-top:5px;font-size:7.5px;letter-spacing:.1em;color:#7d8397;font-weight:800}
+
+/* ---------------- missions ---------------- */
+.msn{display:block;width:100%;text-align:left;padding:12px 14px;margin-bottom:8px;
+  border-radius:8px;border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.04);
+  color:#e8eaf0;cursor:pointer}
+.msn .r1{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.msn .nm{font-size:12.5px;font-weight:900;letter-spacing:.08em}
+.msn .role{font-size:8.5px;letter-spacing:.14em;color:#7fd1ff;font-weight:800}
+.msn .bf{font-size:10.5px;color:#8d93a6;line-height:1.55;margin-top:5px}
+.msn .gl{margin-top:7px;display:flex;flex-direction:column;gap:3px}
+.msn .gl span{font-size:9.5px;color:#9aa1b5}
+.msn .gl span:before{content:'CB';margin-right:6px;color:#5e6478}
+.msn.done{border-color:rgba(110,184,122,.4);opacity:.75}
+.msn.done .nm{color:#8fd6a0}
+.msn.done .gl span:before{content:'CF';color:#6eb87a}
+.msn.locked{opacity:.4;cursor:default}
+.msn.next{border-color:#ffd75e;background:rgba(255,215,94,.08)}
+.msn .pay{font-size:10px;font-weight:800;color:#ffd75e}
+/* in-shift mission tracker */
+.msn-hud{position:absolute;left:12px;top:132px;max-width:44%;pointer-events:none}
+.msn-hud .t{font-size:9px;letter-spacing:.16em;font-weight:900;color:#ffd75e;margin-bottom:3px}
+.msn-hud .g{font-size:9.5px;color:#9aa1b5;line-height:1.6}
+.msn-hud .g.ok{color:#8fd6a0}
+.msn-hud .g:before{content:'CB';margin-right:5px;color:#5e6478}
+.msn-hud .g.ok:before{content:'CF';color:#6eb87a}

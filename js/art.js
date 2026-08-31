@@ -611,3 +611,54 @@ export function drawWeapon(ctx, artName, pose, x, groundY, height, flip) {
   ctx.restore();
   return true;
 }
+
+// ---------------------------------------------------------------
+// REACTION FACES. A circular bust that pops beside whoever it just happened to.
+// Character-specific rather than generic emoji: the joke is SAMI'S face when you
+// take his monitor, not a yellow circle.
+// ---------------------------------------------------------------
+export const FACES = {
+  img: {}, size: 96, ready: false,
+
+  async load(base = 'assets/faces/') {
+    let meta;
+    try {
+      const r = await fetch(base + 'faces.json');
+      if (!r.ok) return 0;
+      meta = await r.json();
+    } catch (e) { return 0; }
+    this.size = meta.size || 96;
+    await Promise.all((meta.faces || []).map(n => new Promise(res => {
+      const im = new Image();
+      im.onload = () => { this.img[n] = im; res(); };
+      im.onerror = res;
+      im.src = base + n + '.png';
+    })));
+    this.ready = Object.keys(this.img).length > 0;
+    return Object.keys(this.img).length;
+  },
+
+  has(art, emo) { return !!this.img[art + '-' + emo]; },
+
+  // `k` is 0..1 through the pop: it scales in, holds, then fades.
+  draw(ctx, art, emo, x, y, px, k) {
+    const im = this.img[art + '-' + emo];
+    if (!im) return false;
+    const grow = k > 0.82 ? (1 - k) / 0.18 : Math.min(1, k / 0.12);
+    const s = px * (0.75 + 0.25 * Math.min(1, grow * 1.4));
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, grow * 1.6);
+    ctx.translate(x, y);
+    // bubble
+    ctx.beginPath(); ctx.arc(0, 0, s / 2 + 2.5, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(12,14,22,.9)'; ctx.fill();
+    ctx.lineWidth = 1.6; ctx.strokeStyle = 'rgba(255,255,255,.28)'; ctx.stroke();
+    // tail
+    ctx.beginPath();
+    ctx.moveTo(-s * 0.18, s / 2 - 1); ctx.lineTo(0, s / 2 + s * 0.28); ctx.lineTo(s * 0.18, s / 2 - 1);
+    ctx.closePath(); ctx.fillStyle = 'rgba(12,14,22,.9)'; ctx.fill();
+    ctx.drawImage(im, -s / 2, -s / 2, s, s);
+    ctx.restore();
+    return true;
+  },
+};

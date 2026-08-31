@@ -6,6 +6,10 @@ import { GRAVITY, FLOOR_Y, LEVEL_W } from './config.js';
 
 let nextId = 1;
 
+// How far a shoved piece of furniture creeps per frame. ~0.9px at 60Hz is
+// about 55px/s — a quarter of running speed, so it reads as effort.
+const PUSH_PER_FRAME = 0.9;
+
 export class Body {
   constructor(o = {}) {
     this.id = nextId++;
@@ -148,6 +152,37 @@ export class World {
   _vsBody(a, b) {
     if (a.x + a.w <= b.x || a.x >= b.x + b.w || a.y + a.h <= b.y || a.y >= b.y + b.h) return;
 
+    const pa = a.type === 'player', pb = b.type === 'player';
+    const person = x => x.type === 'npc' || x.type === 'boss' || x.type === 'player';
+
+    // PEOPLE ARE NOT PROPS. You walk past colleagues, you do not shoulder-barge
+    // them across the floor. Contact between two people resolves to nothing at
+    // all — the only way to move someone is to hit them.
+    if (person(a) && person(b)) return;
+
+    // Running must not bulldoze the office. Resolving a player/prop overlap by
+    // shoving the prop meant it got carried along at running speed for as long
+    // as you kept touching it — measured at 2,661px, i.e. the whole floor swept
+    // ahead of you. Nothing broke, but everything MOVED, which reads as
+    // destruction.
+    //
+    // So: light clutter has no collision with the player at all (you walk
+    // through a mug), and heavy furniture moves the PLAYER, never itself. The
+    // only thing that moves a prop is a hit.
+    // THE PLAYER DOES NOT COLLIDE WITH PROPS AT ALL.
+    //
+    // Three attempts got here. Shoving props resolved the overlap by moving
+    // them, so they were carried along at running speed — the whole floor swept
+    // 2,600px ahead of you. Blocking outright walled you into reception. A slow
+    // shove still cost 199px of drift and made crossing the office a chore.
+    //
+    // In a brawler, furniture is a TARGET, not an obstacle. Attacks still reach
+    // props (the swing tests world bodies directly, not physics), thrown props
+    // still collide with each other and the floor, and chains still work. The
+    // only thing that moves a prop is a hit — which is exactly the rule that was
+    // asked for.
+    if ((pa || pb) && (a.type === 'prop' || b.type === 'prop')) return;
+
     const rel = Math.hypot(a.vx - b.vx, a.vy - b.vy);
     const ox = (a.cx < b.cx) ? (b.x - (a.x + a.w)) : (b.x + b.w - a.x);
     const oy = (a.cy < b.cy) ? (b.y - (a.y + a.h)) : (b.y + b.h - a.y);
@@ -156,30 +191,11 @@ export class World {
     const tot = ma + mb;
     if (tot === 0) return;
 
-    // The player shoves things; things do not shove the player. Without this
-    // you get caught on a bin and the whole game feels like walking in mud.
-    const pa = a.type === 'player', pb = b.type === 'player';
-
-    // Brushing past something must NOT launch it. Handing the prop the player's
-    // full velocity meant it kept flying after you stopped, so simply running
-    // through the office scattered — and chain-reacted — the entire floor.
-    // Destroying the place should be a thing you choose to do. The overlap is
-    // still resolved so you never get stuck; the prop just gets a nudge scaled
-    // by its own mass, and heavy things barely register you.
-    const nudge = (mover, target, dir) => {
-      const push = Math.min(70, Math.abs(mover.vx) * 0.30) / Math.max(0.6, target.mass);
-      if (Math.abs(target.vx) < push) target.vx = dir * push;
-    };
-
     if (Math.abs(ox) < Math.abs(oy)) {
-      if (pa && !b.static) { b.x -= ox; nudge(a, b, Math.sign(a.vx) || Math.sign(-ox) || 1); }
-      else if (pb && !a.static) { a.x += ox; nudge(b, a, Math.sign(b.vx) || Math.sign(ox) || 1); }
-      else {
-        a.x += ox * (ma / tot); b.x -= ox * (mb / tot);
-        const va = a.vx, vb = b.vx;
-        if (!a.static) a.vx = (vb * mb + va * ma * 0.2) / tot * 0.7;
-        if (!b.static) b.vx = (va * ma + vb * mb * 0.2) / tot * 0.7;
-      }
+      a.x += ox * (ma / tot); b.x -= ox * (mb / tot);
+      const va = a.vx, vb = b.vx;
+      if (!a.static) a.vx = (vb * mb + va * ma * 0.2) / tot * 0.7;
+      if (!b.static) b.vx = (va * ma + vb * mb * 0.2) / tot * 0.7;
     } else {
       a.y += oy * (ma / tot); b.y -= oy * (mb / tot);
       if (oy < 0 && !a.static) { a.grounded = true; a.vy = Math.min(a.vy, 0); }
@@ -188,10 +204,6 @@ export class World {
       if (!b.static) b.vy *= 0.4;
     }
 
-    // Walking into a person is not a collision event. rel > 90 is below normal
-    // walking speed, so ordinary contact was firing the whole impact pipeline.
-    const isPerson = x => x.type === 'npc' || x.type === 'boss' || x.type === 'player';
-    if (isPerson(a) && isPerson(b)) return;
     if (rel > 90) this._impact(a, b, rel);
   }
 

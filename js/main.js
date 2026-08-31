@@ -4,7 +4,7 @@ import { VERSION, VIEW, FLOOR_Y, CEIL_Y, ROOF_Y, LEVEL_W, COL, COFFEE, RANKS, QU
          ATTACK, ROOMS, DOOR_W, DOOR_H, roomAt, FLOORS, CUR } from './config.js';
 import { World } from './engine.js';
 import { FX } from './fx.js';
-import { ART, SPRITES, WORLD, CAST, WEAPON_ART, poseFor, npcPoseName, bossPoseName,
+import { ART, SPRITES, WORLD, CAST, WEAPON_ART, FACES, poseFor, npcPoseName, bossPoseName,
          drawWeapon, recolourSprites, drawHuman, drawProp, roundRect } from './art.js';
 import { RIG } from './rig.js';
 import { SFX } from './audio.js';
@@ -13,6 +13,7 @@ import { WEAPONS, SHOP_ORDER, loadCareer, saveCareer, defaultCareer,
          bump, checkUnlocks, buy, hasSkill } from './weapons.js';
 import { Sabotage, RUIN, ruinTier, rankFor } from './sabotage.js';
 import { Story, introScene, HR_X } from './story.js';
+import { MISSIONS, MissionRun, missionState, nextMission } from './missions.js';
 import { Coworker } from './office.js';
 import { IN, initInput, pollInput, resetInput } from './input.js';
 import { ChaosSystem } from './chaos.js';
@@ -45,6 +46,7 @@ const S = {
   look: loadLook() || defaultLook(),
   career: loadCareer(),
   actors: {}, story: null, intro: false,
+  mode2: 'free', mission: null, run: null,
   ruin: 0, deskDown: 0, knocked: 0, killed: {}, roomKills: {}, jobsDone: 0,
   salaryAcc: 0,
   cleanT: 0,
@@ -91,6 +93,7 @@ const S = {
         return;
       }
       b.knock(this, dmg);
+      faceFor(b, dmg > 30 ? 'dazed' : 'shock');
       this.knocked = (this.knocked || 0) + 1;
       this.ruin += RUIN.workerDown;
       this.addAnger(1.4);
@@ -99,7 +102,7 @@ const S = {
     if (b.type === 'boss') {
       if (!b.fighting) { this.addAnger(6); return; }
       b.hp -= dmg; b.hurtT = 0.16;
-      if (b.hp <= 0) bossDown();
+      if (b.hp <= 0) { S.bossBeaten = true; bossDown(); }
       return;
     }
     if (b.type !== 'prop' || b.broken) return;
@@ -260,6 +263,33 @@ function openCreator() {
 // so the shop shows a weapon's challenges but never sells one. Secret skills
 // show as ??? until the counter trips, which is the point of them.
 // ---------------------------------------------------------------
+function buildMissions() {
+  const list = $('msnList');
+  const done = S.career.missions || [];
+  $('msnRank').textContent = S.career.title || 'INTERN';
+  list.innerHTML = '';
+  MISSIONS.forEach((m, i) => {
+    const st = missionState(S.career, m, i);
+    const b = document.createElement('button');
+    b.className = 'msn ' + st + (st === 'open' && !done.includes(m.id) ? ' next' : '');
+    b.innerHTML = `<div class="r1"><span class="nm">${m.name}</span>
+      <span class="pay">${st === 'done' ? 'COMPLETE' : m.pay.toLocaleString() + ' coins'}</span></div>
+      <div class="role">${m.role}</div>
+      <div class="bf">${m.brief}</div>
+      <div class="gl">${m.goals.map(g => `<span>${g.text}</span>`).join('')}</div>`;
+    if (st !== 'locked') {
+      b.onclick = () => {
+        S.mode2 = 'mission';
+        S.mission = m;
+        SFX.ui(true);
+        hide('missions');
+        openCreator();
+      };
+    }
+    list.appendChild(b);
+  });
+}
+
 function buildShop() {
   const list = $('shopList');
   $('shopBank').textContent = S.career.bank.toLocaleString();
@@ -330,7 +360,10 @@ function startShift() {
   S.chainsMade = 0; S.bestChain = 0;
   S.salary = 0; S.salaryAcc = 0; S.cleanT = 0; S.lastDamage = 0; S.coffeeCd = 0;
   S.liftCd = 0; S.nearLift = false; fade = 0; S.summoned = false;
+  S.bossBeaten = false; S.slaps = 0;
   S.ruin = 0; S.deskDown = 0; S.knocked = 0; S.killed = {}; S.roomKills = {}; S.jobsDone = 0;
+  S.run = (S.mode2 === 'mission' && S.mission) ? new MissionRun(S, S.mission) : null;
+  $('msnHud').classList.toggle('hidden', !S.run);
   S.sabotage = S.sabotage || new Sabotage(S);
   S.career.lastJobs = S.sabotage.roll(S.career.lastJobs);
   saveCareer(S.career);
@@ -405,6 +438,7 @@ S.annoy = function (c) {
   S.productivity = Math.max(0, S.productivity - 1.1);
   S.addAnger(2.2);
   S.ruin += RUIN.workerAnnoyed;
+  faceFor(c, c.annoyed2 > 3 ? 'fury' : 'weary');
   S.annoyCount = (S.annoyCount || 0) + 1;
 
   FX.float(c.cx, c.y - 12, '+' + pay, '#ffd75e', 12);
@@ -414,10 +448,48 @@ S.annoy = function (c) {
 };
 
 S.bumpCounter = key => bump(S, key);
+// Show a reaction on someone's face. Held on the actor so it follows them.
+function faceFor(who, emo, ms = 1500) {
+  if (!who) return;
+  who.face_emo = emo;
+  who.face_t = ms / 1000;
+  who.face_max = ms / 1000;
+}
+
+const SLAP_LINES = ['OW', 'HEY', 'STOP', 'PLEASE', 'WHY', 'NOT AGAIN', 'HELP'];
+S.onMissionComplete = m => {
+  const done = S.career.missions || (S.career.missions = []);
+  if (!done.includes(m.id)) {
+    done.push(m.id);
+    S.coins += m.pay;
+    saveCareer(S.career);
+  }
+  toast(`${m.name} — COMPLETE  ·  +${m.pay.toLocaleString()}`, 'boss');
+  SFX.promote();
+  FX.kick(9, 0.08);
+};
+S.onGrabPerson = v => {
+  if (!v.annoyed) { v.annoyed = true; S.annoyed++; }
+  S.ruin += RUIN.workerAnnoyed;
+  S.addAnger(2);
+  toast(`"PUT ME DOWN"  — ${v.name}, ${v.title || 'staff'}`);
+  faceFor(v, 'shock');
+};
+S.onSlap = (v, n) => {
+  S.ruin += 26 + n * 6;
+  S.coins += 22 + n * 5;
+  S.productivity = Math.max(0, S.productivity - 0.5);
+  S.addAnger(1.1);
+  S.slaps = (S.slaps || 0) + 1;
+  FX.float(v.cx, v.y - 14, SLAP_LINES[Math.min(SLAP_LINES.length - 1, n - 1)], '#ff9a9a', 12);
+  if (n === 5) toast(`${v.name} has stopped asking you to stop.`);
+  faceFor(v, n > 3 ? 'dazed' : 'shock');
+};
 S.ruinFromThrow = b => {
   S.ruin += RUIN.workerDown * 2;
   S.addAnger(6);
   toast(`${b.name} has been thrown across the office.`);
+  faceFor(b, 'dazed');
 };
 
 // D5 — a wage. Destruction is opt-in, so a player who breaks nothing still has
@@ -444,7 +516,17 @@ function bankShift() {
   saveCareer(S.career);
 }
 
-async function drawDialogue() {
+async function drawMissionHud() {
+  const h = $('msnHud'), r = S.run;
+  if (!r) return;
+  const sig = r.m.id + r.state.join('');
+  if (h._sig === sig) return;
+  h._sig = sig;
+  h.innerHTML = `<div class="t">${r.m.name}</div>` +
+    r.m.goals.map((g, i) => `<div class="g${r.state[i] ? ' ok' : ''}">${g.text}</div>`).join('');
+}
+
+function drawDialogue() {
   const st = S.story;
   const d = $('dlg'), c = $('choices');
   if (st.choice) {
@@ -535,6 +617,7 @@ function startBossFight() {
   FX.flash = 1;
   SFX.bossRoar();
   SFX.setTension(1);
+  faceFor(S.boss, 'fury', 2600);
   toast('"I HAVE HAD ENOUGH!"', 'boss');
 }
 
@@ -598,6 +681,10 @@ function endShift(promoted = false) {
   $('reportRows').innerHTML = rows
     .map(([k, v]) => `<div><span class="lk">${k}</span><span class="lv">${v}</span></div>`)
     .join('');
+  if (S.run) {
+    $('reportRows').insertAdjacentHTML('afterbegin',
+      `<div><span class="lk">MISSION</span><span class="lv">${S.run.complete ? 'COMPLETE' : (S.run.failed ? 'FAILED' : 'INCOMPLETE')}</span></div>`);
+  }
   const tier = ruinTier(S.ruin);
   const rk = rankFor(S.career.ruin || 0);
   $('reportRank').textContent = tier.name;
@@ -661,13 +748,18 @@ function update(dt) {
 
   S.player.update(dt, S);
   S.player.carryPose();
-  for (const c of S.coworkers) c.update(dt, S);
+  for (const c of S.coworkers) {
+    c.update(dt, S);
+    if (c.face_t > 0) c.face_t -= dt;
+  }
+  if (S.boss && S.boss.face_t > 0) S.boss.face_t -= dt;
   if (S.boss && !S.boss.dead) S.boss.update(dt, S);
 
   S.world.step(dt);
   S.chaos.step(dt);
   S.events.step(dt);
   S.sabotage.step();
+  if (S.run) { S.run.step(); drawMissionHud(); }
   tickSalary(dt);
 
   // Announce the room you walk into. Rooms are only worth having if arriving in
@@ -747,6 +839,15 @@ function updateHud() {
       ).join('');
     }
   }
+
+  const cw = $('comboWrap');
+  const p2 = S.player;
+  if (p2 && p2.comboTimer > 0 && p2.comboStep > 0) {
+    cw.classList.add('on');
+    $('comboN').textContent = '×' + p2.comboStep;
+    $('comboBar').firstElementChild.style.width =
+      (p2.comboTimer / ATTACK.comboWindow * 100) + '%';
+  } else cw.classList.remove('on');
 
   const ev = $('eventBar');
   if (S.events && S.events.active) {
@@ -891,6 +992,15 @@ function render() {
     }
     ctx.fillStyle = '#ff9a9a'; ctx.font = `700 ${9 / S.zoom * 1.7}px system-ui`; ctx.textAlign = 'center';
     ctx.fillText('BOSS', b.cx, b.y - 18);
+  }
+
+  // reaction bubbles, above whoever they belong to
+  if (FACES.ready) {
+    for (const c of [...S.coworkers, S.boss]) {
+      if (!c || !c.face_t || c.face_t <= 0 || !c.art) continue;
+      const k = 1 - c.face_t / c.face_max;
+      FACES.draw(ctx, c.art, c.face_emo, c.cx + 22, c.y - 30, 34, k);
+    }
   }
 
   // player — real sprites when they have loaded, layered greybox rig otherwise
@@ -1151,6 +1261,7 @@ SPRITES.load().then(ok => {
                  : 'no player sprites');
 });
 WEAPON_ART.load().then(n => console.log('weapon art loaded: ' + n));
+FACES.load().then(n => console.log('reaction faces loaded: ' + n));
 WORLD.load().then(ok => console.log(ok ? 'world art loaded: ' + Object.keys(WORLD.props).length + ' props' : 'no world art'));
 CAST.load(['npc-sami', 'npc-rita', 'npc-omar', 'boss-calm', 'boss-rage'])
   .then(n => console.log('cast frames loaded: ' + n + ' characters'));
@@ -1166,8 +1277,11 @@ requestAnimationFrame(frame);
 
 for (const b of document.querySelectorAll('button')) b.addEventListener('pointerdown', () => SFX.resume());
 $('btnStart').addEventListener('pointerdown', goFullscreen);
+$('btnFree').addEventListener('pointerdown', goFullscreen);
 $('btnHired').addEventListener('pointerdown', goFullscreen);
-$('btnStart').onclick = () => { SFX.resume(); SFX.ui(); openCreator(); };
+$('btnStart').onclick = () => { SFX.resume(); SFX.ui(); buildMissions(); hide('title'); show('missions'); };
+$('btnFree').onclick = () => { SFX.resume(); SFX.ui(); S.mode2 = 'free'; S.mission = null; openCreator(); };
+$('btnMsnBack').onclick = () => { SFX.ui(false); hide('missions'); show('title'); };
 $('btnAgain').onclick = startShift;
 $('btnHired').onclick = () => {
   S.look.name = ($('cName').value.trim().toUpperCase().slice(0, 12)) || 'FIRASS';
