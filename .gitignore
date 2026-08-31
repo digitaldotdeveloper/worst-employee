@@ -14,3 +14,9 @@ _CONTINUE-HERE.md
 node_modules/
 .DS_Store
 Thumbs.db
+
+# Python bytecode from tools/*.py — a build artefact that kept showing as
+# modified in every status and drifting into commits it did not belong in.
+tools/__pycache__/
+__pycache__/
+*.pyc
