@@ -122,6 +122,10 @@ export class Player extends Body {
     // ---------------- grab / throw ----------------
     if (IN.grabEdge) this._grabOrThrow(s);
 
+    // ---------------- use / interact ----------------
+    // The discovery button. Everything in the office answers back.
+    if (IN.useEdge && s.tryInteract) { s.tryInteract(); return; }
+
     // ---------------- attack start ----------------
     // holding someone? every hit is a slap
     if (this.holdingPerson && this.carrying) {

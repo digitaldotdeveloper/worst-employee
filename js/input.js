@@ -20,10 +20,10 @@ const MAP = {
   a: 'left', arrowleft: 'left', d: 'right', arrowright: 'right',
   w: 'up', arrowup: 'up', s: 'down', arrowdown: 'down',
   ' ': 'jump',
-  j: 'light', k: 'heavy', l: 'grab', shift: 'dodge',
+  j: 'light', k: 'heavy', l: 'grab', shift: 'dodge', e: 'use', enter: 'use',
 };
 
-let prev = { jump: false, dodge: false, grab: false, light: false, heavy: false };
+let prev = { jump: false, dodge: false, grab: false, light: false, heavy: false, use: false };
 
 // Rising edges are LATCHED here, not sampled in pollInput. A quick tap can go
 // down and up inside a single frame, and polling the held state would miss the
@@ -141,6 +141,7 @@ export function pollInput() {
   const jump = !!keys.jump || !!keys.up || !!held.jump;
   const dodge = !!keys.dodge || !!held.dodge;
   const grab = !!keys.grab || !!held.grab;
+  const use = !!keys.use || !!held.use;
 
   // Touch HIT resolves on release: tap = light, hold = heavy.
   let light = !!keys.light, heavy = !!keys.heavy;
@@ -151,11 +152,12 @@ export function pollInput() {
   IN.jumpEdge  = !!pending.jump  || (jump  && !prev.jump);
   IN.dodgeEdge = !!pending.dodge || (dodge && !prev.dodge);
   IN.grabEdge  = !!pending.grab  || (grab  && !prev.grab);
+  IN.useEdge   = !!pending.use   || (use   && !prev.use);
   IN.lightEdge = !!pending.light || (light && !prev.light);
   IN.heavyEdge = !!pending.heavy || (heavy && !prev.heavy);
   for (const k in pending) delete pending[k];
 
-  IN.jump = jump; IN.dodge = dodge; IN.grab = grab;
+  IN.jump = jump; IN.dodge = dodge; IN.grab = grab; IN.use = use;
   IN.light = light; IN.heavy = heavy;
-  prev = { jump, dodge, grab, light, heavy };
+  prev = { jump, dodge, grab, light, heavy, use };
 }

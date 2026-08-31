@@ -306,3 +306,6 @@ h3{font-size:11px;letter-spacing:.18em;color:#8d93a6;margin:18px 0 7px}
 .msn-hud .g.ok{color:#8fd6a0}
 .msn-hud .g:before{content:'CB';margin-right:5px;color:#5e6478}
 .msn-hud .g.ok:before{content:'CF';color:#6eb87a}
+
+.tb-use{right:150px;bottom:26px;width:56px;height:56px;
+  background:rgba(140,220,160,.14);border-color:rgba(140,220,160,.42);color:#8fd6a0}

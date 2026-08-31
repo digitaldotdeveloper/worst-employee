@@ -14,6 +14,7 @@ import { WEAPONS, SHOP_ORDER, loadCareer, saveCareer, defaultCareer,
 import { Sabotage, RUIN, ruinTier, rankFor } from './sabotage.js';
 import { Story, introScene, HR_X } from './story.js';
 import { MISSIONS, MissionRun, missionState, nextMission } from './missions.js';
+import { DAYS, dayById, freshDay, interact, chaosPct } from './days.js';
 import { Coworker } from './office.js';
 import { IN, initInput, pollInput, resetInput } from './input.js';
 import { ChaosSystem } from './chaos.js';
@@ -47,6 +48,7 @@ const S = {
   career: loadCareer(),
   actors: {}, story: null, intro: false,
   mode2: 'free', mission: null, run: null,
+  day: freshDay(), dayDef: null,
   ruin: 0, deskDown: 0, knocked: 0, killed: {}, roomKills: {}, jobsDone: 0,
   salaryAcc: 0,
   cleanT: 0,
@@ -113,6 +115,9 @@ const S = {
       b.hp = 0;
       this.destroyed++;
       this.damage += b.value;
+      this.day.damage += b.value;
+      this.day.chaos += 70;
+      this.day.suspicion = Math.min(100, this.day.suspicion + 2);
 
       // RUIN is the real score: not what it cost, but how much of the working
       // day stopped because of it.
@@ -361,6 +366,7 @@ function startShift() {
   S.salary = 0; S.salaryAcc = 0; S.cleanT = 0; S.lastDamage = 0; S.coffeeCd = 0;
   S.liftCd = 0; S.nearLift = false; fade = 0; S.summoned = false;
   S.bossBeaten = false; S.slaps = 0;
+  S.day = freshDay(); S.dayDef = null;
   S.ruin = 0; S.deskDown = 0; S.knocked = 0; S.killed = {}; S.roomKills = {}; S.jobsDone = 0;
   S.run = (S.mode2 === 'mission' && S.mission) ? new MissionRun(S, S.mission) : null;
   $('msnHud').classList.toggle('hidden', !S.run);
@@ -439,6 +445,7 @@ S.annoy = function (c) {
   S.addAnger(2.2);
   S.ruin += RUIN.workerAnnoyed;
   faceFor(c, c.annoyed2 > 3 ? 'fury' : 'weary');
+  if (c.annoyed2 === 1) { S.day.relationships++; S.day.metPeople = (S.day.metPeople || 0) + 1; }
   S.annoyCount = (S.annoyCount || 0) + 1;
 
   FX.float(c.cx, c.y - 12, '+' + pay, '#ffd75e', 12);
@@ -468,6 +475,34 @@ S.onMissionComplete = m => {
   SFX.promote();
   FX.kick(9, 0.08);
 };
+// THE DISCOVERY. After the tutorial the game stops instructing and the player
+// finds that almost everything responds. Almost none of it is an objective —
+// that is the point, it is the first taste of free chaos.
+S.tryInteract = function () {
+  const p = S.player;
+  let best = null, bd = 999;
+  for (const b of S.world.bodies) {
+    if (b.type !== 'prop' || b.dead || b.broken) continue;
+    const dx = Math.abs(b.cx - p.cx), dy = Math.abs(b.cy - p.cy);
+    if (dx > 46 || dy > 52) continue;
+    if (dx < bd) { bd = dx; best = b; }
+  }
+  if (!best) return false;
+  const r = interact(S.day, best.kind, best.id);
+  if (!r) { toast('Nothing left to do with that.'); SFX.ui(false); return true; }
+
+  S.ruin += Math.round((r.chaos || 0) * 0.6);
+  S.coins += Math.round((r.chaos || 0) * 0.5 + (r.work || 0) * 3);
+  if (r.suspicion) S.addAnger(r.suspicion * 0.5);
+  toast(r.text);
+  FX.float(best.cx, best.y - 10,
+    r.secret ? 'SECRET' : (r.work ? '+WORK' : '+CHAOS'),
+    r.secret ? '#c39bff' : (r.work ? '#8fd6a0' : '#ffd75e'), 12);
+  SFX.ui(true);
+  if (r.secret) { SFX.promote(); toast('SECRET FOUND — ' + r.secret, 'boss'); }
+  return true;
+};
+
 S.onGrabPerson = v => {
   if (!v.annoyed) { v.annoyed = true; S.annoyed++; }
   S.ruin += RUIN.workerAnnoyed;
@@ -660,23 +695,25 @@ function endShift(promoted = false) {
     for (const r of RANKS) if (score >= r.at) rank = r.name;
   }
 
+  // THE SIX NUMBERS. "How did the day go" is not one axis — you can finish the
+  // work AND wreck the place AND get away with it, and those are three separate
+  // achievements. Damage is deliberately small and in dollars; chaos is a
+  // percentage of what you COULD have caused.
+  const D = S.day;
+  D.chaos += Math.round(S.ruin * 0.5);
   const rows = [
-    ['PRODUCTIVITY', prod + '%'],
-    ['COMPANY DAMAGE', '$' + S.damage.toLocaleString()],
-    ['OBJECTS DESTROYED', S.destroyed],
-    ['EMPLOYEES ANNOYED', S.annoyed],
-    ['TIMES YOU PESTERED THEM', S.annoyCount || 0],
-    ['COFFEE CONSUMED', S.coffees],
-    ['SPENT ON CAPSULES', '$' + S.coffeeSpend],
-    ['BOSS ANGER', Math.round(S.anger) + '%'],
-    ['CHAOS CHAINS', S.chainsMade],
-    ['BEST CHAIN', '×' + S.bestChain],
-    ['SALARY', (S.salary || 0).toLocaleString()],
-    ['COINS EARNED', S.coins.toLocaleString()],
-    ['BANK', S.career.bank.toLocaleString()],
-    ['CHAOS SCORE', score.toLocaleString()],
+    ['WORK',          Math.round(D.work) + '%'],
+    ['CHAOS',         chaosPct(D) + '%'],
+    ['SUSPICION',     Math.round(D.suspicion) + '%'],
+    ['DAMAGE',        '$' + (D.damage || S.damage).toLocaleString()],
+    ['RELATIONSHIPS', D.relationships],
+    ['SECRETS DISCOVERED', D.secrets],
+    ['—', ''],
+    ['RUIN',          Math.round(S.ruin).toLocaleString()],
     ['SABOTAGE JOBS', `${S.jobsDone || 0} / 3`],
-    ['RUIN', Math.round(S.ruin).toLocaleString()],
+    ['BEST CHAIN',    '×' + S.bestChain],
+    ['COINS EARNED',  S.coins.toLocaleString()],
+    ['BANK',          S.career.bank.toLocaleString()],
   ];
   $('reportRows').innerHTML = rows
     .map(([k, v]) => `<div><span class="lk">${k}</span><span class="lv">${v}</span></div>`)
@@ -684,6 +721,10 @@ function endShift(promoted = false) {
   if (S.run) {
     $('reportRows').insertAdjacentHTML('afterbegin',
       `<div><span class="lk">MISSION</span><span class="lv">${S.run.complete ? 'COMPLETE' : (S.run.failed ? 'FAILED' : 'INCOMPLETE')}</span></div>`);
+  }
+  if (D.secretList && D.secretList.length) {
+    $('reportRows').insertAdjacentHTML('beforeend',
+      `<div><span class="lk">YOU FOUND OUT</span><span class="lv" style="color:#c39bff">${D.secretList.join(', ')}</span></div>`);
   }
   const tier = ruinTier(S.ruin);
   const rk = rankFor(S.career.ruin || 0);
