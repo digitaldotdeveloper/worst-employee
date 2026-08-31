@@ -196,6 +196,28 @@ function setScene(on) {
   $('touch').classList.toggle('scene', on);
 }
 
+// REACTION FACES ARE A PANEL, NOT A MASK.
+//
+// These used to be painted straight onto the character's own head, on the
+// argument that "a bubble floating above someone is a UI element; a face that
+// changes is a performance". The argument is good and the result was not: a
+// 96px circular portrait scaled down onto a ~26px head keeps its own lighting,
+// its own framing and a hard circular edge, so at the size the game actually
+// runs it reads as a sticker pasted over the face that is already drawn there —
+// two faces, which is exactly what it was reported as.
+//
+// It also demanded a per-pose head anchor accurate to a couple of pixels across
+// 255 frames, and every one of those that drifted put a face on a fist.
+//
+// A bubble asks for none of that, and the characters already ACT: the hurt and
+// dazed body frames carry the performance. The portrait is the punchline beside
+// it. (Head anchors are still derived and still checked — tools/fix-hands.py
+// finds the hand by excluding the head.)
+function reactionBubble(ctx, art, emo, who, k) {
+  FACES.draw(ctx, art, emo, who.cx + who.w * 0.62, who.y - who.h * 0.30,
+             who.h * 0.62, k);
+}
+
 function toast(text, cls = '') {
   const el = $('toast');
   el.textContent = text;
@@ -419,6 +441,8 @@ function startShift() {
   S.events.reset();
   S.room = null;
   S.hrWatching = false; S.hrHeat = 0; S.freeCoffee = false;
+  // Free roam is the brawl mode: hit anyone and the whole floor comes for you.
+  S.freeForAll = S.mode2 === 'free';
   S.clientHere = false; S.dark = false;
   S.world.onImpact = (a, b, e) => S.chaos.onImpact(a, b, e);
 
@@ -688,6 +712,11 @@ S.onPlayerDown = () => {
 };
 S.onPlayerUp = () => { toast('You get up.'); SFX.ui(true); };
 
+S.onFloorTurns = n => {
+  toast(`THE WHOLE FLOOR HAS HAD ENOUGH — ${n} of them are coming.`, 'boss');
+  SFX.bossRoar();
+  Music.cue('full_throttle');
+};
 S.onFightBack = c => {
   bark(c, pick(FIGHTBACK, (S.fbN = (S.fbN || 0) + 1) * 3), '#ff7b7b');
   toast(c.name + ' has had enough of you.', 'boss');
@@ -1327,9 +1356,7 @@ function render() {
       // a health bar, but only while they are actually hurt
       // the expression, painted over their own face
       if (FACES.ready && c.face_t > 0) {
-        const set = CAST.sets[c.art];
-        FACES.drawOnHead(ctx, c.art, c.face_emo, set && set.meta, npcPoseName(c, c.animT),
-          c.cx, c.y + c.h, c.h * 1.10, c.face < 0, 1 - c.face_t / c.face_max);
+        reactionBubble(ctx, c.art, c.face_emo, c, 1 - c.face_t / c.face_max);
       }
       if (c.hp < c.maxHp && c.mode !== 'down') {
         const w = 26, hx = c.cx - w / 2, hy = c.y - 20;
@@ -1371,9 +1398,7 @@ function render() {
       CAST.draw(ctx, bossArt, bossPoseName(b, b.animT),
         b.cx, b.y + b.h, b.h * 1.10, b.face < 0, b.hurtT > 0 ? 0.65 : 1);
       if (FACES.ready && b.face_t > 0) {
-        const bs = CAST.sets[bossArt];
-        FACES.drawOnHead(ctx, bossArt, b.face_emo, bs && bs.meta, bossPoseName(b, b.animT),
-          b.cx, b.y + b.h, b.h * 1.10, b.face < 0, 1 - b.face_t / b.face_max);
+        reactionBubble(ctx, bossArt, b.face_emo, b, 1 - b.face_t / b.face_max);
       }
     } else if (RIG.cast[bossArt]) {
       RIG.drawCast(ctx, bossArt, RIG.bossPose(b, b.animT),
@@ -1432,9 +1457,8 @@ function render() {
     });
     ctx.restore();
   }
-  if (FACES.ready && p.face_t > 0 && SPRITES.meta) {
-    FACES.drawOnHead(ctx, 'player', p.face_emo, SPRITES.meta, curPose || 'idle',
-      p.cx, p.y + p.h, p.h * p.squash * 1.06, p.face < 0, 1 - p.face_t / p.face_max);
+  if (FACES.ready && p.face_t > 0) {
+    reactionBubble(ctx, 'player', p.face_emo, p, 1 - p.face_t / p.face_max);
   }
   ctx.fillStyle = 'rgba(255,255,255,.5)';
   ctx.font = `700 ${8 / S.zoom * 1.6}px system-ui`; ctx.textAlign = 'center';

@@ -78,7 +78,10 @@ export const Music = {
   enabled: true,
   failed: false,
   ready: false,
-  volume: 0.62,
+  // The bed sat at 0.62 while a hurt yelp peaks at 0.21 and a smash at 0.15 —
+  // the reactions were playing underneath the soundtrack rather than over it.
+  // The music is the room; the hits are the game.
+  volume: 0.45,
 
   _ctx: null,
   _bus: null,

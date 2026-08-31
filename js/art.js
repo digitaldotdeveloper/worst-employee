@@ -723,34 +723,10 @@ export const FACES = {
 
   has(art, emo) { return !!this.img[art + '-' + emo]; },
 
-  // Draw the expression OVER the character's actual head. A bubble floating
-  // above someone is a UI element; a face that changes is a performance. The
-  // head moves every frame, so its position comes from anchors.json rather
-  // than being a constant.
-  drawOnHead(ctx, art, emo, meta, pose, x, groundY, height, flip, k) {
-    const im = this.img[art + '-' + emo];
-    if (!im || !meta || !meta.heads) return false;
-    const h = meta.heads[pose] || meta.heads.idle;
-    if (!h) return false;
-    const s = height / meta.standingH;
-    const hx = (h[0] - meta.centreX) * s * (flip ? -1 : 1);
-    // The SAME anchor the sprite itself is drawn from. Prone frames anchor to
-    // their own lowest pixel, not the shared standing ground line, so reading
-    // groundY here put the face on the carpet a body-length away from the head
-    // it belonged to.
-    const hy = (h[1] - anchorFor(meta, pose)) * s;
-    // Just wide enough to cover the drawn head. The skin-pixel radius runs
-    // generous on bearded characters, so this multiplier is deliberately modest
-    // — at 2.35 the expression swallowed the whole torso.
-    const d = h[2] * 1.45 * s;
-    const pop = k < 0.10 ? k / 0.10 : (k > 0.88 ? (1 - k) / 0.12 : 1);
-    ctx.save();
-    ctx.globalAlpha = Math.min(1, pop * 1.4);
-    ctx.translate(x + hx, groundY + hy);
-    ctx.drawImage(im, -d / 2, -d / 2, d, d);
-    ctx.restore();
-    return true;
-  },
+  // NOTE: drawOnHead lived here and painted the expression onto the character's
+  // own head. It was removed, not disabled — see reactionBubble() in main.js for
+  // why. Head anchors are still produced and still checked; tools/fix-hands.py
+  // locates the hand by excluding the head, so they earn their keep either way.
 
   // `k` is 0..1 through the pop: it scales in, holds, then fades.
   draw(ctx, art, emo, x, y, px, k) {

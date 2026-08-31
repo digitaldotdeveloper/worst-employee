@@ -152,11 +152,31 @@ export class Coworker extends Body {
     // they could never reach the point of getting up angry. Now they do.
     this.rage += amount;
     if (this.mode === 'down') return;
-    if (this.rage >= 2 && !this.fighting) {
+    // FREE ROAM IS A BRAWL. There is no shift to keep and nobody to impress, so
+    // the floor does not politely take turns: the first person you touch turns,
+    // and the whole room turns with them, and they stay turned. In a mission
+    // they still need two real blows each, because a mission is a place you are
+    // pretending to work.
+    const need = s.freeForAll ? 1 : 2;
+    if (this.rage >= need && !this.fighting) {
       this.fighting = true;
       this.mode = 'fight';
-      this.timer = 9;
+      this.timer = s.freeForAll ? 600 : 9;
       if (s.onFightBack) s.onFightBack(this);
+      if (s.freeForAll) {
+        // Set them directly rather than calling provoke, or this recurses
+        // through the whole floor once per person.
+        let joined = 0;
+        for (const c of s.coworkers) {
+          if (c === this || c.dead || c.held || c.fighting || c.visible === false) continue;
+          c.rage = Math.max(c.rage, need);
+          c.fighting = true;
+          c.timer = 600;
+          if (c.mode !== 'down') c.mode = 'fight';
+          joined++;
+        }
+        if (joined && s.onFloorTurns) s.onFloorTurns(joined);
+      }
     }
   }
 

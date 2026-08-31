@@ -123,7 +123,12 @@ S.hit = function (power = 0.5) {
 S.whiff = function () {
   if (!this.ready) return;
   const t = ctx.currentTime;
-  const { filter } = noise(t, 0.13, 0.10, 900, 2, 'bandpass');
+  // MEASURED, not guessed: at 0.10 through a Q=2 bandpass this peaked at 0.0111
+  // on the master bus against hit(1.0) at 0.4710 — forty-two times down, which
+  // is not "subtle", it is not there. Every swing you throw was silent until it
+  // connected. The filter is the reason: a narrow band across a sweep throws
+  // away most of the noise energy, so the amplitude has to be set AFTER it.
+  const { filter } = noise(t, 0.13, 0.52, 900, 0.9, 'bandpass');
   filter.frequency.setValueAtTime(400, t);
   filter.frequency.exponentialRampToValueAtTime(2600, t + 0.12);
 };
