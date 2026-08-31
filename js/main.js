@@ -94,6 +94,10 @@ const S = {
         b.hurtT = Math.max(b.hurtT, 0.22);
         b.vx += Math.sign(b.cx - (src ? src.cx : b.cx) || 1) * 60;
         b.provoke(this, 0.5);
+        // A scrape still lands on a person, so it still gets a grunt. Silence
+        // here is why the opening jabs of every combo read as hitting nothing:
+        // beats 1 and 2 do 10 and 12 damage, both under this cutoff.
+        SFX.voice(b.name, 'mutter', 0.45);
         this.addAnger(0.4);
         return;
       }

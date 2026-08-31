@@ -9,6 +9,7 @@ import { IN } from './input.js';
 import { SFX } from './audio.js';
 import { WEAPONS, statsFor, propStats, propStyle, bump, hasSkill } from './weapons.js';
 import { Music } from './music.js';
+import { handAt, poseFor } from './art.js';
 
 export class Player extends Body {
   constructor(x) {
@@ -513,13 +514,17 @@ export class Player extends Body {
     // the floor and kicking. Nothing like the overhead carry a monitor gets,
     // which is what made grabbing someone feel wrong.
     if (this.holdingPerson) {
-      // The drawn grab frame puts the fist at roughly 62% of body height, arm
-      // fully extended. Line the victim's collar up with it rather than
-      // guessing — otherwise they float beside him instead of hanging from him.
-      const fistX = this.cx + this.face * 40;
-      const fistY = this.y + this.h * 0.38;
-      c.x = fistX + this.face * (c.w * 0.10) - c.w / 2;
-      c.y = fistY - c.h * 0.16;                     // dangling, feet clear of the ground
+      // Line the victim up with the fist that is actually DRAWN, per pose, from
+      // the same measured table the weapons use — `grab-hold` and `grab-slap`
+      // both have rows now. The old code guessed the fist at 38% of body height
+      // from the top and, despite the comment, put the victim's feet 10px
+      // THROUGH the carpet: measured feet-above-ground was -10. They read as
+      // kneeling on the floor beside you rather than hanging off your fist.
+      const fist = handAt(poseFor(this, this.animT), this.cx, this.y + this.h,
+                          this.h * (this.squash || 1) * 1.06, this.face < 0);
+      c.x = fist.x + this.face * (c.w * 0.10) - c.w / 2;
+      // Their collar meets the grip and their feet swing about 10px clear.
+      c.y = fist.y - c.h * 0.38;
       c.vx = this.vx; c.vy = 0;
       c.face = -this.face;                  // facing you, which is the point
       c.angle = Math.sin(this.animT * 14) * (this.slapCd > 0 ? 0.20 : 0.07);
@@ -535,15 +540,22 @@ export class Player extends Body {
       c.vx = this.vx; c.vy = 0;
       return;
     }
+    // WHERE THE HANDS ACTUALLY ARE, for the pose actually being drawn. This used
+    // to be `PLAYER.carryOffset`, one constant for every pose — and because that
+    // y is measured from `this.y`, which is the player's TOP, a carried chair
+    // hovered 18px ABOVE his head and behind him while the carry frame reached
+    // out in front holding nothing.
+    const hand = handAt(poseFor(this, this.animT), this.cx, this.y + this.h,
+                        this.h * (this.squash || 1) * 1.06, this.face < 0);
     if (a && a.wep === c) {
       // swing arc: back on the wind-up, thrown forward on the active frames
       const k = a.phase === 'startup' ? -0.5 : (a.phase === 'active' ? 1.5 : 0.7);
-      c.x = this.cx + this.face * (PLAYER.carryOffset.x + 16 * k) - c.w / 2;
-      c.y = this.cy - c.h / 2 - 10 + (a.phase === 'active' ? 6 : -6);
+      c.x = hand.x + this.face * 16 * k - c.w / 2;
+      c.y = hand.y - c.h / 2 + (a.phase === 'active' ? 6 : -6);
       c.angle = this.face * (a.phase === 'active' ? 1.1 : -0.7);
     } else {
-      c.x = this.cx + this.face * PLAYER.carryOffset.x - c.w / 2;
-      c.y = this.y + PLAYER.carryOffset.y - c.h / 2;
+      c.x = hand.x - c.w / 2;
+      c.y = hand.y - c.h / 2;
       c.angle = 0;
     }
     c.vx = this.vx; c.vy = this.vy;

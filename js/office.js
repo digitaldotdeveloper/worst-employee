@@ -185,7 +185,15 @@ export class Coworker extends Body {
     this.hurtT = 0.28;
     this.hitFlash = 0.16;
     this.vx += Math.sign(this.cx - s.player.cx || 1) * (40 + dmg * 2);
-    if (this.hp > 0) { this.provoke(s, 1); return false; }
+    if (this.hp > 0) {
+      // THEY MAKE A NOISE WHEN YOU HIT THEM. The voice used to live only in
+      // knock(), so a colleague absorbed a whole combo in total silence and
+      // then yelped once, on the floor. SFX.voice rate-limits per person, so
+      // a five-beat string does not stack five yelps.
+      SFX.voice(this.name, dmg > 24 ? 'scream' : 'hurt', Math.min(1, 0.35 + dmg / 50));
+      this.provoke(s, 1);
+      return false;
+    }
     this.knock(s, dmg);
     return true;
   }

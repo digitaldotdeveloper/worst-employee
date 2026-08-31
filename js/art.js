@@ -642,7 +642,39 @@ const HAND = {
   'swing': [18.0, -44.2, 0.25],
   'taunt': [21.5, -31.7, -0.45],
   'throw': [26.0, -39.7, 0.28],
+  // Thirteen poses had NO row here and silently fell back to `idle`, whose hand
+  // is down at the hip — including the whole walk cycle and both grab frames,
+  // which are most of the time you spend actually carrying something. That is
+  // why a picked-up chair floated behind your head while your arms reached
+  // forward holding nothing. Positions from tools/fix-hands.py, which measures
+  // the same way the rows above were measured (most-extended skin pixel that is
+  // not the head) and reproduces them to within a couple of px. Angles are
+  // authored, because a hand position never says which way the object points.
+  'walk-1': [11.0, -29.7, 0.95],
+  'walk-2': [0.0, -29.0, 1.05],
+  'walk-3': [11.0, -29.8, 0.95],
+  'walk-4': [8.0, -27.5, 1.0],
+  'grab-hold': [24.0, -44.7, -0.35],
+  'grab-slap': [22.0, -45.2, -0.2],
+  'c2-wind': [14.5, -45.2, -1.25],
+  'c3-wind': [26.5, -44.8, -1.2],
+  'c4-wind': [14.0, -27.1, -1.3],
+  'getup': [23.5, -12.1, 1.0],
+  'sit': [12.0, -31.7, 1.0],
+  'spray': [17.5, -41.0, 1.35],
+  'down': [17.5, -11.2, -0.85],
 };
+
+// Where a carried thing actually sits, in world space, for the pose being drawn.
+// The weapon renderer has always used this table; a GRABBED prop did not, and
+// was placed by one fixed offset from config instead — so it sat in the same
+// spot whether the player was idle, walking, or holding someone over his head.
+export function handAt(pose, x, groundY, height, flip) {
+  const h = HAND[pose] || HAND.idle;
+  const s = height / 62;              // same scale drawWeapon derives
+  const d = flip ? -1 : 1;
+  return { x: x + d * h[0] * s, y: groundY + h[1] * s, angle: d * h[2] };
+}
 
 export function drawWeapon(ctx, artName, pose, x, groundY, height, flip) {
   const im = WEAPON_ART.img[artName];
