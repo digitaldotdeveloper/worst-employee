@@ -51,11 +51,16 @@ for it in idx:
 for k, v in sorted(got.items()):
     print('%-18s %d' % (k, v))
 print('---')
-print('collected %d / %d' % (len(seen), len(jobs)))
+# Against DISTINCT LABELS, not job rows. A retry adds a second row for a label
+# that already has one, so counting rows reports six frames missing when the set
+# is complete.
+labels = {r['label'] for r in jobs.values()}
+print('collected %d / %d labels  (%d job rows, %d of them retries)'
+      % (len(seen), len(labels), len(jobs), len(jobs) - len(labels)))
 if wrong:
     print('%d rows rejected: jobId matched but the prompt did not' % wrong)
 
-missing = sorted(r['label'] for r in jobs.values() if r['label'] not in seen)
+missing = sorted(l for l in labels if l not in seen)
 if missing:
     print('missing (%d): %s' % (len(missing), ', '.join(missing[:14])
                                 + (' ...' if len(missing) > 14 else '')))
