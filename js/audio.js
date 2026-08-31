@@ -47,6 +47,15 @@ export const SFX = {
 
   get ready() { return !!ctx && started && this.enabled; },
   get time() { return ctx ? ctx.currentTime : 0; },
+
+  // The generated soundtrack (js/music.js) hangs its own fader off `master`,
+  // so one volume and one context still cover everything. It deliberately does
+  // NOT share `musicGain`: the synthesised score owns that, and stopMusic()
+  // ramps it to zero — which would cut the files off mid-bar.
+  bus() {
+    this.init();
+    return ctx ? { ctx, master } : null;
+  },
 };
 
 // ---------------------------------------------------------------- primitives

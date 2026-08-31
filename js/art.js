@@ -512,6 +512,7 @@ export const CAST = {
 export function npcPoseName(c, t) {
   if (c.mode === 'down') return 'down';
   if (c.hurtT > 0) return 'hurt';
+  if (c.mode === 'fight') return ['run-1','run-2','run-3','run-4'][Math.floor(t*9)%4];
   if (c.mode === 'panic') {
     return ['run-1', 'run-2', 'run-3', 'run-4'][Math.floor(t * 10) % 4];
   }

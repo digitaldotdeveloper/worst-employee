@@ -309,3 +309,13 @@ h3{font-size:11px;letter-spacing:.18em;color:#8d93a6;margin:18px 0 7px}
 
 .tb-use{right:150px;bottom:26px;width:56px;height:56px;
   background:rgba(140,220,160,.14);border-color:rgba(140,220,160,.42);color:#8fd6a0}
+
+/* the lift call button -- only ever visible at the doors */
+.lift-btn{position:absolute;left:50%;bottom:120px;transform:translateX(-50%);pointer-events:auto;
+  background:rgba(255,215,94,.92);color:#1a1204;border:0;border-radius:9px;
+  padding:12px 20px;font:900 12px/1 system-ui;letter-spacing:.12em;cursor:pointer;
+  box-shadow:0 6px 20px rgba(0,0,0,.5);animation:liftPulse 1.6s infinite}
+@keyframes liftPulse{0%,100%{transform:translateX(-50%) scale(1)}50%{transform:translateX(-50%) scale(1.05)}}
+
+.msn .hint{font-size:9.5px;color:#ffd75e;line-height:1.5;margin-top:5px;opacity:.85}
+.msn-hud .hint2{font-size:8.5px;color:#8d93a6;line-height:1.5;margin:2px 0 5px;max-width:230px}

@@ -8,6 +8,7 @@ import { ART, SPRITES, WORLD, CAST, WEAPON_ART, FACES, poseFor, npcPoseName, bos
          drawWeapon, recolourSprites, drawHuman, drawProp, roundRect } from './art.js';
 import { RIG } from './rig.js';
 import { SFX } from './audio.js';
+import { Music } from './music.js';
 import { EventSystem } from './events.js';
 import { WEAPONS, SHOP_ORDER, loadCareer, saveCareer, defaultCareer,
          bump, checkUnlocks, buy, hasSkill } from './weapons.js';
@@ -91,9 +92,11 @@ const S = {
       if (dmg < 14) {
         b.hurtT = Math.max(b.hurtT, 0.22);
         b.vx += Math.sign(b.cx - (src ? src.cx : b.cx) || 1) * 60;
+        b.provoke(this, 0.5);
         this.addAnger(0.4);
         return;
       }
+      b.provoke(this, 1);
       b.knock(this, dmg);
       faceFor(b, dmg > 30 ? 'dazed' : 'shock');
       this.knocked = (this.knocked || 0) + 1;
@@ -279,8 +282,9 @@ function buildMissions() {
     b.className = 'msn ' + st + (st === 'open' && !done.includes(m.id) ? ' next' : '');
     b.innerHTML = `<div class="r1"><span class="nm">${m.name}</span>
       <span class="pay">${st === 'done' ? 'COMPLETE' : m.pay.toLocaleString() + ' coins'}</span></div>
-      <div class="role">${m.role}</div>
+      <div class="role">${m.role} &middot; ${m.verb}</div>
       <div class="bf">${m.brief}</div>
+      <div class="hint">${m.hint}</div>
       <div class="gl">${m.goals.map(g => `<span>${g.text}</span>`).join('')}</div>`;
     if (st !== 'locked') {
       b.onclick = () => {
@@ -357,7 +361,11 @@ function startShift() {
   if (S.endTimer) { clearTimeout(S.endTimer); S.endTimer = null; }
   S.shiftId = (S.shiftId || 0) + 1;
   SFX.resume();
-  SFX.startMusic();
+  // The MP3 score takes over here; the synthesised one in audio.js is the
+  // fallback for a browser or a build where the files will not load.
+  Music.scene(null);
+  Music.init();
+  if (Music.failed) SFX.startMusic();
   S.mode = 'play';
   S.time = 0; S.shiftT = 0;
   S.coins = 0; S.damage = 0; S.destroyed = 0; S.annoyed = 0;
@@ -365,7 +373,8 @@ function startShift() {
   S.chainsMade = 0; S.bestChain = 0;
   S.salary = 0; S.salaryAcc = 0; S.cleanT = 0; S.lastDamage = 0; S.coffeeCd = 0;
   S.liftCd = 0; S.nearLift = false; fade = 0; S.summoned = false;
-  S.bossBeaten = false; S.slaps = 0;
+  $('btnLift').classList.add('hidden');
+  S.bossBeaten = false; S.slaps = 0; S.failedShown = false; S.drillRuin = 0;
   S.day = freshDay(); S.dayDef = null;
   S.ruin = 0; S.deskDown = 0; S.knocked = 0; S.killed = {}; S.roomKills = {}; S.jobsDone = 0;
   S.run = (S.mode2 === 'mission' && S.mission) ? new MissionRun(S, S.mission) : null;
@@ -464,6 +473,12 @@ function faceFor(who, emo, ms = 1500) {
 }
 
 const SLAP_LINES = ['OW', 'HEY', 'STOP', 'PLEASE', 'WHY', 'NOT AGAIN', 'HELP'];
+S.onMissionFailed = (m, why) => {
+  if (S.failedShown) return;
+  S.failedShown = true;
+  toast('MISSION FAILED — ' + why, 'boss');
+  SFX.ui(false);
+};
 S.onMissionComplete = m => {
   const done = S.career.missions || (S.career.missions = []);
   if (!done.includes(m.id)) {
@@ -503,6 +518,12 @@ S.tryInteract = function () {
   return true;
 };
 
+S.onFightBack = c => {
+  toast(c.name + ' has had enough of you.', 'boss');
+  faceFor(c, 'fury', 2200);
+  SFX.bossRoar();
+  S.addAnger(4);
+};
 S.onGrabPerson = v => {
   if (!v.annoyed) { v.annoyed = true; S.annoyed++; }
   S.ruin += RUIN.workerAnnoyed;
@@ -516,6 +537,7 @@ S.onSlap = (v, n) => {
   S.productivity = Math.max(0, S.productivity - 0.5);
   S.addAnger(1.1);
   S.slaps = (S.slaps || 0) + 1;
+  if (v.provoke) v.provoke(S, 0.7);
   FX.float(v.cx, v.y - 14, SLAP_LINES[Math.min(SLAP_LINES.length - 1, n - 1)], '#ff9a9a', 12);
   if (n === 5) toast(`${v.name} has stopped asking you to stop.`);
   faceFor(v, n > 3 ? 'dazed' : 'shock');
@@ -557,7 +579,7 @@ async function drawMissionHud() {
   const sig = r.m.id + r.state.join('');
   if (h._sig === sig) return;
   h._sig = sig;
-  h.innerHTML = `<div class="t">${r.m.name}</div>` +
+  h.innerHTML = `<div class="t">${r.m.name}</div><div class="hint2">${r.m.hint}</div>` +
     r.m.goals.map((g, i) => `<div class="g${r.state[i] ? ' ok' : ''}">${g.text}</div>`).join('');
 }
 
@@ -616,6 +638,7 @@ function travelTo(floorId) {
   }
   fade = 1;
   SFX.ui(true);
+  Music.sting('lift_ding');
   setTimeout(() => {
     const keep = S.player;
     S.world = new World();
@@ -634,6 +657,12 @@ function travelTo(floorId) {
       setTimeout(() => { if (S.mode === 'play' && S.boss) startBossFight(); }, 900);
     }
   }, 260);
+}
+
+function rideLift() {
+  if (!S.nearLift || S.liftCd > 0) return;
+  S.liftCd = 1.2;
+  travelTo(S.floor === 'ops' ? 'exec' : 'ops');
 }
 
 function startBossFight() {
@@ -738,6 +767,7 @@ function endShift(promoted = false) {
     toast('PROMOTED — ' + rk.rank.title, 'boss');
   }
   SFX.stopMusic();
+  Music.scene(promoted ? 'promote' : 'fired');
   if (promoted) SFX.promote(); else SFX.ui(false);
   S.lastShare =
     `WORST EMPLOYEE\nProductivity: ${prod}%\nCompany damage: $${S.damage.toLocaleString()}\n` +
@@ -752,6 +782,13 @@ function update(dt) {
   S.time += dt;
   S.shiftT += dt;
   pollInput();
+
+  // Picks the bed for the room, or a chaos loop, or the boss theme. Safe to
+  // call every frame — it only acts when the choice actually changes. It sits
+  // above the cutscene branch below deliberately: that branch returns, and
+  // having the director underneath it left the menu loop playing all the way
+  // through the opening scene.
+  Music.update(S);
 
   if (toastT > 0) { toastT -= dt; if (toastT <= 0) $('toast').className = 'toast'; }
 
@@ -799,6 +836,11 @@ function update(dt) {
   S.world.step(dt);
   S.chaos.step(dt);
   S.events.step(dt);
+  // ruin banked while the alarm is going, for the drill mission
+  if (S.events && S.events.active && S.events.active.id === 'drill') {
+    S.drillRuin = (S.drillRuin || 0) + Math.max(0, S.ruin - (S.lastRuinTick || 0));
+  }
+  S.lastRuinTick = S.ruin;
   S.sabotage.step();
   if (S.run) { S.run.step(); drawMissionHud(); }
   tickSalary(dt);
@@ -815,10 +857,11 @@ function update(dt) {
   // the lift
   const lf = S.lift;
   S.nearLift = !!(lf && Math.abs(lf.cx - S.player.cx) < 54 && S.player.grounded);
-  if (S.nearLift && IN.axisY < -0.5 && S.liftCd <= 0) {
-    S.liftCd = 1.2;
-    travelTo(S.floor === 'ops' ? 'exec' : 'ops');
-  }
+  // The lift used to ride on "hold up" -- but W is both up AND jump, so simply
+  // jumping next to the doors teleported you between floors. It is its own
+  // button now, shown only when you are actually at the doors.
+  $('btnLift').classList.toggle('hidden', !S.nearLift);
+  if (S.nearLift && IN.useEdge && S.liftCd <= 0) rideLift();
   if (S.liftCd > 0) S.liftCd -= dt;
   if (fade > 0) fade = Math.max(0, fade - dt * 3);
 
@@ -972,7 +1015,7 @@ function render() {
     if (S.nearLift) {
       ctx.fillStyle = 'rgba(255,215,94,.9)';
       ctx.font = `800 ${9 / S.zoom * 1.7}px system-ui`;
-      ctx.fillText('HOLD UP', l.cx, l.y - 22);
+      ctx.fillText('CALL LIFT', l.cx, l.y - 22);
     }
   }
 
@@ -1316,13 +1359,19 @@ initInput(cv);
 resize();
 requestAnimationFrame(frame);
 
-for (const b of document.querySelectorAll('button')) b.addEventListener('pointerdown', () => SFX.resume());
+// The title screen picks its music before any gesture exists, and a browser
+// will not start audio until one does. Every button resumes both, and Music
+// replays whatever scene was already chosen.
+Music.scene('title');
+for (const b of document.querySelectorAll('button')) {
+  b.addEventListener('pointerdown', () => { SFX.resume(); Music.resume(); });
+}
 $('btnStart').addEventListener('pointerdown', goFullscreen);
 $('btnFree').addEventListener('pointerdown', goFullscreen);
 $('btnHired').addEventListener('pointerdown', goFullscreen);
-$('btnStart').onclick = () => { SFX.resume(); SFX.ui(); buildMissions(); hide('title'); show('missions'); };
-$('btnFree').onclick = () => { SFX.resume(); SFX.ui(); S.mode2 = 'free'; S.mission = null; openCreator(); };
-$('btnMsnBack').onclick = () => { SFX.ui(false); hide('missions'); show('title'); };
+$('btnStart').onclick = () => { SFX.resume(); SFX.ui(); Music.scene('menu'); buildMissions(); hide('title'); show('missions'); };
+$('btnFree').onclick = () => { SFX.resume(); SFX.ui(); Music.scene('menu'); S.mode2 = 'free'; S.mission = null; openCreator(); };
+$('btnMsnBack').onclick = () => { SFX.ui(false); Music.scene('title'); hide('missions'); show('title'); };
 $('btnAgain').onclick = startShift;
 $('btnHired').onclick = () => {
   S.look.name = ($('cName').value.trim().toUpperCase().slice(0, 12)) || 'FIRASS';
@@ -1336,7 +1385,7 @@ $('btnRandom').onclick = () => {
 $('cName').oninput = () => { S.look.name = $('cName').value.toUpperCase(); };
 $('btnEnd').onclick = () => endShift(false);
 $('btnHelp').onclick = () => { hide('title'); show('help'); };
-$('btnShop').onclick = () => { SFX.resume(); SFX.ui(); buildShop(); hide('title'); show('shop'); };
+$('btnShop').onclick = () => { SFX.resume(); SFX.ui(); Music.scene('shop'); buildShop(); hide('title'); show('shop'); };
 function cycleWeapon() {
   const owned = S.career.owned.filter(id => WEAPONS[id]);
   if (owned.length < 2) { toast('Buy something first.'); SFX.ui(false); return; }
@@ -1368,14 +1417,15 @@ $('btnSkip').onclick = () => {
   S.story.choice = null;
   SFX.ui(false);
 };
+$('btnLift').addEventListener('pointerdown', e => { e.preventDefault(); rideLift(); });
 $('btnSwap').addEventListener('pointerdown', e => { e.preventDefault(); cycleWeapon(); });
-$('btnShopFromReport').onclick = () => { buildShop(); hide('report'); show('shop'); S.shopFrom = 'report'; };
+$('btnShopFromReport').onclick = () => { Music.scene('shop'); buildShop(); hide('report'); show('shop'); S.shopFrom = 'report'; };
 $('btnShopBack').onclick = () => {
   SFX.ui(false); hide('shop');
   show(S.shopFrom === 'report' ? 'report' : 'title');
   S.shopFrom = null;
 };
-$('btnHelpBack').onclick = () => { hide('help'); show('title'); };
+$('btnHelpBack').onclick = () => { Music.scene('title'); hide('help'); show('title'); };
 $('btnShare').onclick = async () => {
   try {
     if (navigator.share) await navigator.share({ text: S.lastShare });

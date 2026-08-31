@@ -71,6 +71,7 @@ export class Player extends Body {
           if (b === this || b.dead || b.held || this._plough.has(b.id)) continue;
           if (Math.abs(b.cx - this.cx) > 30 || Math.abs(b.cy - this.cy) > 40) continue;
           this._plough.add(b.id);
+          b.wake();
           b.vx += this.face * 620 / Math.max(0.6, b.mass * 0.5);
           b.vy -= 240 / Math.max(0.6, b.mass * 0.5);
           s.damageBody(b, rc.dmg, this);
@@ -264,6 +265,7 @@ export class Player extends Body {
       if (!rectsOverlap(box, b)) continue;
       a.hit.add(b.id);
 
+      b.wake();
       const dirX = Math.sign(b.cx - this.cx) || this.face;
       b.vx += dirX * d.kbX * W.kbMul / Math.max(0.6, b.mass * 0.5);
       b.vy += d.kbY * W.kbMul / Math.max(0.6, b.mass * 0.5);
@@ -312,6 +314,7 @@ export class Player extends Body {
       if (b === this || b.dead || b.held) continue;
       if (Math.abs(b.cx - this.cx) > r || b.cy < this.cy - 60) continue;
       a.hit.add(b.id);
+      b.wake();
       b.vy += def.slam.kbY / Math.max(0.6, b.mass * 0.5);
       b.vx += Math.sign(b.cx - this.cx || 1) * 260 / Math.max(0.6, b.mass * 0.5);
       s.damageBody(b, def.slam.dmg, this);
@@ -355,7 +358,7 @@ export class Player extends Body {
       if (dd < bestD) { bestD = dd; best = b; }
     }
     if (best) {
-      best.held = true; best.va = 0; best.angle = 0;
+      best.held = true; best.va = 0; best.angle = 0; best.wake();
       this.carrying = best;
       FX.float(best.cx, best.y - 8, 'GRABBED', '#7fd1ff', 11);
       SFX.grab();
@@ -391,6 +394,20 @@ export class Player extends Body {
   carryPose() {
     if (!this.carrying) return;
     const c = this.carrying;
+
+    // A PERSON IS HELD BY THE NECK -- upright, at arm's length, feet just off
+    // the floor and kicking. Nothing like the overhead carry a monitor gets,
+    // which is what made grabbing someone feel wrong.
+    if (this.holdingPerson) {
+      c.x = this.cx + this.face * 30 - c.w / 2;
+      c.y = this.y - 6;                     // dangling, feet clear of the ground
+      c.vx = this.vx; c.vy = 0;
+      c.face = -this.face;                  // facing you, which is the point
+      c.angle = Math.sin(this.animT * 14) * (this.slapCd > 0 ? 0.20 : 0.07);
+      c.grounded = false;
+      return;
+    }
+
     const a = this.atk;
     if (a && a.wep === c) {
       // swing arc: back on the wind-up, thrown forward on the active frames

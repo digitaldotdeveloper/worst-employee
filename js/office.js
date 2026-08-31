@@ -45,6 +45,9 @@ export class Coworker extends Body {
     this.art = null;          // set by buildOffice
     this.hurtT = 0;
     this.annoyCd = 0;   // cannot be pestered again instantly
+    this.rage = 0;      // how much of this they have taken
+    this.swingCd = 0;
+    this.fighting = false;
     this.annoyed2 = 0;  // how many times this one has put up with you
   }
 
@@ -53,11 +56,35 @@ export class Coworker extends Body {
     if (this.hurtT > 0) this.hurtT -= dt;
     if (s.story && s.story.active) { this.vx *= 0.7; return; }
     if (this.annoyCd > 0) this.annoyCd -= dt;
+    if (this.swingCd > 0) this.swingCd -= dt;
+    if (this.held) { this.vx = 0; return; }
     if (this.mode === 'down') {
       this.downT -= dt;
       this.angle += this.va * dt * 0.3;
       if (this.downT <= 0 && this.grounded) {
-        this.mode = 'wander'; this.angle = 0; this.va = 0; this.timer = 1;
+        this.angle = 0; this.va = 0;
+        // They get up. If they have taken enough, they get up ANGRY.
+        if (this.rage >= 2) {
+          this.fighting = true; this.mode = 'fight'; this.timer = 9;
+          if (s.onFightBack) s.onFightBack(this);
+        } else { this.mode = 'wander'; this.timer = 1; }
+      }
+      return;
+    }
+
+    // FIGHTING BACK. Push someone far enough and they stop running away and
+    // come for you instead. It is an office, not a shooting gallery.
+    if (this.fighting) {
+      const dx = s.player.cx - this.cx;
+      this.face = Math.sign(dx) || 1;
+      this.timer -= dt;
+      if (this.timer <= 0) { this.fighting = false; this.rage = 0; this.mode = 'wander'; return; }
+      if (Math.abs(dx) > 46) {
+        this.vx += this.face * 620 * dt;
+        this.vx = Math.max(-170, Math.min(170, this.vx));
+      } else {
+        this.vx *= 0.8;
+        if (this.swingCd <= 0) { this.swingCd = 1.0; this.swing(s); }
       }
       return;
     }
@@ -89,6 +116,38 @@ export class Coworker extends Body {
   // Downtime scales with the blow. A chain tick drops you briefly; a hammer
   // flattens you. A re-knock EXTENDS the stay rather than being ignored, or
   // combo beats 2-5 land on a downed body and visibly do nothing.
+  // Being hit builds rage. Three real blows and they turn round.
+  provoke(s, amount = 1) {
+    if (this.held) return;
+    // Rage builds even while they are ON THE FLOOR. Knocking someone down used
+    // to reset the counter in practice — they spent the whole fight flat, so
+    // they could never reach the point of getting up angry. Now they do.
+    this.rage += amount;
+    if (this.mode === 'down') return;
+    if (this.rage >= 2 && !this.fighting) {
+      this.fighting = true;
+      this.mode = 'fight';
+      this.timer = 9;
+      if (s.onFightBack) s.onFightBack(this);
+    }
+  }
+
+  swing(s) {
+    const p = s.player;
+    const box = { x: this.face > 0 ? this.x + this.w : this.x - 44, y: this.y + 8, w: 44, h: 46 };
+    FX.spark(this.cx + this.face * 26, this.cy, 7, '#ffb3b3', 220);
+    SFX.whiff();
+    if (p.iframes > 0) { FX.float(p.cx, p.y - 10, 'DODGED', '#7fd1ff', 12); return; }
+    if (p.x < box.x + box.w && p.x + p.w > box.x && p.y < box.y + box.h && p.y + p.h > box.y) {
+      p.vx += this.face * 340; p.vy -= 150;
+      p.hurtT = 0.3;
+      s.playerHits++;
+      FX.kick(6, 0.06);
+      SFX.hit(0.6);
+      FX.float(p.cx, p.y - 10, 'OW', '#ff7b7b', 13);
+    }
+  }
+
   knock(s, dmg = 38) {
     const t = 0.8 + Math.min(1.5, dmg / 38 * 1.5) + Math.random() * 0.3;
     if (this.mode === 'down') { this.downT = Math.max(this.downT, t); return; }

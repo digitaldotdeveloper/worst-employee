@@ -25,6 +25,7 @@ export class ChaosSystem {
 
   // Mark something as a live chain link. `depth` is inherited from whatever hit it.
   ignite(body, depth, label) {
+    if (body.wake) body.wake();
     body.chaosUntil = this.s.time + CHAOS.chainWindow;
     body.chainDepth = depth;
     this.chain = Math.max(this.chain, depth);

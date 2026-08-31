@@ -1,105 +1,168 @@
-// MISSIONS — the campaign, script section 3.
+// MISSIONS — the campaign ladder.
 //
-// Two ways to play, which is the split the script asks for:
-//   MISSIONS   a ladder of briefs, each unlocking the next. You start entry
-//              level and you are told exactly how little is expected of you.
-//   FREE ROAM  the same office with no brief at all. Ruin it however you like.
+// THREE RULES THIS FILE OBEYS:
 //
-// A mission is a goal plus a pass condition, NOT a script. The office does not
-// change between them — what changes is what counts as a good day.
+// 1. THE BRIEF STATES THE GOAL, NEVER THE METHOD. Every mission tells you what
+//    a good day looks like and refuses to tell you how. The `hint` line is a
+//    nudge toward a VERB, never a walkthrough.
+//
+// 2. A DIFFERENT VERB EACH TIME. Explore, investigate, fake it, sneak, chain,
+//    time it, negotiate, escalate. If two missions in a row are "hit things
+//    until a number goes up", one of them is wrong. Fighting is ONE verb out of
+//    nine, and it is the last one.
+//
+// 3. IT GETS HARDER BY ASKING MORE OF YOU, not by raising a threshold. Mission 2
+//    wants a number. Mission 5 wants you to understand how chains work. Mission
+//    7 wants you to notice that there are four ways to solve it.
 
 export const MISSIONS = [
   {
     id: 'entry',
     name: 'ENTRY LEVEL',
     role: 'INTERN',
-    brief: 'It is your first day. Nobody expects anything of you, which is the '
-         + 'safest position you will ever be in. Have a look around. Bother somebody.',
+    verb: 'EXPLORE',
+    brief: 'First day. Nobody expects anything of you, which is the safest '
+         + 'position you will ever hold. Have a look around.',
+    hint: 'Almost everything in this office does something. Try the USE button on things.',
     goals: [
-      { text: 'Pester 3 colleagues', check: s => (s.annoyCount || 0) >= 3 },
-      { text: 'Reach 300 ruin',      check: s => s.ruin >= 300 },
+      { text: 'Say hello to 3 colleagues',   check: s => (s.annoyCount || 0) >= 3 },
+      { text: 'Find 4 things you can touch', check: s => (s.day.seen || []).length >= 4 },
     ],
     pay: 1200,
   },
+
   {
-    id: 'probation',
-    name: 'STILL ON PROBATION',
+    id: 'documents',
+    name: 'SORT THESE DOCUMENTS',
     role: 'INTERN',
-    brief: 'HR has started keeping notes. Break things, but be somewhere else '
-         + 'when anyone looks up.',
+    verb: 'DECIDE',
+    brief: 'A stack of papers and no explanation of what sorting them means. '
+         + 'Your manager will check at the end of the day.',
+    hint: 'You could do it. You could also make it look done. Both count.',
+    // TWO WAYS TO PASS, and the mission never says which it wants.
     goals: [
-      { text: 'Destroy 6 objects',            check: s => s.destroyed >= 6 },
-      { text: 'Keep boss anger under 55%',    check: s => s.anger < 55, fail: s => s.anger >= 55 },
+      { text: 'Do the work (40%) — or make it moot (20 chaos)',
+        check: s => s.day.work >= 40 || s.day.chaos >= 900 },
+      { text: 'Keep suspicion below 40%', check: s => s.day.suspicion < 40,
+        fail: s => s.day.suspicion >= 40 },
     ],
-    pay: 2200,
+    pay: 2000,
   },
+
   {
-    id: 'teamplayer',
-    name: 'TEAM PLAYER',
+    id: 'whodrank',
+    name: 'WHO DRANK MY COFFEE',
     role: 'EMPLOYEE',
-    brief: 'Morale is described internally as "an area for growth". Help.',
+    verb: 'INVESTIGATE',
+    brief: "Somebody has been taking other people's mugs. There is a culprit. "
+         + 'This office is full of things people leave lying around.',
+    hint: 'Drawers. Bins. Screens. People write things down and then throw them away.',
     goals: [
-      { text: 'Knock 4 colleagues off their feet', check: s => (s.knocked || 0) >= 4 },
-      { text: 'Slap somebody 5 times',             check: s => (s.slaps || 0) >= 5 },
+      { text: 'Find 3 secrets',      check: s => s.day.secrets >= 3 },
+      { text: 'Break nothing at all', check: s => s.destroyed === 0, fail: s => s.destroyed > 0 },
     ],
-    pay: 3400,
+    pay: 3200,
   },
+
   {
-    id: 'printer',
-    name: 'THE PRINTER INCIDENT',
+    id: 'decaf',
+    name: 'THE DECAF CONSPIRACY',
     role: 'EMPLOYEE',
-    brief: 'Nothing has printed correctly since 2019. Finish the job.',
+    verb: 'SNEAK',
+    brief: 'The coffee machine holds this floor together. Find out what happens '
+         + 'without it — without anyone working out that it was you.',
+    hint: 'There is a quiet way to ruin coffee and a loud one. Only one of them keeps suspicion down.',
     goals: [
-      { text: 'Destroy 2 printers',        check: s => (s.killed && s.killed.printer >= 2) },
-      { text: 'Set off a chain of 5+',     check: s => s.bestChain >= 5 },
+      { text: 'Deal with the coffee', check: s => s.day.secretList && s.day.secretList.includes('THE DECAF INCIDENT') },
+      { text: 'Suspicion under 25%',  check: s => s.day.suspicion < 25, fail: s => s.day.suspicion >= 25 },
     ],
-    pay: 5000,
+    pay: 4600,
   },
+
   {
-    id: 'caffeine',
-    name: 'CAFFEINE WITHDRAWAL',
+    id: 'accident',
+    name: 'IT LOOKED LIKE AN ACCIDENT',
     role: 'SENIOR EMPLOYEE',
-    brief: 'The coffee machine is the only thing holding this floor together. '
-         + 'Find out what happens without it.',
+    verb: 'CHAIN',
+    brief: 'The printer has to stop working today. It must not look like anybody '
+         + 'touched it.',
+    hint: 'Hitting it yourself is obvious. Something else hitting it is not. '
+        + 'Hit one thing HARD and see what it lands on.',
     goals: [
-      { text: 'Destroy the coffee machine', check: s => s.coffeeMachine && s.coffeeMachine.broken },
-      { text: 'Reach 1200 ruin',            check: s => s.ruin >= 1200 },
+      { text: 'Destroy a printer',              check: s => (s.killed && s.killed.printer >= 1) },
+      { text: 'Do it inside a chain of 4+',     check: s => s.bestChain >= 4 },
+      { text: 'Destroy fewer than 6 things',    check: s => s.destroyed < 6, fail: s => s.destroyed >= 6 },
     ],
-    pay: 7500,
+    pay: 6800,
   },
+
   {
-    id: 'catastrophe',
-    name: 'A GENUINE CATASTROPHE',
-    role: 'SUPERVISOR',
-    brief: 'Stop pacing yourself.',
+    id: 'drill',
+    name: 'NOBODY IS WATCHING',
+    role: 'SENIOR EMPLOYEE',
+    verb: 'TIME IT',
+    brief: 'There is a fire drill scheduled. For eleven seconds this floor will '
+         + 'be completely empty of witnesses. Be ready.',
+    hint: 'Wait for the drill. Everything you do while the alarm is going counts double.',
     goals: [
-      { text: 'Reach 3800 ruin in one shift', check: s => s.ruin >= 3800 },
-      { text: 'Complete 2 sabotage jobs',     check: s => (s.jobsDone || 0) >= 2 },
+      { text: 'Cause 900 ruin DURING a drill', check: s => (s.drillRuin || 0) >= 900 },
     ],
-    pay: 12000,
+    pay: 9000,
   },
+
+  {
+    id: 'presentation',
+    name: 'THE ASSIGNMENT',
+    role: 'SUPERVISOR',
+    verb: 'YOUR CHOICE',
+    brief: 'There is a client presentation. It is terrible. Get it ready.',
+    hint: 'The brief says get it ready. It does not say fix it, and it does not '
+        + 'say who has to do it.',
+    // FOUR ROUTES, none signposted. Any ONE of them passes.
+    goals: [
+      { text: 'Get the presentation ready — somehow',
+        check: s => s.day.work >= 70
+                 || s.day.secrets >= 3
+                 || s.day.relationships >= 3
+                 || s.day.chaos >= 2600 },
+    ],
+    routes: [
+      'You sat down and fixed it. Nobody will ever know you did.',
+      "You took another department's deck and changed the logo.",
+      'You got somebody who actually knows the client to do it for you.',
+      'There is no presentation. There is no projector. There is no meeting.',
+    ],
+    pay: 14000,
+  },
+
   {
     id: 'thirteen',
     name: 'FLOOR THIRTEEN',
     role: 'MANAGER',
-    brief: 'They have finally given you a lift pass. Go and see what the money '
-         + 'looks like up close.',
+    verb: 'ESCALATE',
+    brief: 'Nobody below management has ever seen floor thirteen. They give out '
+         + 'lift passes for results, and results means damage.',
+    hint: 'The lift will not take you up until you have earned it. Ruin enough of twelve.',
     goals: [
       { text: 'Reach the executive floor', check: s => s.floor === 'exec' },
-      { text: 'Wreck 3 things up there',   check: s => (s.roomKills && (s.roomKills.boss || 0) + (s.roomKills.boardroom || 0) >= 3) },
+      { text: 'Take 3 things up there apart',
+        check: s => (s.roomKills && (s.roomKills.boss || 0) + (s.roomKills.boardroom || 0) + (s.roomKills.pa || 0) >= 3) },
     ],
-    pay: 18000,
+    pay: 20000,
   },
+
   {
     id: 'review',
     name: 'PERFORMANCE REVIEW',
     role: 'MANAGER',
-    brief: 'He wants a word. Bring everything you have.',
+    verb: 'FIGHT',
+    brief: 'He wants a word. Upstairs. Now.',
+    hint: 'You have been building to this since the handshake.',
     goals: [
-      { text: 'Push his anger to 100%', check: s => s.anger >= 100 },
-      { text: 'Win the fight',          check: s => !!s.bossBeaten },
+      { text: 'Push him to 100%',  check: s => s.anger >= 100 },
+      { text: 'Win',               check: s => !!s.bossBeaten },
     ],
-    pay: 30000,
+    pay: 40000,
   },
 ];
 
@@ -118,13 +181,13 @@ export function missionState(career, m, i) {
   return 'locked';
 }
 
-// Evaluated every frame during a mission run.
 export class MissionRun {
   constructor(S, m) {
     this.S = S;
     this.m = m;
     this.state = m.goals.map(() => false);
     this.failed = false;
+    this.failReason = '';
     this.complete = false;
   }
 
@@ -133,17 +196,22 @@ export class MissionRun {
     const s = this.S;
     let all = true;
     this.m.goals.forEach((g, i) => {
-      if (g.fail && g.fail(s)) this.failed = true;
-      // A goal that has been met STAYS met — a mission is a set of things you
-      // did during the shift, not a state you have to be holding at the end.
+      if (g.fail) {
+        let bad = false;
+        try { bad = !!g.fail(s); } catch (e) { bad = false; }
+        if (bad) { this.failed = true; this.failReason = g.text; }
+      }
+      // A goal once met STAYS met: a mission is a set of things you did during
+      // the day, not a state you have to be holding when the whistle goes.
       let ok = false;
       try { ok = !!g.check(s); } catch (e) { ok = false; }
       if (ok) this.state[i] = true;
       if (!this.state[i]) all = false;
     });
+    if (this.failed && s.onMissionFailed) { s.onMissionFailed(this.m, this.failReason); return; }
     if (all && !this.failed) {
       this.complete = true;
-      s.onMissionComplete && s.onMissionComplete(this.m);
+      if (s.onMissionComplete) s.onMissionComplete(this.m);
     }
   }
 }

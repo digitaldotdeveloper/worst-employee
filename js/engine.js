@@ -36,8 +36,14 @@ export class Body {
     this.held = false;
     this.dead = false;
     this.flash = 0;
+    this.sleepT = 0;
+    this.asleep = false;
     Object.assign(this, o.extra || {});
   }
+  // Waking is explicit. Anything that should disturb a resting object calls
+  // this: a hit, a chain ignite, a grab, a throw, or a fast neighbour.
+  wake() { this.asleep = false; this.sleepT = 0; }
+
   get cx() { return this.x + this.w / 2; }
   get cy() { return this.y + this.h / 2; }
   get speed() { return Math.hypot(this.vx, this.vy); }
@@ -61,6 +67,19 @@ export class World {
 
     for (const b of bodies) {
       if (b.static || b.held || b.dead) continue;
+
+      // SLEEPING. Props spawn touching each other — a monitor and a paper tray
+      // share a desk, chairs sit against desks — and the mutual push-apart kept
+      // re-injecting velocity that friction never fully killed. The result was
+      // the whole office very slowly sliding around on its own, which reads as
+      // "running moves everything" even with the player parked 4000px away.
+      // A grounded, slow body goes to sleep and STAYS put until something wakes
+      // it. Only a hit moves a prop now, which is the actual rule wanted.
+      if (b.asleep) { b.vx = 0; b.vy = 0; b.va = 0; continue; }
+      if (b.grounded && Math.abs(b.vx) < 7 && Math.abs(b.vy) < 7 && Math.abs(b.va) < 0.5) {
+        b.sleepT += dt;
+        if (b.sleepT > 0.35) { b.asleep = true; b.vx = 0; b.vy = 0; b.va = 0; continue; }
+      } else b.sleepT = 0;
 
       b.py = b.y;                       // previous top, for one-way platforms
       b.vy += GRAVITY * dt;
@@ -105,6 +124,7 @@ export class World {
         const b = bodies[j];
         if (b.dead || b.held || !b.solid) continue;
         if (a.static && b.static) continue;
+        if (a.asleep && b.asleep) continue;
         this._vsBody(a, b);
       }
     }
@@ -204,6 +224,7 @@ export class World {
       if (!b.static) b.vy *= 0.4;
     }
 
+    if (rel > 24) { a.wake(); b.wake(); }
     if (rel > 90) this._impact(a, b, rel);
   }
 
