@@ -539,6 +539,55 @@ S.tryInteract = function () {
   return true;
 };
 
+// A brittle thing broken over somebody. The shards are the point: everyone
+// standing nearby gets cut, which turns one swing into a room-wide incident.
+const SWEARS = ['WHAT THE', 'MY EYES', 'ARE YOU SERIOUS', 'OH COME ON',
+                'I CANNOT SEE', 'THIS IS NEW', 'MY LAPTOP', 'ABSOLUTELY NOT'];
+S.onSprayed = (c, dt) => {
+  c.sprayedT = (c.sprayedT || 0) + dt;
+  c.mode = 'panic';
+  c.timer = 1.6;
+  c.vx += Math.sign(c.cx - S.player.cx || 1) * 260 * dt;
+  S.ruin += 90 * dt;
+  S.coins += 40 * dt;
+  S.day.chaos += 70 * dt;
+  S.addAnger(1.6 * dt);
+  if (!c.annoyed) { c.annoyed = true; S.annoyed++; }
+  if (c.sprayedT > 0.35 && !c.swore) {
+    c.swore = true;
+    faceFor(c, 'fury', 2000);
+    toast(`"${SWEARS[(S.sprayCount = (S.sprayCount || 0) + 1) % SWEARS.length]}"  — ${c.name}`);
+    FX.float(c.cx, c.y - 16, '!!!', '#ffd75e', 15);
+    SFX.ui(false);
+  }
+  if (c.sprayedT > 1.4) { c.hit(S, 10); c.sprayedT = 0; c.swore = false; }
+};
+
+S.shatter = (wep, victim, count) => {
+  const x = victim ? victim.cx : wep.cx, y = victim ? victim.cy : wep.cy;
+  for (let i = 0; i < count; i++) {
+    FX.spark(x, y, 1, i % 3 ? '#dff2ff' : '#ffffff', 520);
+  }
+  FX.debris(x, y, Math.round(count * 0.8), '#cfe6f5');
+  SFX.smash('glass', 1);
+  FX.kick(11, 0.10);
+
+  for (const c of S.coworkers) {
+    if (c.dead || Math.abs(c.cx - x) > 96) continue;
+    c.hit(S, 16);
+    S.bleed(c);
+    faceFor(c, 'shock');
+    S.ruin += 40;
+  }
+  if (Math.abs(S.player.cx - x) < 70) { S.player.takeHit(S, 8); S.bleed(S.player); }
+  toast('It went everywhere.');
+};
+
+// Blood. Sparse and dark, not a fountain -- this is an office, not a horror game.
+S.bleed = who => {
+  for (let i = 0; i < 7; i++) FX.spark(who.cx, who.cy - 8, 1, i % 2 ? '#a11d1d' : '#7d1414', 260);
+  who.bleedT = 3.2;
+};
 S.onPlayerDown = () => {
   toast('They put you on the floor.', 'boss');
   SFX.bossRoar();
@@ -924,6 +973,10 @@ function update(dt) {
   for (const c of S.coworkers) {
     c.update(dt, S);
     if (c.face_t > 0) c.face_t -= dt;
+    if (c.bleedT > 0) {
+      c.bleedT -= dt;
+      if (Math.random() < 0.10) FX.spark(c.cx, c.cy - 4, 1, '#8d1717', 90);
+    }
   }
   if (S.boss && S.boss.face_t > 0) S.boss.face_t -= dt;
   if (S.boss && !S.boss.dead) S.boss.update(dt, S);
@@ -1135,6 +1188,12 @@ function render() {
       CAST.draw(ctx, c.art, npcPoseName(c, c.animT),
         c.cx, c.y + c.h, c.h * 1.10, c.face < 0, 1);
       // a health bar, but only while they are actually hurt
+      // the expression, painted over their own face
+      if (FACES.ready && c.face_t > 0) {
+        const set = CAST.sets[c.art];
+        FACES.drawOnHead(ctx, c.art, c.face_emo, set && set.meta, npcPoseName(c, c.animT),
+          c.cx, c.y + c.h, c.h * 1.10, c.face < 0, 1 - c.face_t / c.face_max);
+      }
       if (c.hp < c.maxHp && c.mode !== 'down') {
         const w = 26, hx = c.cx - w / 2, hy = c.y - 20;
         ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(hx, hy, w, 3);
@@ -1170,6 +1229,11 @@ function render() {
     if (CAST.has(bossArt)) {
       CAST.draw(ctx, bossArt, bossPoseName(b, b.animT),
         b.cx, b.y + b.h, b.h * 1.10, b.face < 0, b.hurtT > 0 ? 0.65 : 1);
+      if (FACES.ready && b.face_t > 0) {
+        const bs = CAST.sets[bossArt];
+        FACES.drawOnHead(ctx, bossArt, b.face_emo, bs && bs.meta, bossPoseName(b, b.animT),
+          b.cx, b.y + b.h, b.h * 1.10, b.face < 0, 1 - b.face_t / b.face_max);
+      }
     } else if (RIG.cast[bossArt]) {
       RIG.drawCast(ctx, bossArt, RIG.bossPose(b, b.animT),
         b.cx, b.y + b.h, b.h * 1.06, b.face < 0, b.hurtT > 0 ? 0.6 : 1);
@@ -1188,14 +1252,6 @@ function render() {
     ctx.fillText('BOSS', b.cx, b.y - 18);
   }
 
-  // reaction bubbles, above whoever they belong to
-  if (FACES.ready) {
-    for (const c of [...S.coworkers, S.boss]) {
-      if (!c || !c.face_t || c.face_t <= 0 || !c.art) continue;
-      const k = 1 - c.face_t / c.face_max;
-      FACES.draw(ctx, c.art, c.face_emo, c.cx + 22, c.y - 30, 34, k);
-    }
-  }
 
   // player — real sprites when they have loaded, layered greybox rig otherwise
   const p = S.player;

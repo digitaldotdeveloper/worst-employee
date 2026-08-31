@@ -40,5 +40,58 @@
   "run-2": 2.1,
   "run-3": 2.4,
   "run-4": 2.4
- }
+ },
+ "heads": {
+  "c1-hit": [
+   69.6,
+   30.0,
+   61.4
+  ],
+  "c1-wind": [
+   65.7,
+   25.8,
+   67.0
+  ],
+  "down": [
+   73.1,
+   80.0,
+   47.7
+  ],
+  "hurt": [
+   57.4,
+   26.5,
+   50.8
+  ],
+  "idle": [
+   72.8,
+   29.8,
+   34.7
+  ],
+  "idle2": [
+   71.5,
+   32.6,
+   48.4
+  ],
+  "run-1": [
+   78.0,
+   30.7,
+   42.8
+  ],
+  "run-2": [
+   71.5,
+   27.2,
+   45.9
+  ],
+  "run-3": [
+   70.4,
+   30.2,
+   45.9
+  ],
+  "run-4": [
+   65.1,
+   25.2,
+   49.6
+  ]
+ },
+ "_heads_comment": "Head centre x, y and radius per frame, in frame pixels. Reaction faces draw HERE, over the drawn face."
 }

@@ -149,17 +149,74 @@ S.dodge = function () {
   filter.frequency.exponentialRampToValueAtTime(500, t + 0.15);
 };
 
-S.grab = function () {
-  if (!this.ready) return;
-  tone(420, ctx.currentTime, 0.06, 'square', 0.09, 120);
+// Picking something up and throwing it are the two most repeated actions in the
+// game after swinging, and both used to be one blip each: grab was a single
+// 60ms square tone at 0.09, which next to a 0.475 hit was effectively silent.
+//
+// They are now built from what is being lifted. `style` comes straight from
+// PROP_STYLES in weapons.js so the tables cannot drift apart, and `mass` from
+// the body itself — a filing cabinet and a coffee mug should not leave your
+// hands the same way. Mass sets the pitch and the length; style adds the
+// material on top.
+const GRAB_TINT = {
+  //          thunk Hz   scuff Hz   tint
+  glass:    { f: 300, air: 3200, tink: 2400 },   // monitor, mug, cooler
+  heavy:    { f: 120, air: 900,  tink: 0 },      // printer, cabinet, coffee machine
+  light:    { f: 380, air: 4200, tink: 0 },      // papers, phone, bin
+  sweep:    { f: 210, air: 1800, tink: 700 },    // chair, plant
+  spray:    { f: 190, air: 1400, tink: 1500 },   // extinguisher
+  person:   { f: 160, air: 2200, tink: 0 },      // a colleague, hoisted
 };
 
-S.throw_ = function () {
+/**
+ * style  a PROP_STYLES style ('glass'|'heavy'|'light'|'sweep'|'spray') or
+ *        'person'. Anything unknown falls back to 'light'.
+ * mass   the body's mass; 0.4 (a mug) to 5.5 (a filing cabinet).
+ */
+S.grab = function (style = 'light', mass = 1) {
   if (!this.ready) return;
   const t = ctx.currentTime;
-  const { filter } = noise(t, 0.18, 0.14, 1200, 2.5, 'bandpass');
-  filter.frequency.setValueAtTime(600, t);
-  filter.frequency.exponentialRampToValueAtTime(3000, t + 0.16);
+  const k = GRAB_TINT[style] || GRAB_TINT.light;
+  const m = Math.max(0.3, Math.min(6, mass));
+  const heft = Math.min(1, m / 4);                  // 0 = a mug, 1 = a cabinet
+
+  // hands closing on the thing: a short filtered scuff
+  const { filter } = noise(t, 0.09 + heft * 0.06, 0.085 + heft * 0.05, k.air, 1.2, 'bandpass');
+  filter.frequency.exponentialRampToValueAtTime(Math.max(200, k.air * 0.4), t + 0.09);
+
+  // and its weight arriving, pitched down by how heavy it is
+  tone(k.f / (0.7 + heft * 0.6), t + 0.012, 0.09 + heft * 0.07, 'triangle', 0.11 + heft * 0.06, -40);
+
+  // the material speaking up: glass tinks, a chair rattles, a cabinet does not
+  if (k.tink) tone(k.tink * (0.9 + Math.random() * 0.2), t + 0.03, 0.07, 'sine', 0.05, -300);
+};
+
+/**
+ * power  0..1, how hard it went out
+ * style  as above
+ * mass   as above
+ */
+S.throw_ = function (power = 0.7, style = 'light', mass = 1) {
+  if (!this.ready) return;
+  const t = ctx.currentTime;
+  const k = GRAB_TINT[style] || GRAB_TINT.light;
+  const m = Math.max(0.3, Math.min(6, mass));
+  const heft = Math.min(1, m / 4);
+  const p = Math.max(0, Math.min(1, power));
+
+  // The whoosh. Heavier things cut the air lower and for longer, and the sweep
+  // direction is what makes it read as leaving rather than arriving.
+  const dur = 0.16 + heft * 0.12;
+  const from = (500 + p * 400) / (0.8 + heft * 0.9);
+  const { filter } = noise(t, dur, 0.12 + p * 0.07, from, 2.5, 'bandpass');
+  filter.frequency.exponentialRampToValueAtTime(from * (3.2 - heft * 1.4), t + dur * 0.9);
+
+  // the release itself - a low thump you feel more than hear
+  tone(90 + heft * 40, t, 0.10 + heft * 0.05, 'sine', 0.10 + heft * 0.07, -30);
+
+  // Same random detune the noise buffer already uses, applied to the tint, so
+  // twenty throws in a row are not twenty identical sounds.
+  if (k.tink) tone(k.tink * (0.85 + Math.random() * 0.3), t + 0.02, 0.06, 'sine', 0.04, -400);
 };
 
 // Destruction, tinted by material.

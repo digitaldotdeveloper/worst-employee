@@ -7,7 +7,7 @@ import { Body, rectsOverlap } from './engine.js';
 import { FX } from './fx.js';
 import { IN } from './input.js';
 import { SFX } from './audio.js';
-import { WEAPONS, statsFor, propStats, bump, hasSkill } from './weapons.js';
+import { WEAPONS, statsFor, propStats, propStyle, bump, hasSkill } from './weapons.js';
 import { Music } from './music.js';
 
 export class Player extends Body {
@@ -160,6 +160,15 @@ export class Player extends Body {
     if (IN.grabEdge) this._grabOrThrow(s);
 
     // ---------------- use / interact ----------------
+    // Holding an extinguisher turns USE into the trigger. It is the only prop
+    // with a second verb, and it is by far the funniest thing you can do to a
+    // colleague without touching them.
+    const st = this.carrying && !this.holdingPerson ? propStyle(this.carrying.kind) : null;
+    if (st && st.spray) {
+      if (IN.use) { this._spray(s, dt); return; }
+      if (this.sprayed) { this.sprayed = false; }
+    }
+
     // The discovery button. Everything in the office answers back.
     if (IN.useEdge && s.tryInteract) { s.tryInteract(); return; }
 
@@ -271,6 +280,7 @@ export class Player extends Body {
   }
 
   _swing(d, s, a) {
+    let hitCount = 0;
     // Weapon contributions are SCALARS applied alongside `d`, never a clone of
     // it — the `d === ATTACK.heavy` identity checks below must keep working.
     const wep = a.wep && !a.wep.dead ? a.wep : null;
@@ -299,7 +309,9 @@ export class Player extends Body {
       if (b.type === 'deco') continue;
       if (b === a.wep) continue;
       if (!rectsOverlap(box, b)) continue;
+      if (!W.sweep && hitCount >= 1 && b.type === 'prop') continue;
       a.hit.add(b.id);
+      hitCount++;
 
       b.wake();
       const dirX = Math.sign(b.cx - this.cx) || this.face;
@@ -332,6 +344,16 @@ export class Player extends Body {
       }
 
       // a GRABBED prop wears out as you use it; an equipped weapon never does
+      // GLASS. Breaking something brittle over somebody sprays the room: shards
+      // cut everyone nearby and somebody is going to bleed.
+      if (wep && W.style === 'glass' && W.shards && !wep.shattered) {
+        const dead = wep.hp - d.dmg * W.wear <= 0;
+        if (dead) {
+          wep.shattered = true;
+          s.shatter && s.shatter(wep, b, W.shards);
+        }
+      }
+      if (wep && W.paper) FX.paper(b.cx, b.cy, 10);
       if (wep && W.wear) {
         s.damageBody(wep, d.dmg * W.wear, this);
         wep.flash = 0.12;
@@ -355,6 +377,7 @@ export class Player extends Body {
       if (b === this || b.dead || b.held) continue;
       if (Math.abs(b.cx - this.cx) > r || b.cy < this.cy - 60) continue;
       a.hit.add(b.id);
+      hitCount++;
       b.wake();
       b.vy += def.slam.kbY / Math.max(0.6, b.mass * 0.5);
       b.vx += Math.sign(b.cx - this.cx || 1) * 260 / Math.max(0.6, b.mass * 0.5);
@@ -363,6 +386,39 @@ export class Player extends Body {
     }
     Music.cue('ground_slam');
     bump(s, 'hammer.slam');
+  }
+
+  // A continuous cone of CO2. Does almost no damage — it blinds people, drives
+  // them off and makes them extremely rude about it.
+  _spray(s, dt) {
+    this.state = 'carry';
+    this.vx *= 0.86;
+    this.sprayT = (this.sprayT || 0) + dt;
+    this.sprayed = true;
+    const tip = this.cx + this.face * 34;
+    const tipY = this.cy - 4;
+
+    for (let i = 0; i < 3; i++) {
+      FX.spark(tip + this.face * (10 + Math.random() * 46), tipY + (Math.random() - 0.5) * 26,
+        1, '#eef4ff', 210);
+    }
+    if (this.carrying) this.carrying.angle = this.face * -0.35;
+
+    if ((this.sprayT % 0.22) < dt) SFX.whiff();
+
+    for (const c of s.coworkers) {
+      if (c.dead || c.mode === 'down') continue;
+      const dx = (c.cx - this.cx) * this.face;
+      if (dx < 6 || dx > 118 || Math.abs(c.cy - this.cy) > 46) continue;
+      s.onSprayed && s.onSprayed(c, dt);
+    }
+    // it empties
+    if (this.sprayT > 4.5 && this.carrying) {
+      s.damageBody(this.carrying, 999, this);
+      this.carrying = null;
+      this.sprayT = 0;
+      s.toast('The extinguisher is empty.');
+    }
   }
 
   _grabOrThrow(s) {
@@ -387,7 +443,7 @@ export class Player extends Body {
       this.carrying = victim;
       this.holdingPerson = true;
       s.onGrabPerson && s.onGrabPerson(victim);
-      SFX.grab();
+      SFX.grab('person', victim.mass || 2.4);
       return;
     }
 
@@ -403,7 +459,8 @@ export class Player extends Body {
       best.held = true; best.va = 0; best.angle = 0; best.wake();
       this.carrying = best;
       FX.float(best.cx, best.y - 8, 'GRABBED', '#7fd1ff', 11);
-      SFX.grab();
+      const gs = propStyle(best.kind);
+      SFX.grab(gs ? gs.style : 'light', best.mass || 1);
     }
   }
 
@@ -430,7 +487,8 @@ export class Player extends Body {
     b.chainDepth = Math.max(1, b.chainDepth);
     this.carrying = null;
     FX.kick(3, 0.02);
-    SFX.throw_();
+    const ts = propStyle(b.kind);
+    SFX.throw_(0.85, this.holdingPerson || b.hoisted ? 'person' : (ts ? ts.style : 'light'), b.mass || 1);
   }
 
   carryPose() {
@@ -441,8 +499,8 @@ export class Player extends Body {
     // the floor and kicking. Nothing like the overhead carry a monitor gets,
     // which is what made grabbing someone feel wrong.
     if (this.holdingPerson) {
-      c.x = this.cx + this.face * 30 - c.w / 2;
-      c.y = this.y - 6;                     // dangling, feet clear of the ground
+      c.x = this.cx + this.face * 34 - c.w / 2;
+      c.y = this.y - 2;                     // dangling, feet clear of the ground
       c.vx = this.vx; c.vy = 0;
       c.face = -this.face;                  // facing you, which is the point
       c.angle = Math.sin(this.animT * 14) * (this.slapCd > 0 ? 0.20 : 0.07);

@@ -7,6 +7,7 @@
  "standingH": 124,
  "poses": [
   "down",
+  "held",
   "hurt",
   "idle",
   "idle2",
@@ -18,6 +19,7 @@
  ],
  "poseBottom": {
   "down": 116.2,
+  "held": 130.0,
   "hurt": 129.2,
   "idle": 131.8,
   "idle2": 131.8,
@@ -29,6 +31,7 @@
  },
  "poseTop": {
   "down": 81.4,
+  "held": 8.1,
   "hurt": 4.9,
   "idle": 7.8,
   "idle2": 7.8,

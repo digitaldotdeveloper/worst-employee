@@ -268,6 +268,11 @@ const COMBO = [
 ];
 
 export function poseFor(p, t) {
+  // Holding somebody has its own drawn frames now: an arm locked out on a
+  // collar, and a backhand that keeps the grip.
+  if (p.holdingPerson && p.carrying) {
+    return p.slapCd > 0.10 ? 'grab-slap' : 'grab-hold';
+  }
   if (p.atk) {
     const wind = p.atk.phase === 'startup';
     if (!p.grounded) return 'air-hit';
@@ -510,6 +515,7 @@ export const CAST = {
 };
 
 export function npcPoseName(c, t) {
+  if (c.held && c.hoisted) return 'held';
   if (c.mode === 'down') return 'down';
   if (c.hurtT > 0) return 'hurt';
   if (c.mode === 'fight') return ['run-1','run-2','run-3','run-4'][Math.floor(t*9)%4];
@@ -640,6 +646,31 @@ export const FACES = {
   },
 
   has(art, emo) { return !!this.img[art + '-' + emo]; },
+
+  // Draw the expression OVER the character's actual head. A bubble floating
+  // above someone is a UI element; a face that changes is a performance. The
+  // head moves every frame, so its position comes from anchors.json rather
+  // than being a constant.
+  drawOnHead(ctx, art, emo, meta, pose, x, groundY, height, flip, k) {
+    const im = this.img[art + '-' + emo];
+    if (!im || !meta || !meta.heads) return false;
+    const h = meta.heads[pose] || meta.heads.idle;
+    if (!h) return false;
+    const s = height / meta.standingH;
+    const hx = (h[0] - meta.centreX) * s * (flip ? -1 : 1);
+    const hy = (h[1] - meta.groundY) * s;
+    // Just wide enough to cover the drawn head. The skin-pixel radius runs
+    // generous on bearded characters, so this multiplier is deliberately modest
+    // — at 2.35 the expression swallowed the whole torso.
+    const d = h[2] * 1.45 * s;
+    const pop = k < 0.10 ? k / 0.10 : (k > 0.88 ? (1 - k) / 0.12 : 1);
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, pop * 1.4);
+    ctx.translate(x + hx, groundY + hy);
+    ctx.drawImage(im, -d / 2, -d / 2, d, d);
+    ctx.restore();
+    return true;
+  },
 
   // `k` is 0..1 through the pop: it scales in, holds, then fades.
   draw(ctx, art, emo, x, y, px, k) {

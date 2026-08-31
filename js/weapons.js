@@ -225,12 +225,51 @@ export const WEAPONS = {
 
 export const SHOP_ORDER = ['fists', 'keyboard', 'stapler', 'pan', 'hammer', 'rocketchair'];
 
-// Stats for a grabbed world prop — lifted from the original inline maths so a
-// grabbed monitor behaves exactly as it did before weapons existed.
+// EVERY GRABBED PROP FIGHTS DIFFERENTLY.
+//
+// A chair is a wide clumsy sweep. A monitor is heavy and shatters. A fire
+// extinguisher is a club that can also be SPRAYED. Treating them all as
+// "mass x 0.35" made picking a thing up a numbers decision rather than a
+// tactical one.
+//
+//   glass    shatters on impact, spraying shards that cut everyone nearby
+//   sweep    hits everything in the arc, not just the first thing
+//   heavy    slow, enormous knockback
+//   light    fast, low damage, keeps a chain alive
+//   spray    has a second use: hold USE to empty it over somebody
+export const PROP_STYLES = {
+  monitor:      { name: 'MONITOR',      style: 'glass', dmgMul: 2.6, kbMul: 1.8, reachMul: 1.0, wear: 1.4, shards: 14 },
+  mug:          { name: 'MUG',          style: 'glass', dmgMul: 1.4, kbMul: 0.9, reachMul: 0.7, wear: 2.2, shards: 8 },
+  cooler:       { name: 'WATER COOLER', style: 'glass', dmgMul: 3.0, kbMul: 2.2, reachMul: 1.1, wear: 1.1, shards: 18 },
+  chair:        { name: 'CHAIR',        style: 'sweep', dmgMul: 2.2, kbMul: 2.6, reachMul: 1.4, wear: 0.5, sweep: true },
+  printer:      { name: 'PRINTER',      style: 'heavy', dmgMul: 3.2, kbMul: 3.0, reachMul: 0.9, wear: 0.7 },
+  cabinet:      { name: 'FILING CABINET', style: 'heavy', dmgMul: 3.6, kbMul: 3.4, reachMul: 0.9, wear: 0.4 },
+  coffee:       { name: 'COFFEE MACHINE', style: 'heavy', dmgMul: 2.8, kbMul: 2.4, reachMul: 0.9, wear: 1.0 },
+  extinguisher: { name: 'EXTINGUISHER', style: 'spray', dmgMul: 2.4, kbMul: 2.0, reachMul: 1.0, wear: 0.3, spray: true },
+  stack:        { name: 'PAPERS',       style: 'light', dmgMul: 0.6, kbMul: 0.4, reachMul: 0.9, wear: 3.0, paper: true },
+  phone:        { name: 'PHONE',        style: 'light', dmgMul: 1.3, kbMul: 1.0, reachMul: 1.2, wear: 1.6 },
+  plant:        { name: 'POTTED PLANT', style: 'sweep', dmgMul: 1.8, kbMul: 1.5, reachMul: 1.1, wear: 1.5 },
+  bin:          { name: 'BIN',          style: 'light', dmgMul: 1.5, kbMul: 1.4, reachMul: 1.0, wear: 1.2 },
+};
+
+export const propStyle = kind => PROP_STYLES[kind] || null;
+
 export function propStats(wep) {
-  const m = 1.6 + Math.min(1.2, wep.mass * 0.35);
-  return { reach: wep.w * 0.8 + 10, hh: wep.h * 0.5, dmgMul: m, kbMul: m, spd: 1,
-           shakeMul: 1.4, stopMul: 1.35, sfxMul: 1.5, wear: 0.55 };
+  const s = PROP_STYLES[wep.kind];
+  if (!s) {
+    const m = 1.6 + Math.min(1.2, wep.mass * 0.35);
+    return { reach: wep.w * 0.8 + 10, hh: wep.h * 0.5, dmgMul: m, kbMul: m, spd: 1,
+             shakeMul: 1.4, stopMul: 1.35, sfxMul: 1.5, wear: 0.55 };
+  }
+  return {
+    reach: (wep.w * 0.8 + 10) * s.reachMul,
+    hh: wep.h * 0.5 + (s.sweep ? 14 : 0),
+    dmgMul: s.dmgMul, kbMul: s.kbMul, spd: 1,
+    shakeMul: s.style === 'heavy' ? 1.8 : 1.4,
+    stopMul: s.style === 'heavy' ? 1.7 : 1.35,
+    sfxMul: 1.5, wear: s.wear,
+    style: s.style, shards: s.shards || 0, sweep: !!s.sweep, paper: !!s.paper,
+  };
 }
 
 export function statsFor(id) {
