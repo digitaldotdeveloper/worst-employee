@@ -170,6 +170,19 @@ def head_of(path, standing_h):
     if not m.any():
         return None
     op = rgba[..., 3] > 16
+    # THE HEAD IS AT THE TOP OF AN UPRIGHT FIGURE. Obvious, and not enforced
+    # until boss-rage's idle anchor came back at 36% down him — his chest — and
+    # the head-swap landed a face on his shirt. A prone frame is legitimately
+    # not head-up, so the rule applies only when the drawn figure is near its
+    # standing height; that decides itself from the art, with no pose-name list
+    # to keep in sync.
+    _ys, _xs = np.where(op)
+    fig_top, fig_bot = (int(_ys.min()), int(_ys.max())) if len(_ys) else (0, 1)
+    fig_h = max(1, fig_bot - fig_top)
+    upright = fig_h >= standing_h * 0.70
+    # 0.42 still let boss-rage's chest through at 36%. A head tops out around
+    # 20% of an upright figure even on a hunched heavyweight, so 0.30.
+    y_limit = fig_top + fig_h * (0.30 if upright else 1.0)
     lum = (0.299 * rgba[..., 0] + 0.587 * rgba[..., 1] + 0.114 * rgba[..., 2])
     lo, hi = 0.035 * standing_h, HEAD_MAX * standing_h
     best, best_score = None, -1e9
@@ -183,6 +196,8 @@ def head_of(path, standing_h):
             w, h = (x1 - x0) + 1, (y1 - y0) + 1
             rad = w / 2.0 + k
             if not (lo <= rad <= hi):
+                continue
+            if (y0 + y1) / 2.0 > y_limit:
                 continue
             # THE DISCRIMINATOR. Shape cannot tell a face from a fist — both are
             # compact, round and skin-coloured, which is why scoring on shape

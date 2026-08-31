@@ -700,6 +700,63 @@ export function drawWeapon(ctx, artName, pose, x, groundY, height, flip) {
 // Character-specific rather than generic emoji: the joke is SAMI'S face when you
 // take his monitor, not a yellow circle.
 // ---------------------------------------------------------------
+// HEAD SWAPS. The character's OWN head, redrawn with a different face, keyed and
+// trimmed at the neck (tools/cut-faces.py) from portraits generated against each
+// character's existing sprite as the reference.
+//
+// This is the third attempt at reaction faces and the first one that is actually
+// the character. A circular portrait badge painted over the head read as a
+// sticker; a bubble beside them read as UI. Swapping the head reads as the
+// person, because it IS the person — same hair, same collar, same palette, just
+// a different expression, scaled onto the head anchor the cutout tool measures.
+export const HEADS = {
+  img: {}, meta: null, ready: false,
+
+  async load(base = 'assets/faces/heads/') {
+    let m;
+    try {
+      const r = await fetch(base + 'heads.json');
+      if (!r.ok) return 0;
+      m = await r.json();
+    } catch (e) { return 0; }
+    this.meta = m.heads || {};
+    await Promise.all(Object.keys(this.meta).map(n => new Promise(res => {
+      const im = new Image();
+      im.onload = () => { this.img[n] = im; res(); };
+      im.onerror = res;
+      im.src = base + n + '.png';
+    })));
+    this.ready = Object.keys(this.img).length > 0;
+    return Object.keys(this.img).length;
+  },
+
+  has(art, emo) { return !!this.img[art + '-' + emo]; },
+
+  // Swept 1.0 / 1.15 / 1.3 / 1.5 against the real sprites at real game scale
+  // and looked: 1.0 is the one that stays the same person. Everything above it
+  // is a bobblehead — which is what 1.5 looked like offline at 6x zoom, and is
+  // why the sweep had to be done in the game rather than in a contact sheet.
+  draw(ctx, art, emo, meta, pose, x, groundY, height, flip) {
+    const im = this.img[art + '-' + emo];
+    if (!im || !meta || !meta.heads) return false;
+    const h = meta.heads[pose] || meta.heads.idle;
+    if (!h) return false;
+    const s = height / meta.standingH;
+    const w = 2 * h[2] * 1.0 * s;
+    const hh = w * (im.height / im.width);
+    const hx = (h[0] - meta.centreX) * s * (flip ? -1 : 1);
+    const hy = (h[1] - anchorFor(meta, pose)) * s;
+    ctx.save();
+    ctx.translate(x + hx, groundY + hy);
+    if (flip) ctx.scale(-1, 1);
+    // The cutout's own face sits about 58% down it, so line THAT up with the
+    // anchor rather than the image centre, or the swap rides high on the hair.
+    ctx.drawImage(im, -w / 2, -hh * 0.58, w, hh);
+    ctx.restore();
+    return true;
+  },
+};
+
 export const FACES = {
   img: {}, size: 96, ready: false,
 

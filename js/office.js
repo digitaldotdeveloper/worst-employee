@@ -157,7 +157,7 @@ export class Coworker extends Body {
     // and the whole room turns with them, and they stay turned. In a mission
     // they still need two real blows each, because a mission is a place you are
     // pretending to work.
-    const need = s.freeForAll ? 1 : 2;
+    const need = (s.freeForAll && !this.isManager) ? 1 : 2;
     if (this.rage >= need && !this.fighting) {
       this.fighting = true;
       this.mode = 'fight';
@@ -169,6 +169,7 @@ export class Coworker extends Body {
         let joined = 0;
         for (const c of s.coworkers) {
           if (c === this || c.dead || c.held || c.fighting || c.visible === false) continue;
+          if (c.isManager) continue;              // he has his own arc; see main.js
           c.rage = Math.max(c.rage, need);
           c.fighting = true;
           c.timer = 600;

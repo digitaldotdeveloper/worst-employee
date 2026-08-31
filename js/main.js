@@ -5,7 +5,7 @@ import { VERSION, VIEW, FLOOR_Y, CEIL_Y, ROOF_Y, LEVEL_W, COL, COFFEE, RANKS, QU
 import { World } from './engine.js';
 import { FX } from './fx.js';
 import { ART, SPRITES, WORLD, CAST, WEAPON_ART, FACES, poseFor, npcPoseName, bossPoseName,
-         drawWeapon, recolourSprites, drawHuman, drawProp, roundRect } from './art.js';
+         drawWeapon, recolourSprites, drawHuman, drawProp, roundRect, HEADS } from './art.js';
 import { RIG } from './rig.js';
 import { SFX } from './audio.js';
 import { Music } from './music.js';
@@ -216,6 +216,15 @@ function setScene(on) {
 function reactionBubble(ctx, art, emo, who, k) {
   FACES.draw(ctx, art, emo, who.cx + who.w * 0.62, who.y - who.h * 0.30,
              who.h * 0.62, k);
+}
+
+// Swap the character's own head for the same head wearing a different face.
+// Falls back to the bubble when a head has not been drawn for that combination,
+// so a missing expression degrades to the old presentation instead of nothing.
+function reaction(ctx, art, emo, who, meta, pose, height, k) {
+  if (HEADS.ready && HEADS.has(art, emo) &&
+      HEADS.draw(ctx, art, emo, meta, pose, who.cx, who.y + who.h, height, who.face < 0)) return;
+  reactionBubble(ctx, art, emo, who, k);
 }
 
 function toast(text, cls = '') {
@@ -469,6 +478,11 @@ function startShift() {
     S.actors.hr = hr;
     const bs = new Coworker(HR_X + 400, 'MR. HALEY');
     bs.title = 'YOUR MANAGER'; bs.art = 'boss-calm'; bs.mode = 'work'; bs.visible = false;
+    // He is a Coworker object, so free roam's floor-turns swept him up with
+    // everyone else and one punch had him fully enraged and swinging. He is
+    // not floor staff: he has his own five-stage anger ladder and his own
+    // fight, and neither should be skippable with a single jab.
+    bs.isManager = true;
     S.world.add(bs); S.coworkers.push(bs);
     S.actors.boss = bs;
     S.intro = true;
@@ -1355,8 +1369,10 @@ function render() {
         c.cx, c.y + c.h, c.h * 1.10, c.face < 0, 1);
       // a health bar, but only while they are actually hurt
       // the expression, painted over their own face
-      if (FACES.ready && c.face_t > 0) {
-        reactionBubble(ctx, c.art, c.face_emo, c, 1 - c.face_t / c.face_max);
+      if (c.face_t > 0) {
+        const set = CAST.sets[c.art];
+        reaction(ctx, c.art, c.face_emo, c, set && set.meta, npcPoseName(c, c.animT),
+                 c.h * 1.10, 1 - c.face_t / c.face_max);
       }
       if (c.hp < c.maxHp && c.mode !== 'down') {
         const w = 26, hx = c.cx - w / 2, hy = c.y - 20;
@@ -1397,8 +1413,10 @@ function render() {
     if (CAST.has(bossArt)) {
       CAST.draw(ctx, bossArt, bossPoseName(b, b.animT),
         b.cx, b.y + b.h, b.h * 1.10, b.face < 0, b.hurtT > 0 ? 0.65 : 1);
-      if (FACES.ready && b.face_t > 0) {
-        reactionBubble(ctx, bossArt, b.face_emo, b, 1 - b.face_t / b.face_max);
+      if (b.face_t > 0) {
+        const bs = CAST.sets[bossArt];
+        reaction(ctx, bossArt, b.face_emo, b, bs && bs.meta, bossPoseName(b, b.animT),
+                 b.h * 1.10, 1 - b.face_t / b.face_max);
       }
     } else if (RIG.cast[bossArt]) {
       RIG.drawCast(ctx, bossArt, RIG.bossPose(b, b.animT),
@@ -1457,8 +1475,9 @@ function render() {
     });
     ctx.restore();
   }
-  if (FACES.ready && p.face_t > 0) {
-    reactionBubble(ctx, 'player', p.face_emo, p, 1 - p.face_t / p.face_max);
+  if (p.face_t > 0) {
+    reaction(ctx, 'player', p.face_emo, p, SPRITES.meta, curPose || 'idle',
+             p.h * p.squash * 1.06, 1 - p.face_t / p.face_max);
   }
   ctx.fillStyle = 'rgba(255,255,255,.5)';
   ctx.font = `700 ${8 / S.zoom * 1.6}px system-ui`; ctx.textAlign = 'center';
@@ -1712,6 +1731,7 @@ SPRITES.load().then(ok => {
 });
 WEAPON_ART.load().then(n => console.log('weapon art loaded: ' + n));
 FACES.load().then(n => console.log('reaction faces loaded: ' + n));
+HEADS.load().then(n => console.log('head swaps loaded: ' + n));
 WORLD.load().then(ok => console.log(ok ? 'world art loaded: ' + Object.keys(WORLD.props).length + ' props' : 'no world art'));
 CAST.load(['npc-sami', 'npc-rita', 'npc-omar', 'boss-calm', 'boss-rage'])
   .then(n => console.log('cast frames loaded: ' + n + ' characters'));
