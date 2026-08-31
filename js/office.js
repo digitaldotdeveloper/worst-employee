@@ -91,7 +91,13 @@ export class Coworker extends Body {
 
     this.timer -= dt;
     const panic = s.chaos.alive || s.anger > 60;
-    if (panic && this.mode !== 'panic') { this.mode = 'panic'; this.timer = 2 + Math.random() * 2; }
+    if (panic && this.mode !== 'panic') {
+      this.mode = 'panic';
+      this.timer = 2 + Math.random() * 2;
+      // Not everyone screams at once — a third of them, or the room turns into
+      // a single wall of noise the moment a chain starts.
+      if (Math.random() < 0.34) SFX.voice(this.name, 'scream', 0.7);
+    }
 
     if (this.mode === 'panic') {
       const away = Math.sign(this.cx - s.player.cx) || 1;
@@ -144,6 +150,7 @@ export class Coworker extends Body {
       s.playerHits++;
       FX.kick(6, 0.06);
       SFX.hit(0.6);
+      SFX.voice('player', 'hurt', 0.5);
       FX.float(p.cx, p.y - 10, 'OW', '#ff7b7b', 13);
     }
   }
@@ -154,6 +161,9 @@ export class Coworker extends Body {
     this.mode = 'down';
     this.hurtT = 0.3;
     this.downT = t;
+    // A real thumping gets a scream; a shove gets a yelp. The voice module
+    // rate-limits per person, so a combo does not stack four of them.
+    SFX.voice(this.name, dmg > 45 ? 'scream' : 'hurt', Math.min(1, dmg / 60));
     this.va = (Math.random() - 0.5) * 12;
     if (!this.annoyed) { this.annoyed = true; s.annoyed++; }
   }
@@ -221,6 +231,7 @@ export class Boss extends Body {
       s.playerHits++;
       FX.kick(9, 0.09);
       SFX.hit(0.9);
+      SFX.voice('player', 'hurt', 0.8);
       FX.float(p.cx, p.y - 10, 'OW', '#ff7b7b', 15);
     }
   }

@@ -107,6 +107,9 @@ const S = {
     if (b.type === 'boss') {
       if (!b.fighting) { this.addAnger(6); return; }
       b.hp -= dmg; b.hurtT = 0.16;
+      // He swears when hurt. It is gibberish under a bleep, so it stays funny
+      // and stays rateable.
+      SFX.voice('boss', Math.random() < 0.45 ? 'curse' : 'hurt', 0.8);
       if (b.hp <= 0) { S.bossBeaten = true; bossDown(); }
       return;
     }
@@ -442,6 +445,9 @@ const JABS = [
 ];
 S.annoy = function (c) {
   c.annoyCd = 1.1;
+  // Being pestered is not being hit: they grumble rather than yelp, and the
+  // third time they properly swear about it.
+  SFX.voice(c.name, c.annoyed2 >= 2 ? 'curse' : 'mutter', 0.4);
   c.annoyed2++;
   c.mode = 'panic';
   c.timer = 0.9;
@@ -680,6 +686,7 @@ function startBossFight() {
   FX.kick(16, 0.22);
   FX.flash = 1;
   SFX.bossRoar();
+  SFX.voice('boss', 'curse', 1);
   SFX.setTension(1);
   faceFor(S.boss, 'fury', 2600);
   toast('"I HAVE HAD ENOUGH!"', 'boss');
@@ -693,6 +700,7 @@ function bossDown() {
   b.va = 8; b.angle = 1.5;
   b.solid = false;
   FX.kick(18, 0.25);
+  SFX.voice('boss', 'mutter', 0.4);
   toast('"...You know what? You\'ve got potential."', 'boss');
   // stamp the shift: without this the timer could end the NEXT shift
   const myShift = S.shiftId;

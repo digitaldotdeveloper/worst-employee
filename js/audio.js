@@ -245,6 +245,198 @@ S.promote = function () {
     tone(f, t + i * 0.11, 0.32, 'triangle', 0.15));
 };
 
+// ---------------------------------------------------------------- voices
+//
+// Cartoon gibberish, not speech. Every character yelp, scream and swear in this
+// game is two oscillators through a pair of bandpass filters parked on vowel
+// formants — the Animal Crossing / Simlish trick. It is here rather than in a
+// pack of recordings for four reasons that all matter to this project:
+//
+//   * The music model cannot do it. It is instrumental by design; every prompt
+//     in the Studio packs literally ends "no vocals".
+//   * Recorded voice lines are the one asset class that cannot be generated
+//     free, and the whole budget is the 25-dollar Play fee.
+//   * A recording is one performance. This is pitched per character and per
+//     hit, so the boss and the intern are audibly different people and the
+//     fifth hit of a combo does not replay the fourth.
+//   * Swearing that is actually gibberish under a censor bleep is funnier than
+//     swearing, and it cannot fail a store rating or need translating.
+//
+// A "vowel" here is just the first two formants. Sliding the pitch across a
+// syllable is what makes it read as a voice rather than a synth blip: falling
+// for pain, rising for surprise, wobbling for a rant.
+
+const VOWELS = [
+  [730, 1090],   // a
+  [530, 1840],   // e
+  [270, 2290],   // i
+  [570, 840],    // o
+  [300, 870],    // u
+];
+
+// f0 is the speaking pitch, fscale stretches the formants (a smaller head has
+// higher formants, which is what separates male from female far more than pitch
+// alone does), rate is how fast they talk.
+const VOICES = {
+  player:  { f0: 132, fscale: 1.00, wave: 'sawtooth', rate: 1.00 },
+  boss:    { f0: 92,  fscale: 0.90, wave: 'sawtooth', rate: 0.86 },
+  omar:    { f0: 158, fscale: 1.06, wave: 'square',   rate: 1.30 },  // nervous, fast
+  rita:    { f0: 214, fscale: 1.18, wave: 'sawtooth', rate: 1.16 },  // sharp
+  sami:    { f0: 104, fscale: 0.96, wave: 'square',   rate: 0.78 },  // slow, dopey
+  male:    { f0: 124, fscale: 1.00, wave: 'sawtooth', rate: 1.00 },
+  male2:   { f0: 148, fscale: 1.04, wave: 'square',   rate: 1.12 },
+  female:  { f0: 206, fscale: 1.16, wave: 'sawtooth', rate: 1.06 },
+  female2: { f0: 232, fscale: 1.22, wave: 'square',   rate: 1.20 },
+};
+
+// The named cast in office.js. Anyone else falls through to the hash below, so
+// adding a coworker never leaves them mute.
+const CAST_VOICE = {
+  SAMI: 'sami', RITA: 'rita', OMAR: 'omar',
+  LEA: 'female', KARIM: 'male2', NOUR: 'female2', DALIA: 'female',
+  'MR. HALEY': 'boss', PLAYER: 'player', BOSS: 'boss',
+};
+
+function voiceOf(who) {
+  if (!who) return VOICES.male;
+  const k = String(who).toUpperCase();
+  if (CAST_VOICE[k]) return VOICES[CAST_VOICE[k]];
+  if (VOICES[k.toLowerCase()]) return VOICES[k.toLowerCase()];
+  // Unknown name: pick from the hash so the same person keeps the same voice
+  // for the whole shift rather than changing every time they are hit.
+  let h = 0;
+  for (let i = 0; i < k.length; i++) h = (h * 31 + k.charCodeAt(i)) | 0;
+  return [VOICES.male, VOICES.female, VOICES.male2, VOICES.female2][Math.abs(h) % 4];
+}
+
+// One syllable: a pitched buzz shaped by two formants, gliding from f1 to f2.
+function syllable(t, v, dur, fFrom, fTo, vowel, loud, wobble = 0) {
+  const [F1, F2] = VOWELS[vowel % VOWELS.length];
+  const osc = ctx.createOscillator();
+  osc.type = v.wave;
+  osc.frequency.setValueAtTime(Math.max(40, fFrom), t);
+  osc.frequency.exponentialRampToValueAtTime(Math.max(40, fTo), t + dur);
+
+  // vibrato — a scream without it sounds like a car alarm
+  let lfo = null;
+  if (wobble > 0) {
+    lfo = ctx.createOscillator();
+    lfo.frequency.value = 11 + Math.random() * 5;
+    const amt = ctx.createGain();
+    amt.gain.value = fFrom * wobble;
+    lfo.connect(amt);
+    amt.connect(osc.frequency);
+    lfo.start(t);
+    lfo.stop(t + dur + 0.05);
+  }
+
+  const out = ctx.createGain();
+  out.gain.setValueAtTime(0.0001, t);
+  out.gain.exponentialRampToValueAtTime(Math.max(0.0001, loud), t + Math.min(0.02, dur * 0.25));
+  out.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  out.connect(sfxGain);
+
+  for (const [f, g] of [[F1, 1.0], [F2, 0.55]]) {
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = f * v.fscale;
+    bp.Q.value = 7;
+    const lvl = ctx.createGain();
+    lvl.gain.value = g;
+    osc.connect(bp); bp.connect(lvl); lvl.connect(out);
+  }
+
+  osc.start(t);
+  osc.stop(t + dur + 0.05);
+}
+
+// A censor bleep. Sits over the middle of a swear so the gibberish underneath
+// is implied rather than heard, which is the whole joke.
+function bleep(t, dur, loud = 0.13) {
+  const o = ctx.createOscillator();
+  o.type = 'square';
+  o.frequency.value = 1000;
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(loud, t + 0.008);
+  g.gain.setValueAtTime(loud, t + dur - 0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g); g.connect(sfxGain);
+  o.start(t); o.stop(t + dur + 0.02);
+}
+
+// One character never talks over themselves: a five-hit combo would otherwise
+// stack five screams into a wall of noise.
+const voiceBusy = new Map();
+
+/**
+ * who   'player' | 'boss' | a coworker's name — anything unknown gets a
+ *        stable voice from its hash
+ * kind  'hurt' | 'scream' | 'curse' | 'mutter'
+ */
+SFX.voice = function (who, kind = 'hurt', power = 0.5) {
+  if (!this.ready || !this.enabled) return;
+  const v = voiceOf(who);
+  const now = ctx.currentTime;
+  const key = String(who || '?').toUpperCase();
+  if ((voiceBusy.get(key) || 0) > now) return;
+
+  const p = Math.max(0, Math.min(1, power));
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  const pick = () => Math.floor(Math.random() * VOWELS.length);
+  let t = now + 0.01;
+  let busy = 0.3;
+
+  if (kind === 'scream') {
+    // one long vowel, up then down, wobbling
+    const dur = rnd(0.55, 0.95) / v.rate;
+    const top = v.f0 * rnd(2.0, 2.6);
+    syllable(t, v, dur * 0.35, v.f0 * 1.3, top, Math.random() < 0.5 ? 0 : 1, 0.20 + p * 0.1, 0.05);
+    syllable(t + dur * 0.34, v, dur * 0.66, top, v.f0 * 1.1, 0, 0.19 + p * 0.1, 0.07);
+    busy = dur + 0.35;
+  } else if (kind === 'curse') {
+    // a short rant, bleeped through the middle
+    const n = 3 + Math.floor(Math.random() * 3);
+    const step = rnd(0.10, 0.14) / v.rate;
+    for (let i = 0; i < n; i++) {
+      const f = v.f0 * rnd(1.0, 1.6);
+      syllable(t, v, step * 0.85, f, f * rnd(0.72, 1.25), pick(), 0.16, 0.02);
+      t += step;
+    }
+    const span = n * step;
+    bleep(now + 0.01 + span * 0.22, span * 0.62);
+    busy = span + 0.4;
+  } else if (kind === 'mutter') {
+    // Grumbling under the breath: slow, no bleep, and quieter than a yelp — but
+    // the first version dropped the pitch so far (0.72x of an already low f0)
+    // that the boss's fundamental fell below the formant band and almost
+    // nothing came through: 0.014 peak on the master bus, inaudible under
+    // music. Staying nearer the speaking pitch is what makes it a grumble you
+    // can actually hear rather than a gain problem.
+    const n = 3 + Math.floor(Math.random() * 4);
+    const step = rnd(0.11, 0.16) / v.rate;
+    for (let i = 0; i < n; i++) {
+      const f = v.f0 * rnd(0.86, 1.02);
+      syllable(t, v, step * 0.8, f, f * rnd(0.85, 1.05), pick(), 0.20, 0.015);
+      t += step;
+    }
+    busy = n * step + 0.25;
+  } else {
+    // hurt: one or two falling syllables — "ow", "ar-gh"
+    const n = Math.random() < 0.35 ? 2 : 1;
+    const step = rnd(0.10, 0.15) / v.rate;
+    for (let i = 0; i < n; i++) {
+      const f = v.f0 * rnd(1.5, 2.1) * (1 + p * 0.25);
+      syllable(t, v, step * 0.95, f, f * rnd(0.55, 0.72), i ? pick() : (Math.random() < 0.6 ? 0 : 3),
+               0.15 + p * 0.09, 0.03);
+      t += step;
+    }
+    busy = n * step + 0.18;
+  }
+
+  voiceBusy.set(key, now + busy);
+};
+
 // ---------------------------------------------------------------- music
 //
 // "Original comedic cartoon soundtrack: fast tempo, playful brass, pizzicato
