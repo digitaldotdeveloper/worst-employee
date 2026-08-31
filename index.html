@@ -53,6 +53,21 @@
       <div class="combo-hint">UP uppercut &middot; DOWN hook &middot; BACK spin</div>
     </div>
     <button id="btnLift" class="lift-btn hidden">&#9650;&nbsp; OPEN THE LIFT</button>
+
+    <!-- THE LIFT PANEL. Stepping into the lift is the only first-person moment
+         in the game: the camera is your eyes, the panel is on the wall, and
+         your hand comes in from the bottom right to press a floor. -->
+    <div id="liftPanel" class="lift-panel hidden">
+      <div class="lp-wall">
+        <div class="lp-plate">
+          <div class="lp-readout"><b id="lpFloor">12</b><span id="lpName">OPERATIONS</span></div>
+          <div class="lp-grid" id="lpGrid"></div>
+          <div class="lp-brand">VANTIX SOLUTIONS</div>
+        </div>
+        <div class="lp-hand" id="lpHand" aria-hidden="true"></div>
+      </div>
+      <button id="lpClose" class="ghost-btn">STEP OUT</button>
+    </div>
     <div class="side-col">
       <div id="msnHud" class="msn-hud hidden"></div>
       <div id="jobs" class="jobs"></div>

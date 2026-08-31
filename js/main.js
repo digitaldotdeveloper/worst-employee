@@ -937,10 +937,65 @@ function travelTo(floorId) {
   }, 260);
 }
 
+// STEPPING INTO THE LIFT. The lift used to be a toggle between two floors —
+// press it on 12, arrive on 13. With six floors it has to become a choice, and
+// the choice is the panel: first person, your hand, buttons that are lit or
+// locked, and a reason when one will not take you.
 function rideLift() {
   if (!S.nearLift || S.liftCd > 0) return;
   S.liftCd = 1.2;
-  travelTo(S.floor === 'ops' ? 'exec' : 'ops');
+  openLiftPanel();
+}
+
+function floorLocked(F) {
+  if (!F) return 'That floor does not exist.';
+  // A ruin gate is a lock you can OPEN, so it is checked first and its own
+  // message explains the price. Everything else is locked flat for now.
+  if (F.needRuin) {
+    return ((S.career.ruin || 0) + S.ruin < F.needRuin) ? F.locked : null;
+  }
+  return F.locked || null;
+}
+
+function openLiftPanel() {
+  const here = FLOORS[S.floor] || FLOORS.ops;
+  $('lpFloor').textContent = here.no === 0 ? 'P' : String(here.no);
+  $('lpName').textContent = here.name.split('—').pop().trim();
+
+  const grid = $('lpGrid');
+  grid.innerHTML = '';
+  // Highest floor first, the way a real panel reads.
+  const floors = Object.values(FLOORS).sort((a, b) => b.no - a.no);
+  for (const F of floors) {
+    const b = document.createElement('button');
+    const lock = floorLocked(F);
+    const isHere = F.id === S.floor;
+    b.className = 'lp-btn' + (isHere ? ' here' : '') + (lock && !isHere ? ' locked' : '');
+    b.innerHTML = (F.no === 0 ? 'P' : F.no) +
+      '<small>' + F.name.split('—').pop().trim() + '</small>';
+    b.onclick = () => {
+      // The hand presses whether or not the floor opens — a dead button that
+      // does not even move reads as broken rather than locked.
+      const hand = $('lpHand');
+      hand.classList.add('press');
+      setTimeout(() => hand.classList.remove('press'), 130);
+      if (isHere) { SFX.ui(false); toast('You are already on ' + F.name + '.'); return; }
+      if (lock) { SFX.ui(false); toast(lock, 'boss'); return; }
+      SFX.ui(true);
+      closeLiftPanel();
+      travelTo(F.id);
+    };
+    grid.appendChild(b);
+  }
+  S.inLift = true;
+  show('liftPanel');
+  hide('touch');
+}
+
+function closeLiftPanel() {
+  S.inLift = false;
+  hide('liftPanel');
+  if (HAS_TOUCH) show('touch');
 }
 
 function startBossFight() {
@@ -1104,6 +1159,16 @@ function update(dt) {
   if (S.boostT > 0) {
     S.boostT -= dt;
     if (S.boostT <= 0) { S.speedMul = 1; S.chaosMul = 1; hide('boost'); }
+  }
+
+  // IN THE LIFT. The doors are shut and the world is on the other side of them:
+  // the office keeps existing but nothing moves, so a colleague cannot wander
+  // into you and the chain cannot tick while you are reading a button panel.
+  // FX still steps, or a hit-stop started as you stepped in would freeze solid.
+  if (S.inLift) {
+    FX.step(dt);
+    updateHud();
+    return;
   }
 
   if (S.story && S.story.active) {
@@ -1809,6 +1874,7 @@ $('btnSkip').onclick = () => {
   SFX.ui(false);
 };
 $('btnLift').addEventListener('pointerdown', e => { e.preventDefault(); rideLift(); });
+$('lpClose').onclick = () => { SFX.ui(false); closeLiftPanel(); };
 $('btnFS').addEventListener('click', () => { goFullscreen(); syncFsBtn(); });
 $('btnSwap').addEventListener('pointerdown', e => { e.preventDefault(); cycleWeapon(); });
 $('btnShopFromReport').onclick = () => { Music.scene('shop'); buildShop(); hide('report'); show('shop'); S.shopFrom = 'report'; };

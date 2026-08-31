@@ -2,7 +2,8 @@
 // Script section 10 — objects must interact physically, not decorate.
 
 import { Body } from './engine.js';
-import { FLOOR_Y, LEVEL_W, COL, ANGER_STAGES, ROOMS, FLOORS, FLOOR_ROOMS, CUR } from './config.js';
+import { FLOOR_Y, LEVEL_W, COL, ANGER_STAGES, ROOMS, FLOORS, FLOOR_ROOMS,
+         FLOOR_STAFF, CUR } from './config.js';
 import { FX } from './fx.js';
 import { SFX } from './audio.js';
 
@@ -359,6 +360,124 @@ function lift(world, s, x) {
   return b;
 }
 
+// ---------------------------------------------------------------
+// FURNISHING BY ROOM KIND.
+//
+// Floors 12 and 13 are hand-built because they carry the story — your desk, the
+// coffee machine the game jokes about, the boss's office. Every OTHER floor is
+// generated from the room list in config, because eight hand-written build
+// functions is how a building stops being worth adding rooms to.
+//
+// Each recipe fills a span with the furniture that room would actually have.
+// Spacing is derived from the span so a wide room gets more desks rather than
+// the same desks further apart — an empty middle reads as unfinished, and
+// "unarranged" was the note on the very first version of floor 12.
+// ---------------------------------------------------------------
+function furnish(world, s, room) {
+  const P = (kind, x) => world.add(makeProp(kind, x));
+  const span = room.x1 - room.x0;
+  const at = f => room.x0 + span * f;
+
+  switch (room.kind) {
+    case 'lobby':
+      P('plant', at(0.25)); P('plant', at(0.75)); P('bin', at(0.5));
+      break;
+
+    case 'openplan': {
+      // one workstation per ~380px, never fewer than two in a real room
+      const n = Math.max(2, Math.round(span / 380));
+      for (let i = 0; i < n; i++) {
+        const x = room.x0 + span * ((i + 0.5) / n);
+        workstation(world, x, { phone: i % 2 === 0, bin: i % 2 === 1 });
+      }
+      P('printer', at(0.5));
+      if (span > 900) P('cabinet', at(0.9));
+      P('extinguisher', room.x1 - 40);
+      break;
+    }
+
+    case 'office': {
+      // one person's room: a big desk, status objects, nothing shared
+      const d = desk(world, at(0.45));
+      P('monitor', at(0.45) + 16); P('stack', at(0.6)); P('phone', at(0.72));
+      world.add(makeProp('chair', at(0.32), FLOOR_Y - PROPS.chair.h));
+      P('cabinet', at(0.15)); P('plant', at(0.88));
+      return d;
+    }
+
+    case 'meeting': {
+      const tables = Math.max(2, Math.round(span / 220));
+      for (let i = 0; i < tables; i++) desk(world, room.x0 + span * ((i + 0.5) / tables));
+      for (let i = 0; i < tables + 2; i++) {
+        world.add(makeProp('chair', room.x0 + span * (i / (tables + 1)), FLOOR_Y - PROPS.chair.h));
+      }
+      P('mug', at(0.3)); P('stack', at(0.5)); P('mug', at(0.7));
+      P('plant', room.x1 - 60);
+      break;
+    }
+
+    case 'kitchen': {
+      const c = makeProp('coffee', at(0.2)); c.grabbable = false; world.add(c);
+      if (!s.coffeeMachine) s.coffeeMachine = c;
+      const w = makeProp('cooler', at(0.32)); w.isWater = true; world.add(w);
+      desk(world, at(0.55));
+      P('mug', at(0.55)); P('mug', at(0.6)); P('stack', at(0.66));
+      world.add(makeProp('chair', at(0.48), FLOOR_Y - PROPS.chair.h));
+      world.add(makeProp('chair', at(0.68), FLOOR_Y - PROPS.chair.h));
+      P('bin', at(0.82)); P('plant', at(0.92));
+      break;
+    }
+
+    case 'server':
+      // racks read as cabinets; nothing here is comfortable and nothing is yours
+      for (let i = 0; i < Math.max(3, Math.round(span / 160)); i++) {
+        P('cabinet', room.x0 + span * ((i + 0.5) / Math.max(3, Math.round(span / 160))));
+      }
+      P('extinguisher', room.x1 - 50);
+      break;
+
+    case 'archive':
+      for (let i = 0; i < Math.max(2, Math.round(span / 150)); i++) {
+        P('cabinet', room.x0 + span * ((i + 0.5) / Math.max(2, Math.round(span / 150))));
+      }
+      P('stack', at(0.3)); P('stack', at(0.7));
+      break;
+
+    case 'park':
+      // No desks. The joke is that it is the only floor with nothing to ruin,
+      // which is also why it is the one you are not allowed on.
+      P('bin', at(0.15)); P('bin', at(0.6));
+      P('extinguisher', at(0.35)); P('extinguisher', at(0.85));
+      break;
+
+    case 'empty':
+    default:
+      break;
+  }
+  return null;
+}
+
+// A whole floor from its room list. Returns anything a caller needs to keep.
+function buildGeneric(world, s, F, floorId) {
+  world.statics.length = 0;
+  s.coworkers = [];
+  const rooms = FLOOR_ROOMS[floorId] || [];
+  for (const r of rooms) furnish(world, s, r);
+
+  for (const [name, title, art, roomId] of (FLOOR_STAFF[floorId] || [])) {
+    const r = rooms.find(x => x.id === roomId) || rooms[0];
+    if (!r) continue;
+    const x = r.x0 + (r.x1 - r.x0) * 0.5;
+    const c = new Coworker(x, name);
+    c.title = title; c.art = art; c.homeX = x; c.deskX = x;
+    world.add(c); s.coworkers.push(c);
+  }
+
+  lift(world, s, F.liftX);
+  s.boss = null;
+  return {};
+}
+
 export function buildOffice(world, s, floorId = 'ops') {
   const F = FLOORS[floorId] || FLOORS.ops;
   CUR.rooms = FLOOR_ROOMS[floorId] || FLOOR_ROOMS.ops;
@@ -366,6 +485,9 @@ export function buildOffice(world, s, floorId = 'ops') {
   s.floor = floorId;
   world.levelW = F.w;
   if (floorId === 'exec') return buildExec(world, s, F);
+  // Floors 12 and 13 are hand-built because they carry the story. Everything
+  // else is generated from its room list.
+  if (floorId !== 'ops') return buildGeneric(world, s, F, floorId);
   world.levelW = LEVEL_W;
   world.statics.length = 0;
   s.coworkers = [];

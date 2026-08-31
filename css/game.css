@@ -378,3 +378,69 @@ h3{font-size:11px;letter-spacing:.18em;color:#8d93a6;margin:18px 0 7px}
 .hpbar{width:132px;height:7px;border-radius:4px;background:rgba(10,11,14,.7);
   border:1px solid rgba(255,255,255,.18);overflow:hidden;margin-bottom:5px}
 .hpbar i{display:block;height:100%;width:100%;background:#8fd6a0;transition:width .15s,background .3s}
+
+/* ---------------- THE LIFT PANEL ----------------
+   The one first-person moment in the game. The camera is your eyes, the plate
+   is on the wall in front of you, and your hand comes in from the bottom right
+   to press a floor — which is why the hand is drawn OVER the plate and tilted:
+   an arm reaching past your own shoulder, not a cursor. */
+.lift-panel{position:absolute;inset:0;z-index:60;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:10px;pointer-events:auto;
+  background:radial-gradient(120% 90% at 50% 40%,rgba(30,28,24,.93),rgba(8,9,12,.97))}
+.lp-wall{position:relative;width:min(300px,74vw,calc(52vh - 30px));
+  background:linear-gradient(160deg,#3a3a40,#25262b 60%,#1d1e22);
+  border:1px solid rgba(255,255,255,.12);border-radius:14px;
+  padding:14px 14px 16px;box-shadow:0 18px 50px rgba(0,0,0,.65),
+  inset 0 1px 0 rgba(255,255,255,.16)}
+.lp-plate{background:linear-gradient(150deg,#4a4b52,#303138);border-radius:10px;
+  padding:12px 12px 10px;border:1px solid rgba(0,0,0,.5);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.18)}
+.lp-readout{background:#0d1410;border:1px solid rgba(0,0,0,.6);border-radius:5px;
+  padding:5px 9px;margin-bottom:11px;display:flex;align-items:baseline;gap:9px;
+  box-shadow:inset 0 0 14px rgba(120,255,150,.10)}
+.lp-readout b{font:900 clamp(14px,4.6vh,21px)/1 ui-monospace,monospace;color:#8dffb0;
+  text-shadow:0 0 10px rgba(120,255,150,.65);letter-spacing:.04em}
+.lp-readout span{font:800 8.5px/1 system-ui;letter-spacing:.16em;color:#5f8f72}
+.lp-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}
+.lp-btn{position:relative;aspect-ratio:1;border-radius:50%;cursor:pointer;
+  font-size:clamp(11px,3.2vh,15px);
+  background:radial-gradient(circle at 36% 30%,#5c5e67,#33343b);
+  border:1px solid rgba(0,0,0,.55);color:#e8eaf0;
+  font:900 15px/1 ui-monospace,monospace;
+  box-shadow:0 2px 0 rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.22);
+  display:flex;align-items:center;justify-content:center;transition:transform .06s}
+.lp-btn small{position:absolute;bottom:-13px;left:50%;transform:translateX(-50%);
+  font:800 6.5px/1 system-ui;letter-spacing:.1em;color:#8d93a6;white-space:nowrap}
+.lp-btn.here{background:radial-gradient(circle at 36% 30%,#ffe89a,#e0a93a);color:#3a2a05;
+  box-shadow:0 0 16px rgba(255,215,94,.5),inset 0 1px 0 rgba(255,255,255,.4)}
+.lp-btn.locked{opacity:.42;cursor:not-allowed}
+.lp-btn.locked:after{content:'🔒';position:absolute;font-size:8px;
+  left:50%;transform:translateX(-50%);bottom:14%;filter:grayscale(1);opacity:.75}
+.lp-btn:active:not(.locked){transform:translateY(2px);box-shadow:none}
+.lp-brand{margin-top:18px;text-align:center;font:800 6.5px/1 system-ui;
+  letter-spacing:.34em;color:#6b6d78}
+/* the hand: only a silhouette, because a detailed hand at this size reads as a
+   glove lying on the buttons */
+.lp-hand{position:absolute;right:-14%;bottom:-30%;width:30%;height:46%;
+  pointer-events:none;transform-origin:80% 100%;transform:rotate(-14deg);
+  transition:transform .11s cubic-bezier(.3,1.5,.5,1);
+  background:linear-gradient(150deg,#d9a883,#b9835f);
+  border-radius:46% 54% 30% 40%/62% 58% 34% 38%;
+  box-shadow:-6px -6px 22px rgba(0,0,0,.45)}
+.lp-hand:before{content:'';position:absolute;left:14%;top:-16%;width:26%;height:44%;
+  background:linear-gradient(160deg,#e2b58f,#c08a63);border-radius:46% 46% 30% 30%;
+  box-shadow:-3px -2px 8px rgba(0,0,0,.3)}
+.lp-hand.press{transform:rotate(-14deg) translate(-6%,-9%) scale(1.03)}
+/* A landscape phone is ~390px tall. Three rows of buttons plus a readout plus
+   STEP OUT does not fit at desktop sizing, so short viewports get a THREE-wide
+   grid — two rows instead of three — and a tighter plate. */
+@media (max-height:460px){
+  .lift-panel{gap:6px}
+  .lp-wall{width:min(300px,62vw);padding:8px 10px 10px}
+  .lp-plate{padding:8px 9px 7px}
+  .lp-readout{margin-bottom:7px;padding:3px 7px}
+  .lp-grid{grid-template-columns:repeat(3,1fr);gap:6px}
+  .lp-btn small{bottom:-11px;font-size:5.5px}
+  .lp-brand{margin-top:17px;font-size:5.5px;letter-spacing:.2em}
+  .lp-hand{width:24%;height:38%;right:-10%;bottom:-24%}
+}
