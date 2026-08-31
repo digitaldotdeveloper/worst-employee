@@ -34,6 +34,10 @@ SIZES = {
     'coffee': (22, 38),
     'cabinet': (28, 46),
     'desk': (120, 40), 'desk-alt': (120, 40),
+    # The car park. A car is the biggest object in the game by a long way —
+    # 132px against a 62px player — which is the point: it is the one prop
+    # you cannot pick up, and the floor is scaled around that.
+    'car': (132, 52), 'car-alt': (132, 52),
 }
 OVERSIZE = 1.18          # art overhangs the collider slightly so it reads as an object
 SS = 2                   # supersample for high-DPI phones

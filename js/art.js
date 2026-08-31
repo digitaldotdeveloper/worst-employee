@@ -581,6 +581,10 @@ export function npcPoseName(c, t) {
 export function bossPoseName(b, t) {
   if (b.defeated) return 'down';
   if (b.hurtT > 0) return 'hurt';
+  // He works sitting down. `sit` exists only on boss-calm — bossArtFor forces
+  // boss-rage the moment he is fighting or defeated, and a seated brawler would
+  // be nonsense anyway, so this can never ask boss-rage for a frame it lacks.
+  if (b.seated && !b.fighting) return 'sit';
   if (b.fighting && b.swingT > 0) return b.swingT > 0.20 ? 'c1-wind' : 'c1-hit';
   if (Math.abs(b.vx) > 22) return ['run-1', 'run-2', 'run-3', 'run-4'][Math.floor(t * (b.fighting ? 8 : 4)) % 4];
   return (Math.floor(t * 0.4) % 3 === 2) ? 'idle2' : 'idle';

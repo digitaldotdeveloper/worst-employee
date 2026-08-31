@@ -21,6 +21,12 @@ export const PROPS = {
   cooler:   { w:22, h:44, mass:4.0, hp:60,  value:340,  label:'WATER',   color:'#5a7fa0' },
   cabinet:  { w:28, h:46, mass:5.5, hp:90,  value:620,  label:'FILES',   color:'#6a7086' },
   coffee:   { w:22, h:38, mass:4.5, hp:90,  value:900,  label:'COFFEE',  color:'#7a5a3a' },
+  // THE CAR PARK. A car is the biggest thing in the game — 132px against a
+  // 62px player — and the only prop you cannot lift, which is what makes it
+  // read as heavy. It takes a beating before it breaks and it is the most
+  // expensive thing you can put a keyboard through.
+  car:      { w:132, h:52, mass:40, hp:420, value:8500,  label:'CAR',   color:'#6a7086' },
+  'car-alt':{ w:132, h:52, mass:40, hp:460, value:14000, label:"THE BOSS'S CAR", color:'#7a4a4a' },
 };
 
 export function makeProp(kind, x, y) {
@@ -28,6 +34,7 @@ export function makeProp(kind, x, y) {
   const b = new Body({ x, y: y ?? (FLOOR_Y - d.h), w: d.w, h: d.h,
     mass: d.mass, hp: d.hp, value: d.value, type: 'prop', kind, bounce: 0.34 });
   b.label = d.label; b.color = d.color;
+  if (d.mass >= 20) b.grabbable = false;   // you do not pick up a car
   return b;
 }
 
@@ -443,12 +450,19 @@ function furnish(world, s, room) {
       P('stack', at(0.3)); P('stack', at(0.7));
       break;
 
-    case 'park':
-      // No desks. The joke is that it is the only floor with nothing to ruin,
-      // which is also why it is the one you are not allowed on.
-      P('bin', at(0.15)); P('bin', at(0.6));
-      P('extinguisher', at(0.35)); P('extinguisher', at(0.85));
+    case 'park': {
+      // Cars in bays, the boss's in the best one nearest the lift. No desks —
+      // the joke is that the only floor with no work on it is the one with the
+      // most expensive things to break.
+      const bays = Math.max(3, Math.floor(span / 260));
+      for (let i = 0; i < bays; i++) {
+        const x = room.x0 + span * ((i + 0.5) / bays);
+        const kind = (i === bays - 1) ? 'car-alt' : 'car';
+        world.add(makeProp(kind, x, FLOOR_Y - PROPS[kind].h));
+      }
+      P('bin', at(0.08)); P('extinguisher', at(0.5));
       break;
+    }
 
     case 'empty':
     default:
@@ -617,7 +631,12 @@ function buildExec(world, s, F) {
   P('extinguisher', 2500);
   P('coffee', 2340);
 
-  const boss = new Boss(2300);
+  // He is AT the desk, not standing near it — reclined, feet up on nothing,
+  // pleased with himself, while you walk in. He stays seated until he has a
+  // reason not to: the first time you hurt him, or the fight starting.
+  const boss = new Boss(2230);
+  boss.seated = true;
+  boss.homeX = 2230;
   world.add(boss);
   s.boss = boss;
   return {};

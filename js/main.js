@@ -116,6 +116,9 @@ const S = {
       return;
     }
     if (b.type === 'boss') {
+      // He does not take a beating sitting down. The first thing you do to him
+      // gets him out of the chair, whether or not it starts the fight.
+      b.seated = false;
       if (!b.fighting) { this.addAnger(6); return; }
       b.hp -= dmg; b.hurtT = 0.16;
       // He swears when hurt. It is gibberish under a bleep, so it stays funny

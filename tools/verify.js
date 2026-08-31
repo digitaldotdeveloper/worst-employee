@@ -108,11 +108,18 @@ function coverage(label, rel, want) {
 // flat selector list against both sets reports two frames that are unreachable
 // by construction — and a checker that cries wolf is a checker nobody runs.
 const BOSS_CALM_REACHABLE = BOSS_POSES.filter(p => !/^c\d-(wind|hit)$/.test(p) && p !== 'down');
+// The mirror of that, added when the boss got a `sit` frame. bossPoseName only
+// returns 'sit' for `b.seated && !b.fighting`, and bossArtFor only chooses
+// boss-rage for `b.fighting || b.defeated` — and a defeated boss returns 'down'
+// on the line above 'sit' anyway. So boss-rage can never be asked for it.
+// Exempting it is the same call as the line above, for the same reason, and it
+// was checked against the two selectors rather than assumed.
+const BOSS_RAGE_REACHABLE = BOSS_POSES.filter(p => p !== 'sit');
 
 for (const s of PLAYER_SETS) coverage('player/' + s, `assets/player/${s}`, PLAYER_POSES);
 for (const s of CAST_SETS) {
   const want = s === 'boss-calm' ? BOSS_CALM_REACHABLE
-             : s === 'boss-rage' ? BOSS_POSES
+             : s === 'boss-rage' ? BOSS_RAGE_REACHABLE
              : NPC_POSES;
   coverage('cast/' + s, `assets/cast/${s}`, want);
 }
