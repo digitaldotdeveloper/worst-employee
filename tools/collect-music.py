@@ -38,6 +38,16 @@ WANT = {
     "room_boardroom": "a 30 second self-important executive loop: stately brass, slow marching snare, deep double bass, expensive and smug, loops cleanly, no vocals",
     "room_boss": "a 30 second ominous comedy villain loop: low pipe organ, brooding cellos, slow menacing timpani, theatrical and ridiculous, loops cleanly, no vocals",
     "room_machines": "a 30 second rhythmic office-machine loop built from printer clicks, phone trills, keyboard clatter and a photocopier hum, mechanical and groovy, loops cleanly, no vocals",
+    # --- impact cues. Only the five big, infrequent moments: these are ~30s
+    # music cues that OPEN on the hit, so js/music.js trims each to its first
+    # couple of seconds at load. The per-material smashes are deliberately not
+    # here - glass/metal/paper/plastic fire constantly and SFX.smash() already
+    # does them for nothing.
+    "combo_finish": "a short triumphant cartoon combo finisher sting: four rising percussion hits then a huge cymbal and brass slam, comedy fight cue, no vocals",
+    "ground_slam": "a short earth-shaking cartoon sting: a giant timpani and bass drum slam, low piano rumble, rattling cymbals settling, comedy orchestra, no vocals",
+    "dinner_bell": "a short comedy sting built on a ringing frying-pan clang: bright metallic bell hit, wobbling overtone, a dizzy little celesta spiral, no vocals",
+    "full_throttle": "a 30 second frantic cartoon rocket-ride loop: revving low brass, galloping snare, ascending whistle runs, wild and out of control, loops cleanly, no vocals",
+    "total_wipeout": "a short chaotic cartoon demolition sting: a cascade of crashes, tumbling timpani, brass glissando falling, cymbals everywhere, comedy orchestra, no vocals",
 }
 
 

@@ -34,6 +34,8 @@ export class Coworker extends Body {
   constructor(x, name) {
     super({ x, y: FLOOR_Y - 58, w: 30, h: 58, mass: 2.4, hp: 60, value: 0,
       type: 'npc', kind: 'coworker', bounce: 0.1, fric: 1 });
+    this.hp = 100; this.maxHp = 100;   // people are not props: they wear down
+    this.hitFlash = 0;
     this.name = name;
     this.face = Math.random() < 0.5 ? -1 : 1;
     this.mode = 'work';          // work | wander | panic | down
@@ -57,6 +59,7 @@ export class Coworker extends Body {
     if (s.story && s.story.active) { this.vx *= 0.7; return; }
     if (this.annoyCd > 0) this.annoyCd -= dt;
     if (this.swingCd > 0) this.swingCd -= dt;
+    if (this.hitFlash > 0) this.hitFlash -= dt;
     if (this.held) { this.vx = 0; return; }
     if (this.mode === 'down') {
       this.downT -= dt;
@@ -145,22 +148,36 @@ export class Coworker extends Body {
     SFX.whiff();
     if (p.iframes > 0) { FX.float(p.cx, p.y - 10, 'DODGED', '#7fd1ff', 12); return; }
     if (p.x < box.x + box.w && p.x + p.w > box.x && p.y < box.y + box.h && p.y + p.h > box.y) {
-      p.vx += this.face * 340; p.vy -= 150;
-      p.hurtT = 0.3;
-      s.playerHits++;
-      FX.kick(6, 0.06);
-      SFX.hit(0.6);
+      p.vx += this.face * 300; p.vy -= 120;
+      const floored = p.takeHit(s, 14);
+      FX.kick(floored ? 12 : 6, floored ? 0.11 : 0.06);
+      SFX.hit(floored ? 0.9 : 0.6);
       SFX.voice('player', 'hurt', 0.5);
-      FX.float(p.cx, p.y - 10, 'OW', '#ff7b7b', 13);
+      FX.float(p.cx, p.y - 10, floored ? 'DOWN' : 'OW', '#ff7b7b', floored ? 16 : 13);
     }
   }
 
+  // TAKING A HIT IS NOT THE SAME AS GOING DOWN. A blow staggers them and eats
+  // their health; they only hit the floor when it runs out. One punch used to
+  // flatten anybody, which made every fight one frame long.
+  hit(s, dmg = 20) {
+    if (this.mode === 'down') { this.downT = Math.max(this.downT, 0.6); return; }
+    this.hp -= dmg;
+    this.hurtT = 0.28;
+    this.hitFlash = 0.16;
+    this.vx += Math.sign(this.cx - s.player.cx || 1) * (40 + dmg * 2);
+    if (this.hp > 0) { this.provoke(s, 1); return false; }
+    this.knock(s, dmg);
+    return true;
+  }
+
   knock(s, dmg = 38) {
-    const t = 0.8 + Math.min(1.5, dmg / 38 * 1.5) + Math.random() * 0.3;
+    const t = 1.1 + Math.min(1.6, dmg / 38 * 1.6) + Math.random() * 0.3;
     if (this.mode === 'down') { this.downT = Math.max(this.downT, t); return; }
     this.mode = 'down';
     this.hurtT = 0.3;
     this.downT = t;
+    this.hp = Math.round(this.maxHp * 0.55);   // they get up hurt, not fresh
     // A real thumping gets a scream; a shove gets a yelp. The voice module
     // rate-limits per person, so a combo does not stack four of them.
     SFX.voice(this.name, dmg > 45 ? 'scream' : 'hurt', Math.min(1, dmg / 60));
@@ -227,12 +244,11 @@ export class Boss extends Body {
     if (p.iframes > 0) { FX.float(p.cx, p.y - 10, 'DODGED', '#7fd1ff', 13); return; }
     if (p.x < box.x + box.w && p.x + p.w > box.x && p.y < box.y + box.h && p.y + p.h > box.y) {
       p.vx += this.face * 520; p.vy -= 240;
-      p.hurtT = 0.35;
-      s.playerHits++;
-      FX.kick(9, 0.09);
-      SFX.hit(0.9);
+      const bossFloored = p.takeHit(s, 26);
+      FX.kick(bossFloored ? 15 : 9, bossFloored ? 0.14 : 0.09);
+      SFX.hit(bossFloored ? 1 : 0.9);
       SFX.voice('player', 'hurt', 0.8);
-      FX.float(p.cx, p.y - 10, 'OW', '#ff7b7b', 15);
+      FX.float(p.cx, p.y - 10, bossFloored ? 'FLOORED' : 'OW', '#ff7b7b', bossFloored ? 17 : 15);
     }
   }
 }

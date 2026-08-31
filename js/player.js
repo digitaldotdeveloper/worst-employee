@@ -19,6 +19,9 @@ export class Player extends Body {
     this.atk = null;            // { kind, step, phase, t, hit:Set }
     this.comboStep = 0; this.comboTimer = 0;
     this.dodgeT = 0; this.dodgeCd = 0; this.iframes = 0; this.hurtT = 0; this.landT = 0;
+    this.hp = 100; this.maxHp = 100;   // Body defaults to 30; you are not a mug
+    this.downT = 0;
+    this.hitFlash = 0;
     this.carrying = null;
     this.holdingPerson = false;
     this.slapCd = 0;
@@ -34,6 +37,21 @@ export class Player extends Body {
 
   get busy() { return !!this.atk || this.dodgeT > 0; }
 
+  // Damage taken. Returns true if this one put you down.
+  takeHit(s, dmg) {
+    if (this.iframes > 0 || this.downT > 0) return false;
+    this.hp -= dmg;
+    this.hurtT = 0.3;
+    this.hitFlash = 0.18;
+    s.playerHits++;
+    if (this.hp > 0) return false;
+    this.hp = 0;
+    this.downT = 2.2;
+    this.atk = null;
+    if (s.onPlayerDown) s.onPlayerDown();
+    return true;
+  }
+
   update(dt, s) {
     this.s = s;
     this.animT += dt;
@@ -43,6 +61,22 @@ export class Player extends Body {
     if (this.hurtT > 0) this.hurtT -= dt;
     if (this.landT > 0) this.landT -= dt;
     if (this.slapCd > 0) this.slapCd -= dt;
+    if (this.hitFlash > 0) this.hitFlash -= dt;
+
+    // FLOORED. Nothing responds until you get back up, which is the price of
+    // wading into a room you have spent all morning annoying.
+    if (this.downT > 0) {
+      this.downT -= dt;
+      this.vx *= 0.82;
+      this.state = 'hurt';
+      if (this.carrying) { this.carrying.held = false; this.carrying = null; this.holdingPerson = false; }
+      if (this.downT <= 0) {
+        this.hp = Math.round(this.maxHp * 0.6);
+        this.iframes = 1.1;                 // a moment to get clear
+        if (s.onPlayerUp) s.onPlayerUp();
+      }
+      return;
+    }
     this.lastDodge += dt;
 
     // landing squash

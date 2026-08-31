@@ -96,12 +96,15 @@ const S = {
         this.addAnger(0.4);
         return;
       }
-      b.provoke(this, 1);
-      b.knock(this, dmg);
-      faceFor(b, dmg > 30 ? 'dazed' : 'shock');
-      this.knocked = (this.knocked || 0) + 1;
-      this.ruin += RUIN.workerDown;
-      this.addAnger(1.4);
+      // A real blow eats HEALTH. Only an empty bar puts them on the floor —
+      // one punch used to flatten anybody, which made every fight one frame long.
+      const floored = b.hit(this, dmg);
+      faceFor(b, floored ? 'dazed' : (b.hp < b.maxHp * 0.4 ? 'fury' : 'shock'));
+      if (floored) {
+        this.knocked = (this.knocked || 0) + 1;
+        this.ruin += RUIN.workerDown;
+        this.addAnger(1.4);
+      } else this.addAnger(0.6);
       return;
     }
     if (b.type === 'boss') {
@@ -156,7 +159,10 @@ const S = {
 let scale = 1, offX = 0, offY = 0;
 function resize() {
   const dpr = Math.min(devicePixelRatio || 1, 2);
-  const W = innerWidth, H = innerHeight;
+  // visualViewport is the honest number once the address bar is involved.
+  const vv = window.visualViewport;
+  const W = Math.round(vv ? vv.width : innerWidth);
+  const H = Math.round(vv ? vv.height : innerHeight);
   VIEW.w = Math.round(Math.min(VIEW.maxW, Math.max(VIEW.minW, VIEW.h * (W / H))));
   scale = Math.min(W / VIEW.w, H / VIEW.h);
   const w = Math.round(VIEW.w * scale), h = Math.round(VIEW.h * scale);
@@ -378,6 +384,9 @@ function startShift() {
   S.liftCd = 0; S.nearLift = false; fade = 0; S.summoned = false;
   $('btnLift').classList.add('hidden');
   S.bossBeaten = false; S.slaps = 0; S.failedShown = false; S.drillRuin = 0;
+  S.timesDown = 0;
+  S.clockT = 0; S.deadlineDone = false; S.dayRoute = null;
+  $('clock').classList.add('hidden');
   S.day = freshDay(); S.dayDef = null;
   S.ruin = 0; S.deskDown = 0; S.knocked = 0; S.killed = {}; S.roomKills = {}; S.jobsDone = 0;
   S.run = (S.mode2 === 'mission' && S.mission) ? new MissionRun(S, S.mission) : null;
@@ -524,6 +533,14 @@ S.tryInteract = function () {
   return true;
 };
 
+S.onPlayerDown = () => {
+  toast('They put you on the floor.', 'boss');
+  SFX.bossRoar();
+  FX.kick(16, 0.16);
+  S.timesDown = (S.timesDown || 0) + 1;
+};
+S.onPlayerUp = () => { toast('You get up.'); SFX.ui(true); };
+
 S.onFightBack = c => {
   toast(c.name + ' has had enough of you.', 'boss');
   faceFor(c, 'fury', 2200);
@@ -579,7 +596,67 @@ function bankShift() {
   saveCareer(S.career);
 }
 
-async function drawMissionHud() {
+// ---------------------------------------------------------------
+// THE DEADLINE. Only THE ASSIGNMENT runs a clock, because a deadline is what
+// turns four options into a decision — with unlimited time you would simply do
+// all of them. At 3:00 the manager comes to collect whatever exists.
+// ---------------------------------------------------------------
+const ROUTES = [
+  { id: 'work',     test: d => d.work >= 70,
+    line: 'You sat down and fixed it yourself. Nobody will ever know you did.' },
+  { id: 'steal',    test: d => d.secrets >= 3,
+    line: "You handed over another department's deck with the logo changed." },
+  { id: 'delegate', test: d => d.relationships >= 3,
+    line: 'Somebody who actually knows the client did it for you. You watched.' },
+  { id: 'burn',     test: d => d.chaos >= 2600,
+    line: 'There is no presentation. There is no projector. There is no meeting.' },
+];
+
+function tickClock(dt) {
+  const m = S.run && S.run.m;
+  if (!m || !m.clock) return;
+  const c = m.clock;
+  S.clockT = Math.min(c.seconds, (S.clockT || 0) + dt);
+  const k = S.clockT / c.seconds;
+  const mins = c.start + (c.end - c.start) * k;
+  const hh24 = Math.floor(mins / 60), mm = Math.floor(mins % 60);
+  const hh = ((hh24 + 11) % 12) + 1;
+  const el = $('clock');
+  el.classList.remove('hidden');
+  $('clockT').textContent = `${hh}:${String(mm).padStart(2, '0')} ${hh24 < 12 ? 'AM' : 'PM'}`;
+  const left = c.seconds - S.clockT;
+  el.classList.toggle('late', left < c.seconds * 0.35 && left >= 30);
+  el.classList.toggle('urgent', left < 30);
+  $('clockNote').textContent = left < 30 ? 'THE MEETING IS NOW' : 'until the meeting';
+
+  if (S.clockT >= c.seconds && !S.deadlineDone) {
+    S.deadlineDone = true;
+    threeOClock();
+  }
+}
+
+function threeOClock() {
+  const d = S.day;
+  const won = ROUTES.find(r => r.test(d));
+  if (won) {
+    S.dayRoute = won.line;
+    S.run.state = S.run.state.map(() => true);
+    S.run.complete = true;
+    toast('3:00 PM — ' + won.line, 'boss');
+    SFX.promote();
+    FX.kick(10, 0.09);
+    if (S.onMissionComplete) S.onMissionComplete(S.run.m);
+  } else {
+    S.run.failed = true;
+    S.run.failReason = 'You had until three.';
+    S.dayRoute = 'You had nothing. He looked at you for a long time.';
+    toast('3:00 PM — you had nothing.', 'boss');
+    SFX.ui(false);
+  }
+  setTimeout(() => { if (S.mode === 'play') endShift(false); }, 3200);
+}
+
+function drawMissionHud() {
   const h = $('msnHud'), r = S.run;
   if (!r) return;
   const sig = r.m.id + r.state.join('');
@@ -755,6 +832,10 @@ function endShift(promoted = false) {
   $('reportRows').innerHTML = rows
     .map(([k, v]) => `<div><span class="lk">${k}</span><span class="lv">${v}</span></div>`)
     .join('');
+  if (S.dayRoute) {
+    $('reportRows').insertAdjacentHTML('afterbegin',
+      `<div><span class="lk">3:00 PM</span><span class="lv" style="color:#ffd75e;font-weight:700;text-align:right;max-width:62%">${S.dayRoute}</span></div>`);
+  }
   if (S.run) {
     $('reportRows').insertAdjacentHTML('afterbegin',
       `<div><span class="lk">MISSION</span><span class="lv">${S.run.complete ? 'COMPLETE' : (S.run.failed ? 'FAILED' : 'INCOMPLETE')}</span></div>`);
@@ -849,7 +930,12 @@ function update(dt) {
     S.drillRuin = (S.drillRuin || 0) + Math.max(0, S.ruin - (S.lastRuinTick || 0));
   }
   S.lastRuinTick = S.ruin;
+  tickClock(dt);
   S.sabotage.step();
+  if (S.dayRoute) {
+    $('reportRows').insertAdjacentHTML('afterbegin',
+      `<div><span class="lk">3:00 PM</span><span class="lv" style="color:#ffd75e;font-weight:700;text-align:right;max-width:62%">${S.dayRoute}</span></div>`);
+  }
   if (S.run) { S.run.step(); drawMissionHud(); }
   tickSalary(dt);
 
@@ -912,6 +998,9 @@ function updateHud() {
   $('hCoins').textContent = S.coins.toLocaleString();
   const wq = WEAPONS[S.player.equipped] || WEAPONS.fists;
   $('hWeapon').textContent = wq.name;
+  const hpf = Math.max(0, S.player.hp / S.player.maxHp);
+  $('hpFill').style.width = (hpf * 100) + '%';
+  $('hpFill').style.background = hpf > 0.5 ? '#8fd6a0' : (hpf > 0.22 ? '#ffd75e' : '#ff5c5c');
   $('hRuin').textContent = Math.round(S.ruin).toLocaleString();
   $('hRuinTier').textContent = ruinTier(S.ruin).name;
   $('hProd').textContent = Math.max(0, S.productivity).toFixed(0) + '%';
@@ -1039,6 +1128,13 @@ function render() {
     if (c.art && CAST.has(c.art)) {
       CAST.draw(ctx, c.art, npcPoseName(c, c.animT),
         c.cx, c.y + c.h, c.h * 1.10, c.face < 0, 1);
+      // a health bar, but only while they are actually hurt
+      if (c.hp < c.maxHp && c.mode !== 'down') {
+        const w = 26, hx = c.cx - w / 2, hy = c.y - 20;
+        ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(hx, hy, w, 3);
+        ctx.fillStyle = c.hp > c.maxHp * 0.4 ? '#8fd6a0' : '#ff7b7b';
+        ctx.fillRect(hx, hy, w * Math.max(0, c.hp / c.maxHp), 3);
+      }
       if (c.mode !== 'down' && Math.abs(c.cx - S.player.cx) < 190) {
         const fs = 1 / S.zoom;
         ctx.textAlign = 'center';
@@ -1111,8 +1207,18 @@ function render() {
       p.h * p.squash * 1.06, p.face < 0, alpha);
   } else if (S.useArt && SPRITES.ready) {
     // squash is applied to the draw height so landings still punch
-    SPRITES.draw(ctx, curPose, p.cx, p.y + p.h,
-      p.h * p.squash * 1.06, p.face < 0, alpha);
+    if (p.downT > 0) {
+      // No drawn floor pose for the player yet, so the hurt frame is laid over
+      // and rotated. Reads correctly and costs no art.
+      ctx.save();
+      ctx.translate(p.cx, p.y + p.h);
+      ctx.rotate(p.face < 0 ? -1.35 : 1.35);
+      SPRITES.draw(ctx, 'hurt', 0, 0, p.h * 1.06, p.face < 0, alpha);
+      ctx.restore();
+    } else {
+      SPRITES.draw(ctx, curPose, p.cx, p.y + p.h,
+        p.h * p.squash * 1.06, p.face < 0, alpha);
+    }
     // the equipped weapon rides in the hand; a grabbed prop is drawn by the
     // props loop instead, so never draw both
     const eqw = WEAPONS[p.equipped];
@@ -1343,9 +1449,36 @@ function goFullscreen() {
       }).catch(() => {});
     } catch (e) { /* desktop, or the browser said no */ }
   }
+  // iOS Safari has no fullscreen API on iPhone at all, so the address bar stays
+  // put. Scrolling by one pixel is the only lever that hides it.
+  window.scrollTo(0, 1);
   setTimeout(resize, 220);
+  setTimeout(resize, 700);
 }
-addEventListener('fullscreenchange', () => setTimeout(resize, 120));
+
+function isFullscreen() {
+  return !!(document.fullscreenElement || document.webkitFullscreenElement);
+}
+addEventListener('fullscreenchange', () => { setTimeout(resize, 120); syncFsBtn(); });
+addEventListener('orientationchange', () => setTimeout(resize, 260));
+// visualViewport moves when the address bar slides away; the canvas has to
+// follow it or the bottom of the game sits under browser chrome.
+if (window.visualViewport) {
+  visualViewport.addEventListener('resize', () => setTimeout(resize, 60));
+}
+function syncFsBtn() {
+  const b = document.getElementById('btnFS');
+  if (b) b.classList.toggle('hidden', isFullscreen());
+}
+
+// The very first touch anywhere asks for fullscreen — waiting for a specific
+// button meant anyone starting from FREE ROAM or the mission list never got it.
+let askedFs = false;
+addEventListener('pointerdown', () => {
+  if (askedFs) return;
+  askedFs = true;
+  goFullscreen();
+}, { capture: true });
 
 $('verTag').textContent = 'v' + VERSION;
 SPRITES.load().then(ok => {
@@ -1426,6 +1559,7 @@ $('btnSkip').onclick = () => {
   SFX.ui(false);
 };
 $('btnLift').addEventListener('pointerdown', e => { e.preventDefault(); rideLift(); });
+$('btnFS').addEventListener('click', () => { goFullscreen(); syncFsBtn(); });
 $('btnSwap').addEventListener('pointerdown', e => { e.preventDefault(); cycleWeapon(); });
 $('btnShopFromReport').onclick = () => { Music.scene('shop'); buildShop(); hide('report'); show('shop'); S.shopFrom = 'report'; };
 $('btnShopBack').onclick = () => {

@@ -1,17 +1,28 @@
 /* WORST EMPLOYEE — feel test. Greybox UI: readable, ugly on purpose. */
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-html,body{height:100%;overflow:hidden;background:#0a0b0e;
+html,body{height:100%;height:100dvh;overflow:hidden;overscroll-behavior:none;background:#0a0b0e;
   font-family:"Segoe UI",system-ui,-apple-system,Roboto,sans-serif;
   color:#e8eaf0;user-select:none;-webkit-user-select:none;touch-action:none}
 
 #stage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
+/* A notch or a rounded corner will happily eat the HUD. Everything that hugs an
+   edge gets pushed in by the safe area; the canvas itself still fills edge to
+   edge, because losing a few pixels of office is fine and losing the coin
+   counter is not. */
+:root{
+  --sa-t: env(safe-area-inset-top, 0px);
+  --sa-r: env(safe-area-inset-right, 0px);
+  --sa-b: env(safe-area-inset-bottom, 0px);
+  --sa-l: env(safe-area-inset-left, 0px);
+}
 #game{display:block;image-rendering:auto;background:#12141a;touch-action:none}
 .hidden{display:none !important}
 
 /* ---------------- HUD ---------------- */
 #hud{position:absolute;inset:0;pointer-events:none;font-variant-numeric:tabular-nums}
 .hud-top{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;
-  align-items:flex-start;padding:10px 12px;gap:12px}
+  align-items:flex-start;gap:12px;
+  padding:calc(10px + var(--sa-t)) calc(12px + var(--sa-r)) 10px calc(12px + var(--sa-l))}
 .hud-left{display:flex;flex-direction:column;gap:3px}
 .stat{display:flex;gap:8px;align-items:baseline;
   background:rgba(10,11,14,.55);padding:3px 8px;border-radius:4px;backdrop-filter:blur(3px)}
@@ -58,7 +69,7 @@ html,body{height:100%;overflow:hidden;background:#0a0b0e;
 #stickNub{position:absolute;left:50%;top:50%;width:50px;height:50px;border-radius:50%;
   background:rgba(255,255,255,.3);transform:translate(-50%,-50%)}
 
-#btnPad{position:absolute;right:14px;bottom:14px;width:196px;height:196px;pointer-events:none}
+#btnPad{position:absolute;right:calc(14px + var(--sa-r));bottom:calc(14px + var(--sa-b));width:196px;height:196px;pointer-events:none}
 .tb{position:absolute;pointer-events:auto;border:2px solid rgba(255,255,255,.22);
   background:rgba(255,255,255,.09);color:#fff;border-radius:50%;backdrop-filter:blur(3px);
   display:flex;align-items:center;justify-content:center;padding:0}
@@ -230,7 +241,7 @@ h3{font-size:11px;letter-spacing:.18em;color:#8d93a6;margin:18px 0 7px}
 .stat.ruin{flex-direction:column;align-items:flex-start;gap:0}
 .stat.ruin .v{font-size:19px;color:#ff8a5c;line-height:1}
 .stat.ruin .tier{font-size:8px;letter-spacing:.14em;color:#ffb08a;font-weight:800;margin-top:2px}
-.jobs{position:absolute;right:12px;top:74px;display:flex;flex-direction:column;gap:4px;
+.jobs{position:absolute;right:calc(12px + var(--sa-r));top:calc(74px + var(--sa-t));display:flex;flex-direction:column;gap:4px;
   align-items:flex-end;pointer-events:none;max-width:46%}
 .job{background:rgba(10,11,14,.62);border-left:2px solid rgba(255,215,94,.5);
   padding:4px 8px;border-radius:0 4px 4px 0;backdrop-filter:blur(3px);text-align:right}
@@ -267,7 +278,7 @@ h3{font-size:11px;letter-spacing:.18em;color:#8d93a6;margin:18px 0 7px}
   opacity:0;pointer-events:none;transition:opacity .3s}
 #hud.scene .toast{opacity:0}
 
-.skip{position:absolute;right:12px;top:12px;pointer-events:auto;z-index:30;
+.skip{position:absolute;right:calc(12px + var(--sa-r));top:calc(12px + var(--sa-t));pointer-events:auto;z-index:30;
   background:rgba(10,11,14,.7);border:1px solid rgba(255,255,255,.2);color:#c6ccdd;
   border-radius:6px;padding:7px 12px;font:800 9px/1 system-ui;letter-spacing:.14em;cursor:pointer}
 
@@ -300,7 +311,7 @@ h3{font-size:11px;letter-spacing:.18em;color:#8d93a6;margin:18px 0 7px}
 .msn.next{border-color:#ffd75e;background:rgba(255,215,94,.08)}
 .msn .pay{font-size:10px;font-weight:800;color:#ffd75e}
 /* in-shift mission tracker */
-.msn-hud{position:absolute;left:12px;top:132px;max-width:44%;pointer-events:none}
+.msn-hud{position:absolute;left:calc(12px + var(--sa-l));top:calc(132px + var(--sa-t));max-width:44%;pointer-events:none}
 .msn-hud .t{font-size:9px;letter-spacing:.16em;font-weight:900;color:#ffd75e;margin-bottom:3px}
 .msn-hud .g{font-size:9.5px;color:#9aa1b5;line-height:1.6}
 .msn-hud .g.ok{color:#8fd6a0}
@@ -319,3 +330,26 @@ h3{font-size:11px;letter-spacing:.18em;color:#8d93a6;margin:18px 0 7px}
 
 .msn .hint{font-size:9.5px;color:#ffd75e;line-height:1.5;margin-top:5px;opacity:.85}
 .msn-hud .hint2{font-size:8.5px;color:#8d93a6;line-height:1.5;margin:2px 0 5px;max-width:230px}
+
+/* An explicit way to force fullscreen, for browsers that ignore the automatic
+   request or hand it back when the address bar reappears. */
+.fs-btn{position:absolute;left:calc(12px + var(--sa-l));top:calc(12px + var(--sa-t));z-index:40;
+  pointer-events:auto;background:rgba(10,11,14,.7);border:1px solid rgba(255,255,255,.2);
+  color:#c6ccdd;border-radius:6px;padding:7px 10px;font:800 9px/1 system-ui;letter-spacing:.12em;
+  cursor:pointer}
+
+/* the 3 o'clock clock */
+.clock{position:absolute;left:50%;top:calc(8px + var(--sa-t));transform:translateX(-50%);
+  background:rgba(10,11,14,.72);border:1px solid rgba(255,255,255,.16);border-radius:6px;
+  padding:5px 14px 6px;text-align:center;backdrop-filter:blur(4px);pointer-events:none}
+.clock b{display:block;font:900 17px/1 system-ui;letter-spacing:.04em;color:#e8eaf0;
+  font-variant-numeric:tabular-nums}
+.clock span{font-size:7.5px;letter-spacing:.16em;color:#8d93a6;font-weight:800}
+.clock.late b{color:#ffd75e}
+.clock.urgent b{color:#ff7b7b;animation:tick 1s infinite}
+@keyframes tick{0%,100%{opacity:1}50%{opacity:.55}}
+
+/* your own health */
+.hpbar{width:132px;height:7px;border-radius:4px;background:rgba(10,11,14,.7);
+  border:1px solid rgba(255,255,255,.18);overflow:hidden;margin-bottom:5px}
+.hpbar i{display:block;height:100%;width:100%;background:#8fd6a0;transition:width .15s,background .3s}

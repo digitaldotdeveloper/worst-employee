@@ -88,5 +88,30 @@
   "title": "Collation Shuffle",
   "dur": 30.8,
   "kb": 727
+ },
+ "combo_finish": {
+  "title": "The Final Flourish",
+  "dur": 25.5,
+  "kb": 603
+ },
+ "ground_slam": {
+  "title": "Tremor In The Tea Room",
+  "dur": 29.3,
+  "kb": 692
+ },
+ "dinner_bell": {
+  "title": "Kitchen Ballet",
+  "dur": 27.0,
+  "kb": 638
+ },
+ "full_throttle": {
+  "title": "Ignition Malfunction",
+  "dur": 28.0,
+  "kb": 661
+ },
+ "total_wipeout": {
+  "title": "Gravity Takes a Break",
+  "dur": 30.0,
+  "kb": 708
  }
 }

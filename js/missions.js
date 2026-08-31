@@ -115,7 +115,11 @@ export const MISSIONS = [
     name: 'THE ASSIGNMENT',
     role: 'SUPERVISOR',
     verb: 'YOUR CHOICE',
-    brief: 'There is a client presentation. It is terrible. Get it ready.',
+    // The only timed mission. A deadline is what turns four options into a
+    // decision — without it you would simply do all of them.
+    clock: { start: 9 * 60, end: 15 * 60, seconds: 240 },
+    brief: 'There is a client presentation at 3:00 PM. It is terrible. '
+         + 'Get it ready.',
     hint: 'The brief says get it ready. It does not say fix it, and it does not '
         + 'say who has to do it.',
     // FOUR ROUTES, none signposted. Any ONE of them passes.
