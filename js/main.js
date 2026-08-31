@@ -1818,6 +1818,16 @@ $('btnShopBack').onclick = () => {
   S.shopFrom = null;
 };
 $('btnHelpBack').onclick = () => { Music.scene('title'); hide('help'); show('title'); };
+// A finished shift used to lead only to another shift. The HUD is hidden as
+// well as the report, because ending a shift from the report leaves the play
+// overlay up behind the title otherwise.
+$('btnHome').onclick = () => {
+  SFX.ui(false);
+  Music.scene('title');
+  hide('report'); hide('hud'); hide('touch');
+  S.mode = 'title';
+  show('title');
+};
 $('btnShare').onclick = async () => {
   try {
     if (navigator.share) await navigator.share({ text: S.lastShare });
