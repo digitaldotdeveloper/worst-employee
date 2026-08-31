@@ -68,13 +68,13 @@ function env(node, t, a, d, peak = 1) {
   return g;
 }
 
-function tone(freq, t, dur, type = 'sine', peak = 0.3, bend = 0) {
+function tone(freq, t, dur, type = 'sine', peak = 0.3, bend = 0, dest = null) {
   const o = ctx.createOscillator();
   o.type = type;
   o.frequency.setValueAtTime(freq, t);
   if (bend) o.frequency.exponentialRampToValueAtTime(Math.max(20, freq + bend), t + dur);
   const g = env(o, t, 0.005, dur, peak);
-  g.connect(sfxGain);
+  g.connect(dest || sfxGain);
   o.start(t);
   o.stop(t + dur + 0.06);
   return o;
@@ -82,7 +82,7 @@ function tone(freq, t, dur, type = 'sine', peak = 0.3, bend = 0) {
 
 // One reusable noise buffer. Making a new one per hit allocates for no reason.
 let noiseBuf = null;
-function noise(t, dur, peak = 0.3, filterHz = 2000, q = 1, type = 'lowpass') {
+function noise(t, dur, peak = 0.3, filterHz = 2000, q = 1, type = 'lowpass', dest = null) {
   if (!noiseBuf) {
     noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 1.2, ctx.sampleRate);
     const d = noiseBuf.getChannelData(0);
@@ -97,7 +97,7 @@ function noise(t, dur, peak = 0.3, filterHz = 2000, q = 1, type = 'lowpass') {
   f.Q.value = q;
   s.connect(f);
   const g = env(f, t, 0.004, dur, peak);
-  g.connect(sfxGain);
+  g.connect(dest || sfxGain);
   s.start(t, Math.random() * 0.4);
   s.stop(t + dur + 0.06);
   return { src: s, filter: f };
@@ -262,13 +262,75 @@ S.chain = function (n) {
   tone(base * 2, t + 0.10, 0.20, 'sine', 0.09);
 };
 
+// One gulp: a resonant low burst with a pitch that rises, because a cup empties
+// as you drink it and the air column above the coffee gets longer.
+function gulp(t, pitch, loud) {
+  const { filter } = noise(t, 0.085, loud * 0.55, 320, 6, 'bandpass');
+  filter.frequency.setValueAtTime(pitch * 2.2, t);
+  filter.frequency.exponentialRampToValueAtTime(pitch * 1.2, t + 0.08);
+  tone(pitch, t, 0.075, 'sine', loud, pitch * 0.35);
+}
+
+// The coffee machine used to be the whole sound: a 0.55s dispense and a ding,
+// with nobody actually drinking anything. It now runs the full beat - dispense,
+// three gulps, the exhale, and the cup going down - because the 12 second boost
+// it grants is worth more than a ding.
+//
+// It has to finish inside the 0.9s per-cup gate in main.js or a second cup
+// starts while the first is still being swallowed, so the whole thing is 0.95s.
 S.coffee = function () {
   if (!this.ready) return;
   const t = ctx.currentTime;
-  const { filter } = noise(t, 0.55, 0.10, 900, 0.7, 'bandpass');
+
+  // dispense
+  const { filter } = noise(t, 0.30, 0.085, 900, 0.7, 'bandpass');
   filter.frequency.setValueAtTime(600, t);
-  filter.frequency.linearRampToValueAtTime(1500, t + 0.5);
-  tone(880, t + 0.5, 0.12, 'sine', 0.10, 300);
+  filter.frequency.linearRampToValueAtTime(1500, t + 0.28);
+
+  // three gulps, climbing
+  gulp(t + 0.34, 150, 0.11);
+  gulp(t + 0.50, 168, 0.105);
+  gulp(t + 0.65, 188, 0.09);
+
+  // "aaah" - filtered breath, and the cup set down on the desk
+  const { filter: ex } = noise(t + 0.80, 0.17, 0.055, 1100, 0.9, 'bandpass');
+  ex.frequency.setValueAtTime(1300, t + 0.80);
+  ex.frequency.exponentialRampToValueAtTime(520, t + 0.95);
+  tone(2100, t + 0.90, 0.05, 'sine', 0.045, -700);
+};
+
+// ---------------------------------------------------------------- footsteps
+//
+// Only the boss has these, and they are distance-attenuated on purpose: hearing
+// him crossing the floor before he is on screen is the point of having them at
+// all. Everyone else in the office would just be noise - there are six of them
+// and they mill about constantly.
+S.step = function (weight = 1, dx = 0) {
+  if (!this.ready) return;
+  const w = Math.max(0.2, Math.min(1.4, weight));
+
+  // A level is 4400px wide; a footstep should be gone long before that.
+  const near = 1 - Math.min(1, Math.abs(dx) / 620);
+  if (near <= 0.03) return;            // too far to be worth scheduling nodes for
+  const t = ctx.currentTime;
+
+  const out = ctx.createGain();
+  out.gain.value = near * near;        // squared, so he reads as close only when he is
+  let tail = out;
+  if (ctx.createStereoPanner) {
+    const pan = ctx.createStereoPanner();
+    pan.pan.value = Math.max(-0.7, Math.min(0.7, dx / 380));
+    out.connect(pan);
+    tail = pan;
+  }
+  tail.connect(sfxGain);
+
+  // heel, then the scuff of the sole. The pitch wanders a little so a walk
+  // across the office is not a metronome.
+  const v = 0.92 + Math.random() * 0.16;
+  tone(72 * v, t, 0.10 + w * 0.04, 'sine', 0.30 * w, -26, out);
+  noise(t + 0.008, 0.055, 0.10 * w, 420 * v, 1, 'lowpass', out);
+  if (w > 0.85) tone(140 * v, t + 0.01, 0.07, 'triangle', 0.06, -40, out);
 };
 
 S.alarm = function () {
@@ -444,12 +506,21 @@ SFX.voice = function (who, kind = 'hurt', power = 0.5) {
   let t = now + 0.01;
   let busy = 0.3;
 
+  // LEVELS. The first pass mixed these as a background reaction layer and they
+  // measured 0.04-0.13 peak on the master bus against hit(1.0) at 0.48 - about
+  // ten times under. In isolation that is audible; in play, under a hit, a
+  // smash and a music bed, it is not there at all, and the first thing anyone
+  // said about them was that they could not hear them. These numbers are set
+  // from measurement, not taste: hurt ~0.16, scream ~0.22, curse ~0.20, mutter
+  // ~0.09, which puts a yelp alongside smash (0.19) and bossRoar (0.16) and
+  // still keeps it under a punch. The bandpass pair at Q=7 throws away most of
+  // the oscillator's energy, which is why the raw numbers look so hot.
   if (kind === 'scream') {
     // one long vowel, up then down, wobbling
     const dur = rnd(0.55, 0.95) / v.rate;
     const top = v.f0 * rnd(2.0, 2.6);
-    syllable(t, v, dur * 0.35, v.f0 * 1.3, top, Math.random() < 0.5 ? 0 : 1, 0.20 + p * 0.1, 0.05);
-    syllable(t + dur * 0.34, v, dur * 0.66, top, v.f0 * 1.1, 0, 0.19 + p * 0.1, 0.07);
+    syllable(t, v, dur * 0.35, v.f0 * 1.3, top, Math.random() < 0.5 ? 0 : 1, 0.50 + p * 0.25, 0.05);
+    syllable(t + dur * 0.34, v, dur * 0.66, top, v.f0 * 1.1, 0, 0.48 + p * 0.25, 0.07);
     busy = dur + 0.35;
   } else if (kind === 'curse') {
     // a short rant, bleeped through the middle
@@ -457,7 +528,7 @@ SFX.voice = function (who, kind = 'hurt', power = 0.5) {
     const step = rnd(0.10, 0.14) / v.rate;
     for (let i = 0; i < n; i++) {
       const f = v.f0 * rnd(1.0, 1.6);
-      syllable(t, v, step * 0.85, f, f * rnd(0.72, 1.25), pick(), 0.16, 0.02);
+      syllable(t, v, step * 0.85, f, f * rnd(0.72, 1.25), pick(), 0.26, 0.02);
       t += step;
     }
     const span = n * step;
@@ -474,7 +545,7 @@ SFX.voice = function (who, kind = 'hurt', power = 0.5) {
     const step = rnd(0.11, 0.16) / v.rate;
     for (let i = 0; i < n; i++) {
       const f = v.f0 * rnd(0.86, 1.02);
-      syllable(t, v, step * 0.8, f, f * rnd(0.85, 1.05), pick(), 0.20, 0.015);
+      syllable(t, v, step * 0.8, f, f * rnd(0.85, 1.05), pick(), 0.50, 0.015);
       t += step;
     }
     busy = n * step + 0.25;
@@ -485,7 +556,7 @@ SFX.voice = function (who, kind = 'hurt', power = 0.5) {
     for (let i = 0; i < n; i++) {
       const f = v.f0 * rnd(1.5, 2.1) * (1 + p * 0.25);
       syllable(t, v, step * 0.95, f, f * rnd(0.55, 0.72), i ? pick() : (Math.random() < 0.6 ? 0 : 3),
-               0.15 + p * 0.09, 0.03);
+               0.55 + p * 0.33, 0.03);
       t += step;
     }
     busy = n * step + 0.18;

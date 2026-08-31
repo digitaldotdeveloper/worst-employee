@@ -16,7 +16,10 @@
   "npc-sami-dazed",
   "npc-sami-fury",
   "npc-sami-shock",
-  "npc-sami-weary"
+  "npc-sami-weary",
+  "player-glee",
+  "player-grimace",
+  "player-smirk"
  ],
  "size": 96
 }

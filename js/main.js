@@ -14,6 +14,7 @@ import { WEAPONS, SHOP_ORDER, loadCareer, saveCareer, defaultCareer,
          bump, checkUnlocks, buy, hasSkill } from './weapons.js';
 import { Sabotage, RUIN, ruinTier, rankFor } from './sabotage.js';
 import { Story, introScene, HR_X } from './story.js';
+import { CHATTER, HURT, DOWNED, FIGHTBACK, BOSS_DOWN, pick } from './barks.js';
 import { MISSIONS, MissionRun, missionState, nextMission } from './missions.js';
 import { DAYS, dayById, freshDay, interact, chaosPct } from './days.js';
 import { Coworker } from './office.js';
@@ -100,6 +101,8 @@ const S = {
       // one punch used to flatten anybody, which made every fight one frame long.
       const floored = b.hit(this, dmg);
       faceFor(b, floored ? 'dazed' : (b.hp < b.maxHp * 0.4 ? 'fury' : 'shock'));
+      bark(b, floored ? pick(DOWNED, this.hits * 3) : pick(HURT, this.hits * 5),
+           floored ? '#ffd75e' : '#ff9a9a');
       if (floored) {
         this.knocked = (this.knocked || 0) + 1;
         this.ruin += RUIN.workerDown;
@@ -485,7 +488,34 @@ S.annoy = function (c) {
 };
 
 S.bumpCounter = key => bump(S, key);
+
+// Walk a colleague forward during the tour so being introduced to somebody
+// actually looks like being introduced to somebody.
+S.introMeet = i => {
+  const c = S.coworkers[i];
+  if (!c) return;
+  c.mode = 'work';
+  c.face = c.cx > S.player.cx ? -1 : 1;
+  faceFor(c, i === 1 ? 'weary' : 'shock', 2200);
+  S.day.metPeople = (S.day.metPeople || 0) + 1;
+  S.day.relationships++;
+};
 // Show a reaction on someone's face. Held on the actor so it follows them.
+// The player's own expression. Same mechanism as the cast, different art set.
+// Somebody says something. Short, above their head, gone in a moment — a bark
+// you cannot read at a glance during a fight is a bark nobody reads.
+function bark(who, text, col) {
+  if (!who || who.dead) return;
+  FX.float(who.cx, who.y - 18, text, col || '#cfd6e6', 11);
+  who.barkCd = 2.2;
+}
+
+function playerFace(emo, ms = 1400) {
+  S.player.face_emo = emo;
+  S.player.face_t = ms / 1000;
+  S.player.face_max = ms / 1000;
+}
+
 function faceFor(who, emo, ms = 1500) {
   if (!who) return;
   who.face_emo = emo;
@@ -531,6 +561,10 @@ S.tryInteract = function () {
   S.coins += Math.round((r.chaos || 0) * 0.5 + (r.work || 0) * 3);
   if (r.suspicion) S.addAnger(r.suspicion * 0.5);
   toast(r.text);
+  // The small stuff is the whole game: fiddling with somebody's chair should
+  // show on your face.
+  playerFace(r.secret ? 'glee' : (r.work ? 'grimace' : 'smirk'), 1400);
+  S.player.fiddleT = 0.45;
   FX.float(best.cx, best.y - 10,
     r.secret ? 'SECRET' : (r.work ? '+WORK' : '+CHAOS'),
     r.secret ? '#c39bff' : (r.work ? '#8fd6a0' : '#ffd75e'), 12);
@@ -597,6 +631,7 @@ S.onPlayerDown = () => {
 S.onPlayerUp = () => { toast('You get up.'); SFX.ui(true); };
 
 S.onFightBack = c => {
+  bark(c, pick(FIGHTBACK, (S.fbN = (S.fbN || 0) + 1) * 3), '#ff7b7b');
   toast(c.name + ' has had enough of you.', 'boss');
   faceFor(c, 'fury', 2200);
   SFX.bossRoar();
@@ -829,16 +864,34 @@ function bossDown() {
   b.fighting = false;
   b.defeated = true;
   b.mode = 'down';
-  b.va = 8; b.angle = 1.5;
+  b.va = 0;
+  b.angle = 0;
   b.solid = false;
-  FX.kick(18, 0.25);
-  SFX.voice('boss', 'mutter', 0.4);
-  toast('"...You know what? You\'ve got potential."', 'boss');
-  // stamp the shift: without this the timer could end the NEXT shift
+  b.vx = 0;
+  S.bossBeaten = true;
+  FX.kick(20, 0.28);
+  SFX.bossRoar();
+  SFX.setTension(0);
+  faceFor(b, 'dazed', 6000);
+
+  // He is flat on the carpet and he STILL will not say what happened. That is
+  // the joke — not "you've got potential", which let him keep his dignity.
+  const line = pick(BOSS_DOWN, (S.career.shifts || 0) * 5 + S.destroyed);
+  setTimeout(() => { if (S.mode === 'play') { bark(b, '...', '#ff9a9a'); } }, 700);
+  setTimeout(() => {
+    if (S.mode !== 'play') return;
+    toast('MR. HALEY, from the floor:  "' + line + '"', 'boss');
+    faceFor(b, 'dazed', 4000);
+  }, 1700);
+  setTimeout(() => {
+    if (S.mode !== 'play') return;
+    toast('He does not get up.');
+  }, 4200);
+
   const myShift = S.shiftId;
   S.endTimer = setTimeout(() => {
     if (S.mode === 'play' && S.shiftId === myShift) endShift(true);
-  }, 2600);
+  }, 6200);
 }
 
 function endShift(promoted = false) {
@@ -970,8 +1023,20 @@ function update(dt) {
 
   S.player.update(dt, S);
   S.player.carryPose();
+  S.chatCd = (S.chatCd || 4) - dt;
+  if (S.chatCd <= 0) {
+    S.chatCd = 3.5 + Math.random() * 4;
+    const near = S.coworkers.filter(c => !c.dead && c.mode !== 'down' && !c.fighting
+      && Math.abs(c.cx - S.player.cx) < 260);
+    if (near.length) {
+      const c = near[Math.floor(Math.random() * near.length)];
+      if (!(c.barkCd > 0)) bark(c, pick(CHATTER, (S.chatN = (S.chatN || 0) + 1) * 7), '#9aa1b5');
+    }
+  }
+
   for (const c of S.coworkers) {
     c.update(dt, S);
+    if (c.barkCd > 0) c.barkCd -= dt;
     if (c.face_t > 0) c.face_t -= dt;
     if (c.bleedT > 0) {
       c.bleedT -= dt;
@@ -979,6 +1044,8 @@ function update(dt) {
     }
   }
   if (S.boss && S.boss.face_t > 0) S.boss.face_t -= dt;
+  if (S.player.face_t > 0) S.player.face_t -= dt;
+  if (S.player.fiddleT > 0) S.player.fiddleT -= dt;
   if (S.boss && !S.boss.dead) S.boss.update(dt, S);
 
   S.world.step(dt);
@@ -1126,11 +1193,9 @@ function render() {
   for (const d of S.world.statics) {
     const im = WORLD.props && WORLD.props.desk;
     if (im) {
-      // Top-align to the collider, not bottom-align: things rest on d.y, so the
-      // drawn desktop has to sit exactly there or props look sunk into it.
-      const w = d.w * 1.08;
-      const h = w * (im.height / im.width);
-      ctx.drawImage(im, d.x + (d.w - w) / 2, d.y - 2, w, h);
+      // Drawn 1:1 into the collider. Scaling the art by its own aspect made the
+      // desk 55% too tall, so it stood chest-high on a 62px character.
+      ctx.drawImage(im, d.x, d.y - 2, d.w, d.h + 4);
       continue;
     }
     ctx.fillStyle = '#39405a';
@@ -1296,6 +1361,10 @@ function render() {
       squash: p.squash, alpha,
     });
     ctx.restore();
+  }
+  if (FACES.ready && p.face_t > 0 && SPRITES.meta) {
+    FACES.drawOnHead(ctx, 'player', p.face_emo, SPRITES.meta, curPose || 'idle',
+      p.cx, p.y + p.h, p.h * p.squash * 1.06, p.face < 0, 1 - p.face_t / p.face_max);
   }
   ctx.fillStyle = 'rgba(255,255,255,.5)';
   ctx.font = `700 ${8 / S.zoom * 1.6}px system-ui`; ctx.textAlign = 'center';

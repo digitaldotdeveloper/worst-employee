@@ -164,9 +164,10 @@ export class Player extends Body {
     // with a second verb, and it is by far the funniest thing you can do to a
     // colleague without touching them.
     const st = this.carrying && !this.holdingPerson ? propStyle(this.carrying.kind) : null;
+    this.spraying = false;
     if (st && st.spray) {
       if (IN.use) { this._spray(s, dt); return; }
-      if (this.sprayed) { this.sprayed = false; }
+      if (this.sprayed) { this.sprayed = false; this.sprayT = 0; }
     }
 
     // The discovery button. Everything in the office answers back.
@@ -391,7 +392,8 @@ export class Player extends Body {
   // A continuous cone of CO2. Does almost no damage — it blinds people, drives
   // them off and makes them extremely rude about it.
   _spray(s, dt) {
-    this.state = 'carry';
+    this.state = 'attack';
+    this.spraying = true;
     this.vx *= 0.86;
     this.sprayT = (this.sprayT || 0) + dt;
     this.sprayed = true;
@@ -499,8 +501,13 @@ export class Player extends Body {
     // the floor and kicking. Nothing like the overhead carry a monitor gets,
     // which is what made grabbing someone feel wrong.
     if (this.holdingPerson) {
-      c.x = this.cx + this.face * 34 - c.w / 2;
-      c.y = this.y - 2;                     // dangling, feet clear of the ground
+      // The drawn grab frame puts the fist at roughly 62% of body height, arm
+      // fully extended. Line the victim's collar up with it rather than
+      // guessing — otherwise they float beside him instead of hanging from him.
+      const fistX = this.cx + this.face * 40;
+      const fistY = this.y + this.h * 0.38;
+      c.x = fistX + this.face * (c.w * 0.10) - c.w / 2;
+      c.y = fistY - c.h * 0.16;                     // dangling, feet clear of the ground
       c.vx = this.vx; c.vy = 0;
       c.face = -this.face;                  // facing you, which is the point
       c.angle = Math.sin(this.animT * 14) * (this.slapCd > 0 ? 0.20 : 0.07);
@@ -509,6 +516,13 @@ export class Player extends Body {
     }
 
     const a = this.atk;
+    if (this.spraying) {
+      c.x = this.cx + this.face * 30 - c.w / 2;
+      c.y = this.cy - c.h / 2 - 8;
+      c.angle = this.face * 1.35;        // nozzle forward
+      c.vx = this.vx; c.vy = 0;
+      return;
+    }
     if (a && a.wep === c) {
       // swing arc: back on the wind-up, thrown forward on the active frames
       const k = a.phase === 'startup' ? -0.5 : (a.phase === 'active' ? 1.5 : 0.7);

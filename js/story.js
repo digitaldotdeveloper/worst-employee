@@ -74,12 +74,33 @@ export function introScene(S) {
     say('BOSS — MR. HALEY', 'Break room. Fifteen minutes, every four hours.', 2400),
     say(S.look.name, '...Fifteen.', 1500),
 
-    walk('boss', DESK_X + 40, 3000),
-    walk('player', DESK_X - 10, 3000),
-    say('BOSS — MR. HALEY', "And this is your desk. You'll be working with a great team.", 2600),
+    // meet the floor — four people, each of whom you can later ruin
+    walk('boss', 1180, 2600),
+    walk('player', 1120, 2600),
+    say('BOSS — MR. HALEY', "This is the team. Team, this is the new one.", 2400),
+    fx(() => { S.introMeet(0); }),
+    say('SAMI — SENIOR DEVELOPER', "Alright. Don't touch my mug. It has my name on it.", 2600),
+    fx(() => { S.introMeet(1); }),
+    say('RITA — ACCOUNTS', "Welcome. If anyone asks, the printer was already like that.", 2800),
+    fx(() => { S.introMeet(2); }),
+    say('OMAR — IT SUPPORT', "Have you tried turning it off and on again? That's the whole job.", 2800),
+    fx(() => { S.introMeet(3); }),
+    say('LEA — MARKETING', "Love the energy. Love it. Anyway.", 2200),
+    say(S.look.name, "...Great team.", 1500),
+
+    walk('boss', DESK_X + 40, 2600),
+    walk('player', DESK_X - 10, 2600),
+    say('BOSS — MR. HALEY', "And this is your desk.", 2000),
     say('BOSS — MR. HALEY', "We're a family here.", 2000),
     fx(() => { S.familySaid = true; }),
     say(S.look.name, "...A family.", 1400),
+
+    // the first task, and it is deliberately meaningless
+    say('BOSS — MR. HALEY', "Small thing to start you off. Sort these documents.", 2600),
+    say(S.look.name, "Sort them how?", 1600),
+    say('BOSS — MR. HALEY', "Sorted.", 1600),
+    say(S.look.name, "...Right.", 1400),
+    fx(() => { S.taskGiven = true; }),
     say('BOSS — MR. HALEY', "I'll leave you to it. Big things ahead!", 2200),
 
     // and off he goes, not to be seen again until he loses it

@@ -102,6 +102,11 @@ export class Coworker extends Body {
       if (Math.random() < 0.34) SFX.voice(this.name, 'scream', 0.7);
     }
 
+    // Sitting down at your own desk. Standing bolt upright "at" a desk was the
+    // single most obviously fake thing on the floor.
+    this.seated = this.mode === 'work' && this.deskX != null
+      && Math.abs(this.cx - this.deskX) < 60 && this.grounded;
+
     if (this.mode === 'panic') {
       const away = Math.sign(this.cx - s.player.cx) || 1;
       this.face = away;
@@ -204,6 +209,19 @@ export class Boss extends Body {
 
   update(dt, s) {
     this.animT += dt;
+
+    // Footsteps, paced off distance travelled rather than a timer, so they stay
+    // in step whether he is patrolling or charging. Above the cutscene return
+    // below on purpose - he walks in those too.
+    this._stepPhase = (this._stepPhase || 0) + Math.abs(this.vx) * dt;
+    const stride = this.fighting ? 46 : 58;   // more urgency, shorter stride
+    if (this._stepPhase >= stride) {
+      this._stepPhase = 0;
+      if (this.grounded !== false && !this.defeated) {
+        SFX.step(this.fighting ? 1.15 : 0.8, this.cx - s.player.cx);
+      }
+    }
+
     if (this.hurtT > 0) this.hurtT -= dt;
     if (s.story && s.story.active) { this.vx *= 0.7; return; }
     if (this.swingT > 0) this.swingT -= dt;
@@ -263,7 +281,7 @@ export class Boss extends Body {
 // papers, chair — placed as a unit rather than as six independent props.
 // ---------------------------------------------------------------
 
-const DESK_W = 120, DESK_H = 40;
+const DESK_W = 84, DESK_H = 38;
 
 function desk(world, x) {
   const d = { x, y: FLOOR_Y - DESK_H, w: DESK_W, h: DESK_H, label: 'DESK', oneWay: true };
@@ -277,11 +295,11 @@ function desk(world, x) {
 function workstation(world, x, opt = {}) {
   const d = desk(world, x);
   const top = d.y;
-  world.add(makeProp('monitor', x + 16, top - PROPS.monitor.h));
-  if (opt.keyboard !== false) world.add(makeProp('stack', x + 54, top - PROPS.stack.h));
-  world.add(makeProp('mug', x + 92, top - PROPS.mug.h));
-  if (opt.phone) world.add(makeProp('phone', x + 34, top - PROPS.phone.h));
-  world.add(makeProp('chair', x + 48, FLOOR_Y - PROPS.chair.h));
+  world.add(makeProp('monitor', x + 8, top - PROPS.monitor.h));
+  if (opt.keyboard !== false) world.add(makeProp('stack', x + 38, top - PROPS.stack.h));
+  world.add(makeProp('mug', x + 64, top - PROPS.mug.h));
+  if (opt.phone) world.add(makeProp('phone', x + 24, top - PROPS.phone.h));
+  world.add(makeProp('chair', x + 34, FLOOR_Y - PROPS.chair.h));
   if (opt.bin) world.add(makeProp('bin', x + DESK_W + 12));
   return d;
 }
@@ -372,6 +390,7 @@ export function buildOffice(world, s, floorId = 'ops') {
     c.title = title;
     c.art = art;
     c.homeX = x;                    // they drift, but they belong somewhere
+    c.deskX = x;                    // and this is the desk they belong AT
     world.add(c); s.coworkers.push(c);
   }
 

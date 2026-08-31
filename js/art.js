@@ -273,6 +273,9 @@ export function poseFor(p, t) {
   if (p.holdingPerson && p.carrying) {
     return p.slapCd > 0.10 ? 'grab-slap' : 'grab-hold';
   }
+  // Spraying is AIMING, not carrying. The carry frame holds a box at chest
+  // height with both arms, which reads nothing like working a nozzle.
+  if (p.spraying) return 'c2-hit';
   if (p.atk) {
     const wind = p.atk.phase === 'startup';
     if (!p.grounded) return 'air-hit';
@@ -289,6 +292,7 @@ export function poseFor(p, t) {
     return 'fall';
   }
   if (p.landT > 0) return 'land';
+  if (p.fiddleT > 0) return 'land';   // a crouch: reaching for something
   if (p.carrying) return 'carry';
   if (Math.abs(p.vx) > 26) {
     // six frames instead of four: the extra stride and recovery frames are what
@@ -522,7 +526,7 @@ export function npcPoseName(c, t) {
   if (c.mode === 'panic') {
     return ['run-1', 'run-2', 'run-3', 'run-4'][Math.floor(t * 10) % 4];
   }
-  if (c.mode === 'work') return 'work';
+  if (c.mode === 'work') return c.seated ? 'sit' : 'work';
   if (Math.abs(c.vx) > 22) return ['run-1', 'run-2', 'run-3', 'run-4'][Math.floor(t * 5) % 4];
   return (Math.floor(t * 0.4) % 3 === 2) ? 'idle2' : 'idle';
 }
