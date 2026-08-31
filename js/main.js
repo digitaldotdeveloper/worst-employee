@@ -6,7 +6,7 @@ import { VERSION, VIEW, FLOOR_Y, CEIL_Y, ROOF_Y, LEVEL_W, COL, COFFEE, RANKS, QU
 import { World } from './engine.js';
 import { FX } from './fx.js';
 import { ART, SPRITES, WORLD, CAST, WEAPON_ART, FACES, poseFor, npcPoseName, bossPoseName,
-         drawWeapon, recolourSprites, drawHuman, drawProp, roundRect, HEADS } from './art.js';
+         drawWeapon, recolourSprites, drawHuman, drawProp, roundRect } from './art.js';
 import { RIG } from './rig.js';
 import { SFX } from './audio.js';
 import { Music } from './music.js';
@@ -200,36 +200,26 @@ function setScene(on) {
   $('touch').classList.toggle('scene', on);
 }
 
-// REACTION FACES ARE A PANEL, NOT A MASK.
+// REACTION FACES ARE THE BODY. Third and final answer.
 //
-// These used to be painted straight onto the character's own head, on the
-// argument that "a bubble floating above someone is a UI element; a face that
-// changes is a performance". The argument is good and the result was not: a
-// 96px circular portrait scaled down onto a ~26px head keeps its own lighting,
-// its own framing and a hard circular edge, so at the size the game actually
-// runs it reads as a sticker pasted over the face that is already drawn there —
-// two faces, which is exactly what it was reported as.
+// First they were painted onto the character's own head: a 96px circular
+// portrait scaled onto a ~26px head keeps its own lighting, its own framing and
+// a hard circular edge, so it read as a sticker over the face already drawn
+// there. Then a bubble beside them, which read as UI. Then the head SWAPPED for
+// the same head wearing a different face, which is closer and still wrong —
+// reported three times as "faces on top of faces", because a swapped head still
+// sits on a body that is not reacting.
 //
-// It also demanded a per-pose head anchor accurate to a couple of pixels across
-// 255 frames, and every one of those that drifted put a face on a fist.
+// The mistake underneath all three was treating expression as a LAYER. It is
+// not. A person who has just been hit is not an idle pose with a new face on
+// it: their spine is bent, their arms are out, their weight is going. So the
+// expression is drawn into whole-body frames — `hurt`, `hurt2`, `hurt3` — and
+// picking a reaction now means picking a FRAME, in npcPoseName, and nothing is
+// composited over anyone at all.
 //
-// A bubble asks for none of that, and the characters already ACT: the hurt and
-// dazed body frames carry the performance. The portrait is the punchline beside
-// it. (Head anchors are still derived and still checked — tools/fix-hands.py
-// finds the hand by excluding the head.)
-function reactionBubble(ctx, art, emo, who, k) {
-  FACES.draw(ctx, art, emo, who.cx + who.w * 0.62, who.y - who.h * 0.30,
-             who.h * 0.62, k);
-}
-
-// Swap the character's own head for the same head wearing a different face.
-// Falls back to the bubble when a head has not been drawn for that combination,
-// so a missing expression degrades to the old presentation instead of nothing.
-function reaction(ctx, art, emo, who, meta, pose, height, k) {
-  if (HEADS.ready && HEADS.has(art, emo) &&
-      HEADS.draw(ctx, art, emo, meta, pose, who.cx, who.y + who.h, height, who.face < 0)) return;
-  reactionBubble(ctx, art, emo, who, k);
-}
+// The arithmetic that made layering look necessary was wrong too: I compared
+// against redrawing every pose in every emotion, ~500 renders. But reactions are
+// a handful of poses — hurt, held, down — so it is ~15.
 
 function toast(text, cls = '') {
   const el = $('toast');
@@ -946,9 +936,12 @@ function travelTo(floorId) {
 // the choice is the panel: first person, your hand, buttons that are lit or
 // locked, and a reason when one will not take you.
 function rideLift() {
-  if (!S.nearLift || S.liftCd > 0) return;
+  if ((!S.nearLift && !S.nearStairs) || S.liftCd > 0) return;
   S.liftCd = 1.2;
-  openLiftPanel();
+  // The stairs reach one floor up and one floor down. That is the whole
+  // difference between them and the lift, and it is why they are worth having:
+  // the lift is a menu, the stairs are a shortcut to next door.
+  openLiftPanel(S.nearStairs);
 }
 
 function floorLocked(F) {
@@ -962,10 +955,11 @@ function floorLocked(F) {
   return F.locked || null;
 }
 
-function openLiftPanel() {
+function openLiftPanel(viaStairs = false) {
   const here = FLOORS[S.floor] || FLOORS.ops;
+  S.viaStairs = viaStairs;
   $('lpFloor').textContent = here.no === 0 ? 'P' : String(here.no);
-  $('lpName').textContent = here.name.split('—').pop().trim();
+  $('lpName').textContent = (viaStairs ? 'STAIRWELL · ' : '') + here.name.split('—').pop().trim();
 
   const grid = $('lpGrid');
   grid.innerHTML = '';
@@ -973,8 +967,11 @@ function openLiftPanel() {
   const floors = Object.values(FLOORS).sort((a, b) => b.no - a.no);
   for (const F of floors) {
     const b = document.createElement('button');
-    const lock = floorLocked(F);
+    let lock = floorLocked(F);
     const isHere = F.id === S.floor;
+    if (viaStairs && !isHere && Math.abs(F.no - here.no) !== 1) {
+      lock = 'The stairs only go one floor at a time. Take the lift.';
+    }
     b.className = 'lp-btn' + (isHere ? ' here' : '') + (lock && !isHere ? ' locked' : '');
     b.innerHTML = (F.no === 0 ? 'P' : F.no) +
       '<small>' + F.name.split('—').pop().trim() + '</small>';
@@ -1258,11 +1255,16 @@ function update(dt) {
   // the lift
   const lf = S.lift;
   S.nearLift = !!(lf && Math.abs(lf.cx - S.player.cx) < 54 && S.player.grounded);
+  const stw = S.stairs;
+  S.nearStairs = !!(stw && !S.nearLift
+    && Math.abs(stw.cx - S.player.cx) < 54 && S.player.grounded);
   // The lift used to ride on "hold up" -- but W is both up AND jump, so simply
   // jumping next to the doors teleported you between floors. It is its own
   // button now, shown only when you are actually at the doors.
-  $('btnLift').classList.toggle('hidden', !S.nearLift);
-  if (S.nearLift && IN.useEdge && S.liftCd <= 0) rideLift();
+  $('btnLift').classList.toggle('hidden', !S.nearLift && !S.nearStairs);
+  if (S.nearStairs) $('btnLift').innerHTML = '&#9650;&nbsp; TAKE THE STAIRS';
+  else if (S.nearLift) $('btnLift').innerHTML = '&#9650;&nbsp; OPEN THE LIFT';
+  if ((S.nearLift || S.nearStairs) && IN.useEdge && S.liftCd <= 0) rideLift();
   if (S.liftCd > 0) S.liftCd -= dt;
   if (fade > 0) fade = Math.max(0, fade - dt * 3);
 
@@ -1446,11 +1448,6 @@ function render() {
         c.cx, c.y + c.h, c.h * 1.10, c.face < 0, 1);
       // a health bar, but only while they are actually hurt
       // the expression, painted over their own face
-      if (c.face_t > 0) {
-        const set = CAST.sets[c.art];
-        reaction(ctx, c.art, c.face_emo, c, set && set.meta, npcPoseName(c, c.animT),
-                 c.h * 1.10, 1 - c.face_t / c.face_max);
-      }
       if (c.hp < c.maxHp && c.mode !== 'down') {
         const w = 26, hx = c.cx - w / 2, hy = c.y - 20;
         ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(hx, hy, w, 3);
@@ -1490,11 +1487,6 @@ function render() {
     if (CAST.has(bossArt)) {
       CAST.draw(ctx, bossArt, bossPoseName(b, b.animT),
         b.cx, b.y + b.h, b.h * 1.10, b.face < 0, b.hurtT > 0 ? 0.65 : 1);
-      if (b.face_t > 0) {
-        const bs = CAST.sets[bossArt];
-        reaction(ctx, bossArt, b.face_emo, b, bs && bs.meta, bossPoseName(b, b.animT),
-                 b.h * 1.10, 1 - b.face_t / b.face_max);
-      }
     } else if (RIG.cast[bossArt]) {
       RIG.drawCast(ctx, bossArt, RIG.bossPose(b, b.animT),
         b.cx, b.y + b.h, b.h * 1.06, b.face < 0, b.hurtT > 0 ? 0.6 : 1);
@@ -1551,10 +1543,6 @@ function render() {
       squash: p.squash, alpha,
     });
     ctx.restore();
-  }
-  if (p.face_t > 0) {
-    reaction(ctx, 'player', p.face_emo, p, SPRITES.meta, curPose || 'idle',
-             p.h * p.squash * 1.06, 1 - p.face_t / p.face_max);
   }
   ctx.fillStyle = 'rgba(255,255,255,.5)';
   ctx.font = `700 ${8 / S.zoom * 1.6}px system-ui`; ctx.textAlign = 'center';
@@ -1808,7 +1796,6 @@ SPRITES.load().then(ok => {
 });
 WEAPON_ART.load().then(n => console.log('weapon art loaded: ' + n));
 FACES.load().then(n => console.log('reaction faces loaded: ' + n));
-HEADS.load().then(n => console.log('head swaps loaded: ' + n));
 WORLD.load().then(ok => console.log(ok ? 'world art loaded: ' + Object.keys(WORLD.props).length + ' props' : 'no world art'));
 CAST.load(['npc-sami', 'npc-rita', 'npc-omar', 'boss-calm', 'boss-rage'])
   .then(n => console.log('cast frames loaded: ' + n + ' characters'));

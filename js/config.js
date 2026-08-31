@@ -41,17 +41,21 @@ export const DOOR_H = 104;                        // taller than the player
 // anything that depends on all floors being reachable.
 export const UNLOCK_ALL = true;
 
+// liftX is the MIDDLE of every floor now — it sat at the far right of 12 and
+// the far left of everything else, so arriving anywhere meant a long walk to
+// nothing. stairX is the alternative route, always a room or two away from the
+// lift so the two are a real choice rather than the same door twice.
 export const FLOORS = {
-  park: { id:'park', no:0,  name:'P — CAR PARK',            w:2600, liftX:2480,
+  park: { id:'park', no:0,  name:'P — CAR PARK',            w:2600, liftX:1300, stairX:1900,
           locked:'The car park is below reception. You do not have a pass.' },
-  sales:{ id:'sales', no:9, name:'FLOOR 9 — SALES',         w:3200, liftX:120,
+  sales:{ id:'sales', no:9, name:'FLOOR 9 — SALES',         w:3200, liftX:1600, stairX:2200,
           locked:'Sales are on a call. They are always on a call.' },
-  fin:  { id:'fin',  no:10, name:'FLOOR 10 — FINANCE',      w:3200, liftX:120,
+  fin:  { id:'fin',  no:10, name:'FLOOR 10 — FINANCE',      w:3200, liftX:1600, stairX:2200,
           locked:'Finance have not approved your access request.' },
-  it:   { id:'it',   no:11, name:'FLOOR 11 — IT & HR',      w:3400, liftX:120,
+  it:   { id:'it',   no:11, name:'FLOOR 11 — IT & HR',      w:3400, liftX:1700, stairX:2300,
           locked:'IT will get to your ticket. IT will not get to your ticket.' },
-  ops:  { id:'ops',  no:12, name:'FLOOR 12 — OPERATIONS',   w:4400, liftX:4300 },
-  exec: { id:'exec', no:13, name:'FLOOR 13 — EXECUTIVE',    w:2600, liftX:120,
+  ops:  { id:'ops',  no:12, name:'FLOOR 12 — OPERATIONS',   w:4400, liftX:2200, stairX:2800 },
+  exec: { id:'exec', no:13, name:'FLOOR 13 — EXECUTIVE',    w:2600, liftX:1300, stairX:900,
           needRuin: 2500,
           locked: 'The lift needs an executive pass. Ruin enough of floor 12 and they will hand you one.' },
 };

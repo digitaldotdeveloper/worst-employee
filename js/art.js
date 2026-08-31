@@ -559,7 +559,16 @@ export function npcPoseName(c, t) {
   // rather than a coin flip.
   if (c.swingT > 0.16) return 'wind';
   if (c.swingT > 0) return 'swing';
-  if (c.hurtT > 0) return 'hurt';
+  // BEING HIT IS A WHOLE-BODY FRAME, AND THERE ARE THREE OF THEM.
+  // `hurtVar` is rolled once per blow in Coworker.hit, so one reaction plays
+  // through to its end instead of flickering between variants frame to frame.
+  // hasPose keeps this safe for any cast member who has not been drawn the
+  // extra frames yet — they simply keep using the one they have.
+  if (c.hurtT > 0) {
+    const v = c.hurtVar | 0;
+    if (v && CAST.hasPose(c.art, 'hurt' + (v + 1))) return 'hurt' + (v + 1);
+    return 'hurt';
+  }
   if (c.mode === 'fight') return ['run-1','run-2','run-3','run-4'][Math.floor(t*9)%4];
   if (c.talkT > 0 && c.mode !== 'panic') return 'talk';
   if (c.pointT > 0) return 'point';
@@ -725,70 +734,10 @@ export function drawWeapon(ctx, artName, pose, x, groundY, height, flip) {
 // Character-specific rather than generic emoji: the joke is SAMI'S face when you
 // take his monitor, not a yellow circle.
 // ---------------------------------------------------------------
-// HEAD SWAPS. The character's OWN head, redrawn with a different face, keyed and
-// trimmed at the neck (tools/cut-faces.py) from portraits generated against each
-// character's existing sprite as the reference.
-//
-// This is the third attempt at reaction faces and the first one that is actually
-// the character. A circular portrait badge painted over the head read as a
-// sticker; a bubble beside them read as UI. Swapping the head reads as the
-// person, because it IS the person — same hair, same collar, same palette, just
-// a different expression, scaled onto the head anchor the cutout tool measures.
-export const HEADS = {
-  img: {}, meta: null, ready: false,
-
-  async load(base = 'assets/faces/heads/') {
-    let m;
-    try {
-      const r = await fetch(base + 'heads.json');
-      if (!r.ok) return 0;
-      m = await r.json();
-    } catch (e) { return 0; }
-    this.meta = m.heads || {};
-    await Promise.all(Object.keys(this.meta).map(n => new Promise(res => {
-      const im = new Image();
-      im.onload = () => { this.img[n] = im; res(); };
-      im.onerror = res;
-      im.src = base + n + '.png';
-    })));
-    this.ready = Object.keys(this.img).length > 0;
-    return Object.keys(this.img).length;
-  },
-
-  has(art, emo) { return !!this.img[art + '-' + emo]; },
-
-  // Swept 1.0 / 1.15 / 1.3 / 1.5 against the real sprites at real game scale
-  // and looked: 1.0 is the one that stays the same person. Everything above it
-  // is a bobblehead — which is what 1.5 looked like offline at 6x zoom, and is
-  // why the sweep had to be done in the game rather than in a contact sheet.
-  draw(ctx, art, emo, meta, pose, x, groundY, height, flip) {
-    const im = this.img[art + '-' + emo];
-    if (!im || !meta || !meta.heads) return false;
-    const h = meta.heads[pose] || meta.heads.idle;
-    if (!h) return false;
-    const s = height / meta.standingH;
-    const w = 2 * h[2] * 1.0 * s;
-    const hh = w * (im.height / im.width);
-    const hx = (h[0] - meta.centreX) * s * (flip ? -1 : 1);
-    const hy = (h[1] - anchorFor(meta, pose)) * s;
-    ctx.save();
-    ctx.translate(x + hx, groundY + hy);
-    if (flip) ctx.scale(-1, 1);
-    // The cutout's own face sits about 58% down it, so line THAT up with the
-    // anchor rather than the image centre, or the swap rides high on the hair.
-    ctx.drawImage(im, -w / 2, -hh * 0.58, w, hh);
-    ctx.restore();
-    return true;
-  },
-};
-
-// Where a character's HEAD actually is, in world space, for the pose being
-// drawn — the same derivation HEADS.draw uses to place a swapped head. Impact
-// FX has to come from here rather than a fixed offset off body centre: a slap
-// aimed at the face was sparking off the chest because `v.cy - 10` is the same
-// point whether they are upright, doubled over, or lying on the carpet.
-// Returns the head centre and its RADIUS, so a caller can spread an effect
-// across the face instead of guessing a second offset.
+// Where a character's head IS, in world space. Not for drawing a face onto —
+// that idea failed three times over. It is for AIMING: the slap places its
+// sparks here so the impact lands on the head rather than a fixed offset from
+// the body centre.
 export function headAt(meta, pose, x, groundY, height, flip) {
   if (!meta || !meta.heads) return null;
   const h = meta.heads[pose] || meta.heads.idle;
@@ -801,11 +750,9 @@ export function headAt(meta, pose, x, groundY, height, flip) {
   };
 }
 
-// Resolve that straight off a cast member, deriving the art set, the pose and
-// the scale EXACTLY as the renderer does — including CAST.draw's fallback to
-// `idle` for a missing frame, so the head follows the frame actually on screen.
-// `bossArtFor` exists because a caller once restated the renderer's expression
-// and the two drifted; restating `c.h * 1.10` here would be the same mistake.
+// The same, resolved for a cast member exactly the way the renderer resolves
+// them — including CAST.draw's fallback to `idle` for a missing frame, so the
+// point tracks the frame actually on screen rather than one that was assumed.
 export function castHeadAt(c) {
   const set = c && c.art && CAST.sets[c.art];
   if (!set) return null;
@@ -813,6 +760,12 @@ export function castHeadAt(c) {
   return headAt(set.meta, set.img[pose] ? pose : 'idle',
                 c.cx, c.y + c.h, c.h * 1.10, c.face < 0);
 }
+
+// The HEADS head-swap set was removed here. Reaction expressions are drawn into
+// whole-body frames (hurt / hurt2 / hurt3) and chosen by npcPoseName; nothing is
+// ever composited onto a character. Three attempts at layering a face onto a
+// body all failed for the same reason — a person who has been hit is not an
+// idle pose with a new face, their whole body is doing it.
 
 export const FACES = {
   img: {}, size: 96, ready: false,

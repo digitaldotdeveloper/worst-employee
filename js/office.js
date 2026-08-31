@@ -236,6 +236,9 @@ export class Coworker extends Body {
     this.hp -= dmg;
     this.hurtT = 0.28;
     this.hitFlash = 0.16;
+    // Roll the reaction ONCE per blow. Rolling it per frame would flicker
+    // between three different bodies inside a single 0.28s wince.
+    this.hurtVar = Math.floor(Math.random() * 3);
     this.vx += Math.sign(this.cx - s.player.cx || 1) * (40 + dmg * 2);
     if (this.hp > 0) {
       // THEY MAKE A NOISE WHEN YOU HIT THEM. The voice used to live only in
@@ -396,6 +399,21 @@ function workstation(world, x, opt = {}) {
 }
 
 // The lift. A prop you cannot break, that you ride by pressing UP next to it.
+// THE STAIRS. Same idea as the lift, different rules: it only reaches the floor
+// above and the floor below, and it is always a couple of rooms away from the
+// lift so choosing one over the other is a real choice.
+function stairs(world, s, x) {
+  if (x == null) return null;
+  const b = makeProp('cabinet', x);
+  b.kind = 'stairs'; b.label = 'STAIRS';
+  b.w = 54; b.h = 92; b.y = FLOOR_Y - 92;
+  b.grabbable = false; b.static = true; b.solid = false;
+  b.hp = 1e9; b.value = 0; b.isStairs = true;
+  world.add(b);
+  s.stairs = b;
+  return b;
+}
+
 function lift(world, s, x) {
   const b = makeProp('cabinet', x);
   b.kind = 'lift'; b.label = 'LIFT';
@@ -528,6 +546,7 @@ function buildGeneric(world, s, F, floorId) {
   }
 
   lift(world, s, F.liftX);
+  stairs(world, s, F.stairX);
   s.boss = null;
   return {};
 }
@@ -621,6 +640,7 @@ export function buildOffice(world, s, floorId = 'ops') {
   }
 
   lift(world, s, F.liftX);
+  stairs(world, s, F.stairX);
 
   // The boss is NOT here. He is on 13, which is the whole point: after the tour
   // you don't see him again until you can get up there.
@@ -639,6 +659,7 @@ function buildExec(world, s, F) {
   const P = (kind, x) => world.add(makeProp(kind, x));
 
   lift(world, s, F.liftX);
+  stairs(world, s, F.stairX);
 
   // lift lobby — deliberately empty and expensive-looking
   P('plant', 260); P('plant', 430);
