@@ -20,11 +20,21 @@ import { ART } from './art.js';
 // THE OPTIONS WE GIVE THE PLAYER
 // Add to these lists and the creator UI grows by itself.
 // ---------------------------------------------------------------
+// ONE LOOK WHILE THE ANIMATION IS BEING BUILT OUT.
+//
+// Every pose the player has must exist in EVERY outfit or it silently falls
+// back to `idle` — which is invisible in a screenshot and obvious in a diff, and
+// is the failure this repo keeps hitting. That makes each new frame cost one
+// render per outfit, so a four-outfit roster quadruples the price of every
+// animation before a single one of them is smooth.
+//
+// While the cast is being properly animated the player is one appearance. The
+// mechanism is untouched: add rows back here, put the matching frame folders in
+// assets/player/<id>/, and the creator UI and the verifier both pick them up on
+// their own — verify.js reads the outfit list from the directory, not a
+// hand-kept list, exactly so this is reversible.
 export const OUTFITS = [
   { id: 'base',   name: 'THE NEW GUY', desc: 'Tee, slacks, sneakers. Blends in.' },
-  { id: 'scruff', name: 'BURNT OUT',   desc: 'Shirt untucked, tie loosened. Given up.' },
-  { id: 'hood',   name: 'HOODIE',      desc: 'Headphones-in energy. Not listening.' },
-  { id: 'smart',  name: 'TRYING HARD', desc: 'Blazer and a tie. Wants the promotion.' },
 ];
 
 export const OPTIONS = {

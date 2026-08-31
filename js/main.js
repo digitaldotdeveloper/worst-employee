@@ -250,6 +250,10 @@ function buildOptionRows() {
   const wrap = $('optionRows');
   wrap.innerHTML = '';
   for (const [key, def] of Object.entries(OPTIONS)) {
+    // A row offering exactly one choice is not a choice; it reads as a control
+    // that is broken. While the player is down to a single look, the LOOK row
+    // hides itself and comes back the moment a second outfit exists.
+    if (def.values.length < 2) continue;
     const row = document.createElement('div');
     row.className = 'orow';
     const lab = document.createElement('label');
