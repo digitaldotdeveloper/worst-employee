@@ -8,6 +8,7 @@ import { FX } from './fx.js';
 import { IN } from './input.js';
 import { SFX } from './audio.js';
 import { WEAPONS, statsFor, propStats, bump, hasSkill } from './weapons.js';
+import { Music } from './music.js';
 
 export class Player extends Body {
   constructor(x) {
@@ -120,6 +121,7 @@ export class Player extends Body {
     }
     if (IN.dodgeEdge && this.dodgeCd <= 0 && !this.atk) {
       this.dodgeT = this.equipped === 'rocketchair' ? WEAPONS.rocketchair.charge.time : PLAYER.dodgeTime;
+      if (this.equipped === 'rocketchair') Music.cue('full_throttle');
       this.iframes = PLAYER.dodgeIFrames;
       this.lastDodge = 0;
       this._plough.clear();
@@ -313,6 +315,11 @@ export class Player extends Body {
       FX.spark(hx, hy, d === ATTACK.heavy ? 16 : 9, '#fff', d === ATTACK.heavy ? 420 : 260);
       FX.kick(d.shake * W.shakeMul, d.hitstop * W.stopMul);
       SFX.hit(Math.min(1, (d === ATTACK.heavy ? 1 : 0.35 + a.step * 0.2) * W.sfxMul));
+      // The spin kick that ends the five-beat string gets a flourish over the
+      // top of the synthesised hit. Only on connect - a finisher fanfare on a
+      // whiff reads as a bug. Music.cue has its own cooldown, so a swing that
+      // catches three bodies still only fires it once.
+      if (a.kind === 'light' && a.step === 4) Music.cue('combo_finish');
 
       // per-weapon effects and mastery counters
       if (def) {
@@ -354,6 +361,7 @@ export class Player extends Body {
       s.damageBody(b, def.slam.dmg, this);
       s.chaos.ignite(b, Math.max(1, b.chainDepth), b.label || b.kind);
     }
+    Music.cue('ground_slam');
     bump(s, 'hammer.slam');
   }
 

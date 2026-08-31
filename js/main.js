@@ -408,6 +408,12 @@ function startShift() {
 
   S.player = new Player(120);
   S.player.equipped = S.career.equipped || 'fists';
+  // Load the cues that always apply, and the one this weapon will want. A cue
+  // that has not finished loading is skipped rather than played late, so
+  // warming early is what makes the first one land.
+  Music.warm('combo_finish');
+  Music.warm('total_wipeout');
+  Music.warmFor(S.player.equipped);
   S.world.add(S.player);
   buildOffice(S.world, S, 'ops');
 
@@ -1533,6 +1539,7 @@ function cycleWeapon() {
   const i = (owned.indexOf(S.player.equipped) + 1) % owned.length;
   S.player.equipped = owned[i];
   S.career.equipped = owned[i];
+  Music.warmFor(owned[i]);
   saveCareer(S.career);
   toast(WEAPONS[owned[i]].name);
   SFX.ui(true);

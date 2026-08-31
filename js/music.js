@@ -51,6 +51,26 @@ const PRIORITY = {
   room_machines: 10, room_lift: 10, room_boardroom: 10, room_boss: 10,
 };
 
+// IMPACT CUES. These are the same ~30s generated tracks as everything else, but
+// each one OPENS on its hit and then keeps playing, so only the front is usable
+// and `secs` is how much of it we keep.
+//
+// Only five made it in, and only the big infrequent moments. The per-material
+// smashes from the same pack are deliberately absent: glass/metal/paper/plastic
+// fire constantly during a chain, `SFX.smash()` already does them for nothing,
+// and a 700 KB download per impact for half a second of audio is a bad trade.
+// These five are rare enough that a musical flourish reads as punctuation.
+const CUES = {
+  combo_finish:  { secs: 2.4, gain: 0.95, cool: 0.9 },
+  ground_slam:   { secs: 2.2, gain: 1.00, cool: 0.9 },
+  dinner_bell:   { secs: 1.8, gain: 0.85, cool: 1.4 },
+  full_throttle: { secs: 3.0, gain: 0.90, cool: 2.0 },
+  total_wipeout: { secs: 3.2, gain: 1.00, cool: 6.0, duck: 0.45 },
+};
+
+// Which cue a weapon wants loaded before it is swung.
+const WEAPON_CUE = { hammer: 'ground_slam', pan: 'dinner_bell', rocketchair: 'full_throttle' };
+
 const HOLD = 5.0;      // seconds a track is kept before any sideways switch
 const SETTLE = 2.5;    // how long a calmer choice must persist before it wins
 
@@ -70,6 +90,9 @@ export const Music = {
   _switchedAt: -999,
   _scene: null,       // set by the UI screens; null means the shift is running
   _fresh: false,      // first director choice after a scene change: switch at once
+  _cues: {},          // key -> a trimmed AudioBuffer, ready to fire
+  _warming: {},
+  _cueAt: {},         // key -> when it may fire again
 
   // Called from a user gesture, same as SFX.resume().
   init() {
@@ -207,6 +230,79 @@ export const Music = {
     else if (name === 'shop') this.play('shop');
     else if (name === 'promote') this.play('promote', { loop: false, fade: 0.25 });
     else if (name === 'fired') this.play('fired', { loop: false, fade: 0.25 });
+  },
+
+  // ---- impact cues --------------------------------------------------------
+
+  // Fetch, decode, and throw away everything after the first `secs`.
+  //
+  // The trim is the whole point. decodeAudioData has to decode the entire file,
+  // and a 30s stereo track is about 10 MB of float PCM — five of those resident
+  // is 50 MB on a phone for what amounts to twelve seconds of audio. Copying
+  // out the front and dropping the rest costs ~4 MB for all five.
+  async warm(key) {
+    if (!this.enabled || this.failed || !CUES[key]) return;
+    this.init();
+    if (!this.ready || this._cues[key] || this._warming[key]) return;
+    this._warming[key] = true;
+    try {
+      const res = await fetch(DIR + key + '.mp3');
+      if (!res.ok) throw new Error('http ' + res.status);
+      const full = await this._ctx.decodeAudioData(await res.arrayBuffer());
+      const want = Math.min(full.duration, CUES[key].secs);
+      const frames = Math.floor(want * full.sampleRate);
+      const trimmed = this._ctx.createBuffer(full.numberOfChannels, frames, full.sampleRate);
+      for (let ch = 0; ch < full.numberOfChannels; ch++) {
+        trimmed.getChannelData(ch).set(full.getChannelData(ch).subarray(0, frames));
+      }
+      this._cues[key] = trimmed;
+    } catch (e) {
+      console.warn('[music] cue', key, 'unavailable:', e.message);
+    }
+    this._warming[key] = false;
+  },
+
+  // Load whatever the equipped weapon is going to want, before it is swung.
+  warmFor(weaponId) {
+    const key = WEAPON_CUE[weaponId];
+    if (key) this.warm(key);
+  },
+
+  // Fire a cue. If it has not finished loading this call is skipped rather than
+  // queued — a flourish that arrives two seconds after the punch is worse than
+  // no flourish — and the load is kicked off so the next one lands on time.
+  cue(key) {
+    if (!this.enabled || this.failed) return;
+    const def = CUES[key];
+    if (!def) return;
+    this.init();
+    if (!this.ready) return;
+
+    const buf = this._cues[key];
+    if (!buf) { this.warm(key); return; }
+    const now = this._ctx.currentTime;
+    if ((this._cueAt[key] || 0) > now) return;   // one hit can touch several bodies
+    this._cueAt[key] = now + def.cool;
+
+    const src = this._ctx.createBufferSource();
+    src.buffer = buf;
+    const g = this._ctx.createGain();
+    g.gain.setValueAtTime(def.gain, now);
+    // a hard cut at the trim point clicks; ride it out over the last 200ms
+    g.gain.setValueAtTime(def.gain, now + Math.max(0.05, buf.duration - 0.2));
+    g.gain.linearRampToValueAtTime(0.0001, now + buf.duration);
+    src.connect(g);
+    g.connect(this._bus);
+    src.start(now);
+
+    // the big ones push the bed out of the way for a moment
+    const live = this._live >= 0 ? this._decks[this._live] : null;
+    if (def.duck && live) {
+      this._setGain(live, def.duck, 0.15);
+      setTimeout(() => {
+        if (this._decks[this._live] === live) this._setGain(live, 1, 0.8);
+      }, buf.duration * 800);
+    }
   },
 
   // ---- the director -------------------------------------------------------

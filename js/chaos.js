@@ -9,6 +9,7 @@
 import { CHAOS, VIEW } from './config.js';
 import { FX } from './fx.js';
 import { SFX } from './audio.js';
+import { Music } from './music.js';
 
 export class ChaosSystem {
   constructor(state) {
@@ -28,8 +29,12 @@ export class ChaosSystem {
     if (body.wake) body.wake();
     body.chaosUntil = this.s.time + CHAOS.chainWindow;
     body.chainDepth = depth;
+    const was = this.chain;
     this.chain = Math.max(this.chain, depth);
     this.best = Math.max(this.best, this.chain);
+    // The moment a chain crosses four links is the loudest thing that happens
+    // in a shift, and it happens rarely. Fired once per chain, on the crossing.
+    if (was < 4 && this.chain >= 4) Music.cue('total_wipeout');
     this.until = this.s.time + CHAOS.chainWindow;
     if (label && this.links[this.links.length - 1] !== label) this.links.push(label);
 

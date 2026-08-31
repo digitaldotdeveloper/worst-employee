@@ -25,6 +25,7 @@
 //     breaks nothing must still be able to afford the shop.
 
 import { SFX } from './audio.js';
+import { Music } from './music.js';
 import { FX } from './fx.js';
 
 // ---------------------------------------------------------------
@@ -168,7 +169,12 @@ export const WEAPONS = {
              shakeMul: 1.5, stopMul: 1.6, sfxMul: 1.4, wear: 0 },
     // The only weapon that reliably takes a person out of the fight.
     onHit: (p, b, s) => {
-      if (b.type === 'npc' && b.knock) { b.downT = Math.max(b.downT || 0, 2.6); bump(s, 'pan.stun'); }
+      if (b.type === 'npc' && b.knock) {
+        b.downT = Math.max(b.downT || 0, 2.6);
+        bump(s, 'pan.stun');
+        // "connects with a noise that stops a room" - so it gets the bell.
+        Music.cue('dinner_bell');
+      }
       SFX.smash('metal', 0.5);
     },
     skills: [
