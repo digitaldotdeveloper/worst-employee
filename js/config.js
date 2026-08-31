@@ -35,6 +35,12 @@ export const DOOR_H = 104;                        // taller than the player
 //
 // `no` is the number on the lift panel and orders it. `locked` is a reason
 // string: present means you cannot go there yet and the panel says why.
+// TESTING: every floor open, including the ruin-gated executive floor. The
+// `locked` reasons and the needRuin gate below are the real progression and are
+// left in place — flip this back to false to restore them. Do not build
+// anything that depends on all floors being reachable.
+export const UNLOCK_ALL = true;
+
 export const FLOORS = {
   park: { id:'park', no:0,  name:'P — CAR PARK',            w:2600, liftX:2480,
           locked:'The car park is below reception. You do not have a pass.' },

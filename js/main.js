@@ -1,7 +1,8 @@
 // WORST EMPLOYEE — feel test. Game state, loop, camera, renderer, shift report.
 
 import { VERSION, VIEW, FLOOR_Y, CEIL_Y, ROOF_Y, LEVEL_W, COL, COFFEE, RANKS, QUIET_RANKS,
-         ATTACK, ROOMS, DOOR_W, DOOR_H, roomAt, FLOORS, CUR, ANGER } from './config.js';
+         ATTACK, ROOMS, DOOR_W, DOOR_H, roomAt, FLOORS, CUR, ANGER,
+         UNLOCK_ALL } from './config.js';
 import { World } from './engine.js';
 import { FX } from './fx.js';
 import { ART, SPRITES, WORLD, CAST, WEAPON_ART, FACES, poseFor, npcPoseName, bossPoseName,
@@ -909,7 +910,7 @@ let fade = 0;
 function travelTo(floorId) {
   const F = FLOORS[floorId];
   if (!F) return;
-  if (F.needRuin && (S.career.ruin || 0) + S.ruin < F.needRuin) {
+  if (!UNLOCK_ALL && F.needRuin && (S.career.ruin || 0) + S.ruin < F.needRuin) {
     toast(F.locked, 'boss');
     SFX.ui(false);
     return;
@@ -949,6 +950,7 @@ function rideLift() {
 
 function floorLocked(F) {
   if (!F) return 'That floor does not exist.';
+  if (UNLOCK_ALL) return null;          // testing; see config.js
   // A ruin gate is a lock you can OPEN, so it is checked first and its own
   // message explains the price. Everything else is locked flat for now.
   if (F.needRuin) {
@@ -1416,7 +1418,10 @@ function render() {
     ctx.strokeRect(l.x, l.y, l.w, l.h);
     ctx.fillStyle = '#ffd75e';
     ctx.font = `700 ${7 / S.zoom * 1.7}px system-ui`; ctx.textAlign = 'center';
-    ctx.fillText(S.floor === 'ops' ? '12' : '13', l.cx, l.y - 10);
+    // The number above the doors is the floor you are ON. It was a two-floor
+    // ternary, so every new floor claimed to be 13.
+    const fl = FLOORS[S.floor];
+    ctx.fillText(fl ? (fl.no === 0 ? 'P' : String(fl.no)) : '?', l.cx, l.y - 10);
     if (S.nearLift) {
       ctx.fillStyle = 'rgba(255,215,94,.9)';
       ctx.font = `800 ${9 / S.zoom * 1.7}px system-ui`;
