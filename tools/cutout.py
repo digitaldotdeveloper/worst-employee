@@ -373,6 +373,35 @@ def main():
         for n in no_head:
             heads[n] = heads['idle']
 
+    # NEVER OVERWRITE A HEAD ANCHOR THAT ALREADY EXISTS.
+    #
+    # find_head() above picks the largest connected region of skin, which is
+    # wrong on any pose with a bare arm out: on `grab-slap` it returned
+    # [57.9, 59.7, 25.1] — a 25px disc at mid-body, because the arm was the
+    # biggest skin blob. fix-heads.py gets these right (erosion, an anatomical
+    # ceiling, a facial-feature score, an upright-figure constraint) and is the
+    # tool the pipeline actually runs.
+    #
+    # So a REPACK of an existing set used to silently downgrade all 41 anchors
+    # to the worse detector's guesses. Nothing threw, nothing looked broken, and
+    # the damage only showed up as faces drawn on chests. Existing poses keep
+    # what they have; only genuinely new poses get a value from here, and
+    # fix-heads.py --write is still what you run afterwards to derive those
+    # properly.
+    prev_path = os.path.join(OUT, 'anchors.json')
+    if os.path.exists(prev_path):
+        try:
+            with open(prev_path, encoding='utf-8') as fh_:
+                prev = (json.load(fh_) or {}).get('heads') or {}
+        except Exception:
+            prev = {}
+        kept = [n for n in heads if n in prev]
+        for n in kept:
+            heads[n] = prev[n]
+        if kept:
+            print(f'heads: kept {len(kept)} existing anchors, '
+                  f'{len(heads) - len(kept)} new — run fix-heads.py --write')
+
     os.makedirs(OUT, exist_ok=True)
     for name, rgba in keyed.items():
         crop = rgba[y0:y1, x0:x1]
