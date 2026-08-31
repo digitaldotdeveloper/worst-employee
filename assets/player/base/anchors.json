@@ -24,6 +24,8 @@
   "getup",
   "grab-hold",
   "grab-slap",
+  "grab-slap-hit",
+  "grab-slap-rec",
   "heavy-hit",
   "heavy-wind",
   "hurt",
@@ -67,6 +69,8 @@
   "getup": 125.8,
   "grab-hold": 129.9,
   "grab-slap": 130.4,
+  "grab-slap-hit": 127.9,
+  "grab-slap-rec": 130.4,
   "heavy-hit": 129.7,
   "heavy-wind": 130.2,
   "hurt": 129.9,
@@ -110,6 +114,8 @@
   "getup": 22.7,
   "grab-hold": 8.5,
   "grab-slap": 6.4,
+  "grab-slap-hit": 4.4,
+  "grab-slap-rec": 6.7,
   "heavy-hit": 15.5,
   "heavy-wind": 12.1,
   "hurt": 7.5,
@@ -221,6 +227,16 @@
    13.0
   ],
   "grab-slap": [
+   69.5,
+   15.5,
+   13.0
+  ],
+  "grab-slap-hit": [
+   70.0,
+   14.0,
+   13.0
+  ],
+  "grab-slap-rec": [
    69.5,
    15.5,
    13.0

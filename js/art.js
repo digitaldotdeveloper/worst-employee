@@ -8,7 +8,7 @@
 // Sheets are expected as horizontal strips of equal frames; see assets/manifest.json
 // for the full list of slots the game will eventually ask for.
 
-import { COL } from './config.js';
+import { COL, SLAP } from './config.js';
 
 export const ART = {
   sprites: {},          // key -> { img, frames, fw, fh, fps, anchorY }
@@ -277,9 +277,16 @@ export function poseFor(p, t) {
   // Sat at his own desk, pretending.
   if (p.sitting) return 'sit';
   // Holding somebody has its own drawn frames now: an arm locked out on a
-  // collar, and a backhand that keeps the grip.
+  // collar, and a backhand that keeps the grip. The slap is THREE beats, and
+  // the boundaries come from SLAP in config.js rather than being restated
+  // here — player.js fires the blow at SLAP.contact, and a pose boundary that
+  // drifts away from the moment the blow lands is exactly how this action
+  // ended up connecting with nothing. One number, one source.
   if (p.holdingPerson && p.carrying) {
-    return p.slapCd > 0.10 ? 'grab-slap' : 'grab-hold';
+    if (p.slapCd > SLAP.contact) return 'grab-slap';      // wind-up, arm still back
+    if (p.slapCd > SLAP.recover) return 'grab-slap-hit';  // contact, on entry
+    if (p.slapCd > 0) return 'grab-slap-rec';             // recovery, back to the grip
+    return 'grab-hold';
   }
   // Spraying is AIMING, not carrying. The carry frame holds a box at chest
   // height with both arms, which reads nothing like working a nozzle.
@@ -655,7 +662,21 @@ const HAND = {
   'walk-3': [11.0, -29.8, 0.95],
   'walk-4': [8.0, -27.5, 1.0],
   'grab-hold': [24.0, -44.7, -0.35],
+  // The three slap beats DELIBERATELY share one row. The held colleague is
+  // pinned to handAt(poseFor(...)) every frame, so any difference between the
+  // beats becomes a twitch on a 0.26s action. Measured, the grip fist really
+  // does barely move — x 22.5/22.0/22.5, y -45.5/-44.5/-45.5 — so separate
+  // rows would buy nothing and risk a jump. HAND is authored, not derived:
+  // an identical row makes the anchor provably identical.
+  //
+  // fix-hands.py --missing prints [21.5, -51.7] for grab-slap-hit. Do not use
+  // it. In that frame the head, the grip arm and the slapping arm survive
+  // erosion as ONE blob, so the y it reports is the centre of a blob running
+  // from the hair to the fist, not the fist. It would lift the victim 6.5px
+  // for 0.09s and drop him back.
   'grab-slap': [22.0, -45.2, -0.2],
+  'grab-slap-hit': [22.0, -45.2, -0.2],
+  'grab-slap-rec': [22.0, -45.2, -0.2],
   'c2-wind': [14.5, -45.2, -1.25],
   'c3-wind': [26.5, -44.8, -1.2],
   'c4-wind': [14.0, -27.1, -1.3],
@@ -756,6 +777,38 @@ export const HEADS = {
     return true;
   },
 };
+
+// Where a character's HEAD actually is, in world space, for the pose being
+// drawn — the same derivation HEADS.draw uses to place a swapped head. Impact
+// FX has to come from here rather than a fixed offset off body centre: a slap
+// aimed at the face was sparking off the chest because `v.cy - 10` is the same
+// point whether they are upright, doubled over, or lying on the carpet.
+// Returns the head centre and its RADIUS, so a caller can spread an effect
+// across the face instead of guessing a second offset.
+export function headAt(meta, pose, x, groundY, height, flip) {
+  if (!meta || !meta.heads) return null;
+  const h = meta.heads[pose] || meta.heads.idle;
+  if (!h) return null;
+  const s = height / meta.standingH;
+  return {
+    x: x + (h[0] - meta.centreX) * s * (flip ? -1 : 1),
+    y: groundY + (h[1] - anchorFor(meta, pose)) * s,
+    r: h[2] * s,
+  };
+}
+
+// Resolve that straight off a cast member, deriving the art set, the pose and
+// the scale EXACTLY as the renderer does — including CAST.draw's fallback to
+// `idle` for a missing frame, so the head follows the frame actually on screen.
+// `bossArtFor` exists because a caller once restated the renderer's expression
+// and the two drifted; restating `c.h * 1.10` here would be the same mistake.
+export function castHeadAt(c) {
+  const set = c && c.art && CAST.sets[c.art];
+  if (!set) return null;
+  const pose = npcPoseName(c, c.animT);
+  return headAt(set.meta, set.img[pose] ? pose : 'idle',
+                c.cx, c.y + c.h, c.h * 1.10, c.face < 0);
+}
 
 export const FACES = {
   img: {}, size: 96, ready: false,

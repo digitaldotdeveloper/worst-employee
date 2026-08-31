@@ -282,6 +282,60 @@ const URL = process.env.URL || 'http://127.0.0.1:4320/';
     ? ok('floored: down -> getup -> up')
     : bad('floored: ' + floored.join(' -> '));
 
+  // THE SLAP. It shipped with ONE drawn frame and a two-state toggle, so the
+  // hand was still cocked back at the moment the blow resolved: the action
+  // literally connected with nothing. It is three beats now, and the
+  // boundaries are read from SLAP in config.js by both player.js (which fires
+  // the impact) and poseFor (which picks the frame). Two things are checked,
+  // because the failure has two halves and only one of them is a missing file:
+  //   1. all three frames are actually reached during one window, in order
+  //   2. the held colleague does not MOVE across them. He is pinned to
+  //      handAt(poseFor(...)) every frame, so the three beats share one HAND
+  //      row on purpose. Separate rows — including the one fix-hands.py
+  //      measures for grab-slap-hit, whose blob merges with the head — snap
+  //      him up and back inside 0.09s.
+  const slap = await p.evaluate(async () => {
+    const S = window.WE.S, pl = S.player;
+    const c = S.coworkers.find(x => !x.dead && x.visible !== false);
+    if (!c) return { err: 'no coworker to grab' };
+    pl.downT = 0; pl.hurtT = 0; pl.sitting = false; pl.vx = 0; pl.slapCd = 0;
+    c.dead = false; c.held = false; c.downT = 0;
+    c.x = pl.cx + pl.face * 24 - c.w / 2; c.y = pl.y + pl.h - c.h;
+    pl._grabOrThrow(S);
+    if (!pl.holdingPerson || !pl.carrying) return { err: 'grab did not take' };
+    pl._slap(S);
+    // Sample EVERY frame. The beats are 70/90/100ms long, so a polling loop
+    // from the test runner steps straight over one of them.
+    const seen = [], hold = [];
+    for (let i = 0; i < 60 && pl.slapCd > 0; i++) {
+      await new Promise(r => requestAnimationFrame(r));
+      const q = window.WE.poseFor(pl, pl.animT);
+      if (seen[seen.length - 1] !== q) seen.push(q);
+      if (pl.carrying) hold.push(pl.carrying.y - (pl.y + pl.h));
+    }
+    await new Promise(r => requestAnimationFrame(r));
+    seen.push(window.WE.poseFor(pl, pl.animT));
+    // Put him down. The fight-back check below reuses this coworker, and a
+    // colleague still dangling off your fist plays `held`, not `wind`/`swing`.
+    const v = pl.carrying;
+    if (v) { v.held = false; v.hoisted = false; v.angle = 0; v.mode = 'idle'; }
+    pl.carrying = null; pl.holdingPerson = false; pl.slapCd = 0;
+    return { seen, spread: hold.length ? Math.max(...hold) - Math.min(...hold) : null };
+  });
+  if (slap.err) bad('slap: ' + slap.err);
+  else {
+    const want = ['grab-slap', 'grab-slap-hit', 'grab-slap-rec', 'grab-hold'];
+    const got = slap.seen.filter((v, i) => v !== slap.seen[i - 1]);
+    JSON.stringify(got) === JSON.stringify(want)
+      ? ok('slap: ' + want.join(' -> '))
+      : bad('slap: played ' + got.join(' -> ') + ' — wanted ' + want.join(' -> '));
+    slap.spread == null ? bad('slap: never had hold of anybody')
+      : slap.spread <= 2
+        ? ok(`slap: the held colleague stays put (${slap.spread.toFixed(2)}px over the whole window)`)
+        : bad(`slap: the held colleague jumps ${slap.spread.toFixed(1)}px mid-slap `
+              + '— the three beats are not sharing one HAND row');
+  }
+
   // THE TELEGRAPH. An instant hit is not a fight, it is a tax.
   await p.evaluate(() => {
     const S = window.WE.S; const c = S.coworkers[0];

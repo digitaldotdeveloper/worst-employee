@@ -99,6 +99,18 @@ export const ATTACK = {
   holdForHeavy: 0.20,
 };
 
+// THE SLAP — three beats inside one window, counted DOWN from `cd` to 0.
+//   cd .. contact   wind-up   (the arm is still back)
+//   contact .. recover   contact   (the hand has arrived; the blow lands here)
+//   recover .. 0    recovery  (back to the grip)
+// `cd` is a balance number — it gates how fast you can slap and therefore ruin
+// per second — and is deliberately unchanged from the value the economy was
+// measured against. The other two are animation. They live here rather than in
+// player.js because poseFor reads them too, and the pose boundaries drifting
+// away from the moment the blow lands is precisely how the slap ended up
+// connecting with nothing in the first place.
+export const SLAP = { cd: 0.26, contact: 0.19, recover: 0.10 };
+
 export const CHAOS = {
   minEnergy: 130,        // impact speed needed to make a thing "chaotic"
   // 2.4s was long enough that a chain essentially never lapsed during ordinary
