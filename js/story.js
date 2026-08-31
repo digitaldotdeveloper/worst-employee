@@ -21,12 +21,14 @@ export const cam = (x, ms) => ({ t: 'cam', x, ms });
 export const look = (who, dir) => ({ t: 'look', who, dir });
 export const fx = fn => ({ t: 'fx', fn });
 export const prompt = (text, opts) => ({ t: 'prompt', text, opts });
+// Hold a one-off pose for a beat: pointing at the water cooler, shaking a hand.
+export const pose = (who, name, ms) => ({ t: 'pose', who, name, ms: ms || 1800 });
 
 // ---------------------------------------------------------------
 // Where the intro happens. Reception for HR, then a walk through the floor.
 // ---------------------------------------------------------------
 export const HR_X = 300;
-export const DESK_X = 800;
+export const DESK_X = 640;
 
 export function introScene(S) {
   const P = S.player;
@@ -50,9 +52,14 @@ export function introScene(S) {
     wait(400),
 
     // the boss arrives, delighted
-    fx(() => { boss.x = HR_X + 260; boss.face = -1; boss.visible = true; }),
-    walk('boss', HR_X + 70, 1400),
+    fx(() => { boss.x = HR_X + 330; boss.face = -1; boss.visible = true; }),
+    // Both of them step clear of Dalia's desk and meet. A handshake played at
+    // opposite ends of reception is two people waving at each other.
+    walk('boss', HR_X + 150, 1600),
+    walk('player', HR_X + 88, 1600),
     say('BOSS — MR. HALEY', "There he is! Welcome aboard. We're really happy you're here.", 2800),
+    look('player', 1),
+    pose('boss', 'shake', 2600),
     fx(() => {
       FX.float(P.cx + 16, P.y - 20, 'SHAKE', '#ffd75e', 12);
       FX.spark(P.cx + 20, P.cy, 6, '#ffe9a8', 140);
@@ -64,11 +71,13 @@ export function introScene(S) {
     // the tour — every promise here is a thing you can wreck later
     walk('boss', 380, 1500),
     walk('player', 330, 1500),
+    pose('boss', 'point', 2400),
     say('BOSS — MR. HALEY', 'Water dispenser. Unlimited water.', 2200),
     fx(() => { if (S.waterCooler) FX.float(S.waterCooler.cx, S.waterCooler.y - 12, 'UNLIMITED', '#7fd1ff', 11); }),
 
     walk('boss', 2270, 2600),
     walk('player', 2220, 2600),
+    pose('boss', 'point', 2400),
     say('BOSS — MR. HALEY', 'And free coffee. Help yourself.', 2200),
     fx(() => { if (S.coffeeMachine) FX.float(S.coffeeMachine.cx, S.coffeeMachine.y - 12, 'FREE', '#ffd9a8', 11); }),
     say('BOSS — MR. HALEY', 'Break room. Fifteen minutes, every four hours.', 2400),
@@ -77,6 +86,7 @@ export function introScene(S) {
     // meet the floor — four people, each of whom you can later ruin
     walk('boss', 1180, 2600),
     walk('player', 1120, 2600),
+    pose('boss', 'point', 2600),
     say('BOSS — MR. HALEY', "This is the team. Team, this is the new one.", 2400),
     fx(() => { S.introMeet(0); }),
     say('SAMI — SENIOR DEVELOPER', "Alright. Don't touch my mug. It has my name on it.", 2600),
@@ -90,7 +100,9 @@ export function introScene(S) {
 
     walk('boss', DESK_X + 40, 2600),
     walk('player', DESK_X - 10, 2600),
+    pose('boss', 'point', 2200),
     say('BOSS — MR. HALEY', "And this is your desk.", 2000),
+    pose('boss', 'talk', 2200),
     say('BOSS — MR. HALEY', "We're a family here.", 2000),
     fx(() => { S.familySaid = true; }),
     say(S.look.name, "...A family.", 1400),
@@ -107,7 +119,7 @@ export function introScene(S) {
     look('boss', 1),
     walk('boss', 4300, 3400),
     fx(() => { boss.visible = false; S.bossHidden = true; }),
-    say('', 'SIT AT YOUR DESK TO BEGIN.', 2200),
+    say('', 'SIT AT YOUR DESK TO BEGIN.  [USE]', 2600),
     fx(() => { S.introDone = true; }),
   ];
 }
@@ -156,6 +168,13 @@ export class Story {
     } else if (b.t === 'look') {
       const a = this.actor(b.who); if (a) a.face = b.dir;
       this.i++; this._enter(); return;
+    } else if (b.t === 'pose') {
+      // Sets a timer the pose selector reads, then falls through to the NEXT
+      // beat immediately — the pose has to overlap the line that explains it,
+      // not take a turn of its own.
+      const a = this.actor(b.who);
+      if (a) { a.poseHold = b.name; a.poseHoldT = b.ms / 1000; }
+      this.i++; this._enter(); return;
     } else if (b.t === 'walk') {
       const a = this.actor(b.who);
       if (a) { this.walks.set(a, { from: a.x, to: b.x, ms: b.ms || 1200, el: 0 }); a.face = b.x > a.x ? 1 : -1; }
@@ -195,6 +214,19 @@ export class Story {
       a.vx = 0;
       a.walking = k < 1;
       if (k >= 1) this.walks.delete(a);
+    }
+
+    // The cutscene branch of update() RETURNS before `player.update`, so nothing
+    // advances an actor's `animT` during a scene. Without this every walk cycle
+    // is frozen on frame 1 and the whole tour slides along the floor in one
+    // pose. The story owns these actors while it is running, so it ticks them.
+    for (const who of [this.S.player, this.S.actors.boss, this.S.actors.hr]) {
+      if (!who) continue;
+      who.animT = (who.animT || 0) + dt;
+      if (who.poseHoldT > 0) {
+        who.poseHoldT -= dt;
+        if (who.poseHoldT <= 0) who.poseHold = null;
+      }
     }
 
     const b = this.beats[this.i];

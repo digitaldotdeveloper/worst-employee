@@ -1,97 +1,128 @@
 {
  "_comment": "Written by tools/cutout.py. Every frame shares one crop and one scale, so groundY and centreX are constants, not per-frame values.",
  "frameW": 140,
- "frameH": 130,
- "groundY": 127.7,
+ "frameH": 136,
+ "groundY": 133.3,
  "centreX": 54.7,
  "standingH": 124,
  "poses": [
   "c1-hit",
   "c1-wind",
+  "c2-hit",
+  "c2-wind",
   "down",
+  "getup",
   "hurt",
   "idle",
   "idle2",
   "run-1",
   "run-2",
   "run-3",
-  "run-4"
+  "run-4",
+  "sprayed"
  ],
  "poseBottom": {
-  "c1-hit": 127.7,
-  "c1-wind": 127.7,
-  "down": 114.7,
-  "hurt": 128.2,
-  "idle": 127.7,
-  "idle2": 127.7,
-  "run-1": 127.7,
-  "run-2": 127.7,
-  "run-3": 127.7,
-  "run-4": 127.7
+  "c1-hit": 133.3,
+  "c1-wind": 133.3,
+  "c2-hit": 133.8,
+  "c2-wind": 133.3,
+  "down": 120.3,
+  "getup": 131.7,
+  "hurt": 133.8,
+  "idle": 133.3,
+  "idle2": 133.3,
+  "run-1": 133.3,
+  "run-2": 133.3,
+  "run-3": 133.3,
+  "run-4": 133.3,
+  "sprayed": 133.3
  },
  "poseTop": {
-  "c1-hit": 2.1,
-  "c1-wind": 2.4,
-  "down": 71.7,
-  "hurt": 2.4,
-  "idle": 3.7,
-  "idle2": 2.9,
-  "run-1": 2.4,
-  "run-2": 2.1,
-  "run-3": 2.4,
-  "run-4": 2.4
+  "c1-hit": 7.7,
+  "c1-wind": 7.9,
+  "c2-hit": 24.6,
+  "c2-wind": 2.1,
+  "down": 77.2,
+  "getup": 21.2,
+  "hurt": 7.9,
+  "idle": 9.3,
+  "idle2": 8.5,
+  "run-1": 7.9,
+  "run-2": 7.7,
+  "run-3": 7.9,
+  "run-4": 7.9,
+  "sprayed": 7.4
  },
  "heads": {
   "c1-hit": [
-   69.6,
-   30.0,
-   61.4
+   67.3,
+   28.4,
+   19.4
   ],
   "c1-wind": [
-   65.7,
-   25.8,
-   67.0
+   68.1,
+   27.2,
+   18.0
+  ],
+  "c2-hit": [
+   95.3,
+   41.5,
+   16.4
+  ],
+  "c2-wind": [
+   57.4,
+   37.7,
+   35.0
   ],
   "down": [
-   73.1,
-   80.0,
-   47.7
+   106.0,
+   107.2,
+   15.9
+  ],
+  "getup": [
+   84.9,
+   44.3,
+   28.3
   ],
   "hurt": [
-   57.4,
-   26.5,
-   50.8
+   41.0,
+   50.5,
+   31.2
   ],
   "idle": [
-   72.8,
-   29.8,
-   34.7
+   68.3,
+   27.6,
+   17.3
   ],
   "idle2": [
-   71.5,
-   32.6,
-   48.4
+   56.6,
+   41.0,
+   31.7
   ],
   "run-1": [
-   78.0,
-   30.7,
-   42.8
+   63.9,
+   27.0,
+   17.7
   ],
   "run-2": [
-   71.5,
-   27.2,
-   45.9
+   67.7,
+   26.7,
+   17.7
   ],
   "run-3": [
-   70.4,
-   30.2,
-   45.9
+   67.8,
+   27.0,
+   17.7
   ],
   "run-4": [
-   65.1,
-   25.2,
-   49.6
+   67.4,
+   28.7,
+   19.4
+  ],
+  "sprayed": [
+   65.6,
+   41.9,
+   33.2
   ]
- },
- "_heads_comment": "Head centre x, y and radius per frame, in frame pixels. Reaction faces draw HERE, over the drawn face."
+ }
 }

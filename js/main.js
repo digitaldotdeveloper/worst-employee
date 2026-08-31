@@ -508,6 +508,7 @@ function bark(who, text, col) {
   if (!who || who.dead) return;
   FX.float(who.cx, who.y - 18, text, col || '#cfd6e6', 11);
   who.barkCd = 2.2;
+  who.talkT = 1.1;          // and it looks like talking, not standing there
 }
 
 function playerFace(emo, ms = 1400) {
@@ -546,6 +547,41 @@ S.onMissionComplete = m => {
 // that is the point, it is the first taste of free chaos.
 S.tryInteract = function () {
   const p = S.player;
+
+  // YOUR DESK. The intro ends on "SIT AT YOUR DESK TO BEGIN" and until now that
+  // was a line of text attached to nothing at all.
+  // Already in it: USE gets you back out. Without this, the button that sat you
+  // down just sits you down again.
+  if (p.sitting) { p.sitting = false; SFX.ui(false); return true; }
+
+  const d = S.playerDesk;
+  if (d && Math.abs((d.x + d.w / 2) - p.cx) < 62 && p.grounded && !p.carrying) {
+    p.sitting = true;
+    p.sitT = 0;
+    p.x = d.x + d.w / 2 - p.w / 2 + 10;
+    p.vx = 0;
+    p.face = 1;
+    SFX.ui(true);
+    if (!S.hasSat) {
+      S.hasSat = true;
+      S.day.work = (S.day.work || 0) + 1;
+      toast('You sort the documents. It takes four minutes.');
+      playerFace('grimace', 1800);
+      // THE DISCOVERY. The whole game turns on this beat: the task is done,
+      // it meant nothing, nobody checked, and nobody is watching you.
+      setTimeout(() => { if (S.mode === 'play') toast('Nobody checked.'); }, 3200);
+      setTimeout(() => {
+        if (S.mode !== 'play') return;
+        toast('Nobody is watching you at all.', 'boss');
+        playerFace('smirk', 2600);
+      }, 6000);
+    } else {
+      toast('You look busy. It is not the same as being busy.');
+      playerFace('smirk', 1400);
+    }
+    return true;
+  }
+
   let best = null, bd = 999;
   for (const b of S.world.bodies) {
     if (b.type !== 'prop' || b.dead || b.broken) continue;
@@ -579,6 +615,7 @@ const SWEARS = ['WHAT THE', 'MY EYES', 'ARE YOU SERIOUS', 'OH COME ON',
                 'I CANNOT SEE', 'THIS IS NEW', 'MY LAPTOP', 'ABSOLUTELY NOT'];
 S.onSprayed = (c, dt) => {
   c.sprayedT = (c.sprayedT || 0) + dt;
+  c.sprayHold = 0.45;       // holds the coughing frame past the last spray tick
   c.mode = 'panic';
   c.timer = 1.6;
   c.vx += Math.sign(c.cx - S.player.cx || 1) * 260 * dt;
@@ -1333,19 +1370,13 @@ function render() {
     RIG.draw(ctx, RIG.poseFor(p, p.animT), p.cx, p.y + p.h,
       p.h * p.squash * 1.06, p.face < 0, alpha);
   } else if (S.useArt && SPRITES.ready) {
-    // squash is applied to the draw height so landings still punch
-    if (p.downT > 0) {
-      // No drawn floor pose for the player yet, so the hurt frame is laid over
-      // and rotated. Reads correctly and costs no art.
-      ctx.save();
-      ctx.translate(p.cx, p.y + p.h);
-      ctx.rotate(p.face < 0 ? -1.35 : 1.35);
-      SPRITES.draw(ctx, 'hurt', 0, 0, p.h * 1.06, p.face < 0, alpha);
-      ctx.restore();
-    } else {
-      SPRITES.draw(ctx, curPose, p.cx, p.y + p.h,
-        p.h * p.squash * 1.06, p.face < 0, alpha);
-    }
+    // squash is applied to the draw height so landings still punch.
+    // There WAS a special case here that took the standing `hurt` frame and
+    // rotated it 77 degrees to fake lying down. It is gone: `down` and `getup`
+    // are drawn frames now, and `poseFor` returns them, so the general path
+    // handles being floored like any other state.
+    SPRITES.draw(ctx, curPose, p.cx, p.y + p.h,
+      p.h * p.squash * 1.06, p.face < 0, alpha);
     // the equipped weapon rides in the hand; a grabbed prop is drawn by the
     // props loop instead, so never draw both
     const eqw = WEAPONS[p.equipped];
@@ -1724,4 +1755,4 @@ addEventListener('keydown', e => {
 
 // Art hookup point. When sprites exist, uncomment and point at the files.
 // ART.load({ 'player.idle': { src:'assets/player/idle.png', frames:6, fps:8 } });
-window.WE = { S, ART, FX, SPRITES, RIG, CAST, applyLook };   // handy in the mobile console
+window.WE = { S, ART, FX, SPRITES, RIG, CAST, applyLook, poseFor, npcPoseName };   // handy in the mobile console

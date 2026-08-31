@@ -261,13 +261,21 @@ export const SPRITES = {
 // the string flows instead of resetting to neutral five times.
 const COMBO = [
   { wind: 'c1-wind', hit: 'c1-hit' },
-  { wind: 'c1-hit',  hit: 'c2-hit' },
-  { wind: 'c2-hit',  hit: 'c3-hit' },
-  { wind: 'c3-hit',  hit: 'c4-hit' },
+  { wind: 'c2-wind', hit: 'c2-hit' },
+  { wind: 'c3-wind', hit: 'c3-hit' },
+  { wind: 'c4-wind', hit: 'c4-hit' },
   { wind: 'c5-wind', hit: 'c5-hit' },
 ];
 
 export function poseFor(p, t) {
+  // A scripted pose beats every live state except being on the floor.
+  if (p.poseHold && p.downT <= 0) return p.poseHold;
+  // FLOORED. `downT` runs 2.2 -> 0 and used to draw a STANDING hurt frame the
+  // whole way, which is why being knocked out never read as being knocked out.
+  // The last 0.7s is him pushing himself back up.
+  if (p.downT > 0) return p.downT > 0.7 ? 'down' : 'getup';
+  // Sat at his own desk, pretending.
+  if (p.sitting) return 'sit';
   // Holding somebody has its own drawn frames now: an arm locked out on a
   // collar, and a backhand that keeps the grip.
   if (p.holdingPerson && p.carrying) {
@@ -275,7 +283,7 @@ export function poseFor(p, t) {
   }
   // Spraying is AIMING, not carrying. The carry frame holds a box at chest
   // height with both arms, which reads nothing like working a nozzle.
-  if (p.spraying) return 'c2-hit';
+  if (p.spraying) return 'spray';
   if (p.atk) {
     const wind = p.atk.phase === 'startup';
     if (!p.grounded) return 'air-hit';
@@ -294,11 +302,19 @@ export function poseFor(p, t) {
   if (p.landT > 0) return 'land';
   if (p.fiddleT > 0) return 'land';   // a crouch: reaching for something
   if (p.carrying) return 'carry';
-  if (Math.abs(p.vx) > 26) {
+  const spd = Math.abs(p.vx);
+  if (spd > 26 || p.walking) {
+    // A STROLL IS NOT A SPRINT. Story beats move an actor by tweening `x` with
+    // `vx` pinned to zero, so before this the entire opening tour played out
+    // with everybody standing bolt upright in the idle frame, sliding along
+    // the floor. `walking` is the scripted case; the speed band is the live one.
+    if (p.walking || spd < 108) {
+      return ['walk-1', 'walk-2', 'walk-3', 'walk-4'][Math.floor(t * 6.5) % 4];
+    }
     // six frames instead of four: the extra stride and recovery frames are what
     // stop a run cycle looking like a shuffle
     const order = ['run-1', 'run-2', 'run-5', 'run-3', 'run-4', 'run-6'];
-    const speed = Math.min(1.5, Math.abs(p.vx) / 205);
+    const speed = Math.min(1.5, spd / 205);
     return order[Math.floor(t * 11 * speed) % order.length];
   }
   // a second idle keeps a standing character from looking frozen
@@ -500,6 +516,12 @@ export const CAST = {
 
   has(name) { return !!this.sets[name]; },
 
+  // Whether a character actually HAS a given frame. `draw` silently falls back
+  // to idle for a missing pose, which is right for rendering and wrong for
+  // picking an animation: a four-frame cycle where three frames fall back looks
+  // far worse than the three-frame cycle that character does have.
+  hasPose(name, pose) { const s = this.sets[name]; return !!(s && s.img[pose]); },
+
   draw(ctx, name, pose, x, groundY, height, flip, alpha = 1) {
     const s = this.sets[name];
     if (!s) return false;
@@ -519,10 +541,28 @@ export const CAST = {
 };
 
 export function npcPoseName(c, t) {
+  if (c.poseHold && c.mode !== 'down') return c.poseHold;
   if (c.held && c.hoisted) return 'held';
-  if (c.mode === 'down') return 'down';
+  // Getting up is its own shape. Without it people teleport from flat on the
+  // floor to standing between two frames.
+  if (c.mode === 'down') return c.downT < 0.55 ? 'getup' : 'down';
+  if (c.sprayHold > 0) return 'sprayed';
+  // A punch with a wind-up. `swingT` runs 0.42 -> 0 and the blow lands at 0.16,
+  // so the first 0.26s is pure telegraph — which is what makes dodging a skill
+  // rather than a coin flip.
+  if (c.swingT > 0.16) return 'wind';
+  if (c.swingT > 0) return 'swing';
   if (c.hurtT > 0) return 'hurt';
   if (c.mode === 'fight') return ['run-1','run-2','run-3','run-4'][Math.floor(t*9)%4];
+  if (c.talkT > 0 && c.mode !== 'panic') return 'talk';
+  if (c.pointT > 0) return 'point';
+  // Scripted walks pin `vx` to zero and tween `x`, so without this the boss
+  // delivers his entire tour standing bolt upright and sliding along the floor.
+  if (c.walking) {
+    return CAST.hasPose(c.art, 'walk-1')
+      ? ['walk-1', 'walk-2', 'walk-3', 'walk-4'][Math.floor(t * 6.5) % 4]
+      : ['run-1', 'run-2', 'run-3', 'run-4'][Math.floor(t * 5) % 4];
+  }
   if (c.mode === 'panic') {
     return ['run-1', 'run-2', 'run-3', 'run-4'][Math.floor(t * 10) % 4];
   }
@@ -662,7 +702,11 @@ export const FACES = {
     if (!h) return false;
     const s = height / meta.standingH;
     const hx = (h[0] - meta.centreX) * s * (flip ? -1 : 1);
-    const hy = (h[1] - meta.groundY) * s;
+    // The SAME anchor the sprite itself is drawn from. Prone frames anchor to
+    // their own lowest pixel, not the shared standing ground line, so reading
+    // groundY here put the face on the carpet a body-length away from the head
+    // it belonged to.
+    const hy = (h[1] - anchorFor(meta, pose)) * s;
     // Just wide enough to cover the drawn head. The skin-pixel radius runs
     // generous on bearded characters, so this multiplier is deliberately modest
     // — at 2.35 the expression swallowed the whole torso.

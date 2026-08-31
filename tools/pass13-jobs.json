@@ -1,0 +1,370 @@
+{
+ "j87": {
+  "label": "player-base__down",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j88": {
+  "label": "player-base__getup",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j89": {
+  "label": "player-base__sit",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j90": {
+  "label": "player-base__spray",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j91": {
+  "label": "player-base__c2-wind",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j92": {
+  "label": "player-base__c3-wind",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j93": {
+  "label": "player-base__c4-wind",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j94": {
+  "label": "player-base__walk-1",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j95": {
+  "label": "player-base__walk-2",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j96": {
+  "label": "player-base__walk-3",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j97": {
+  "label": "player-base__walk-4",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j98": {
+  "label": "player-scruff__down",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j99": {
+  "label": "player-scruff__getup",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j100": {
+  "label": "player-scruff__sit",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j101": {
+  "label": "player-scruff__spray",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j102": {
+  "label": "player-scruff__c2-wind",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j103": {
+  "label": "player-scruff__c3-wind",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j104": {
+  "label": "player-scruff__c4-wind",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j105": {
+  "label": "player-scruff__walk-1",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j106": {
+  "label": "player-scruff__walk-2",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j107": {
+  "label": "player-scruff__walk-3",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j108": {
+  "label": "player-scruff__walk-4",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j109": {
+  "label": "player-hood__down",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j110": {
+  "label": "player-hood__getup",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j111": {
+  "label": "player-hood__sit",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j112": {
+  "label": "player-hood__spray",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j113": {
+  "label": "player-hood__c2-wind",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j114": {
+  "label": "player-hood__c3-wind",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j115": {
+  "label": "player-hood__c4-wind",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j116": {
+  "label": "player-hood__walk-1",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j117": {
+  "label": "player-hood__walk-2",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j118": {
+  "label": "player-hood__walk-3",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j119": {
+  "label": "player-hood__walk-4",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j120": {
+  "label": "player-smart__down",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j121": {
+  "label": "player-smart__getup",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j122": {
+  "label": "player-smart__sit",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j123": {
+  "label": "player-smart__spray",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j124": {
+  "label": "player-smart__c2-wind",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j125": {
+  "label": "player-smart__c3-wind",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j126": {
+  "label": "player-smart__c4-wind",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j127": {
+  "label": "player-smart__walk-1",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j128": {
+  "label": "player-smart__walk-2",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j129": {
+  "label": "player-smart__walk-3",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j130": {
+  "label": "player-smart__walk-4",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j131": {
+  "label": "npc-sami__swing",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j132": {
+  "label": "npc-sami__wind",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j133": {
+  "label": "npc-sami__getup",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j134": {
+  "label": "npc-sami__sprayed",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j135": {
+  "label": "npc-sami__talk",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j136": {
+  "label": "npc-sami__point",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j137": {
+  "label": "npc-rita__swing",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j138": {
+  "label": "npc-rita__wind",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j139": {
+  "label": "npc-rita__getup",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j140": {
+  "label": "npc-rita__sprayed",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j141": {
+  "label": "npc-rita__talk",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j142": {
+  "label": "npc-rita__point",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j143": {
+  "label": "npc-omar__swing",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j144": {
+  "label": "npc-omar__wind",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j145": {
+  "label": "npc-omar__getup",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j146": {
+  "label": "npc-omar__sprayed",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j147": {
+  "label": "npc-omar__talk",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j148": {
+  "label": "npc-omar__point",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j149": {
+  "label": "boss-rage__c2-wind",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j150": {
+  "label": "boss-rage__c2-hit",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j151": {
+  "label": "boss-rage__getup",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j152": {
+  "label": "boss-rage__sprayed",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j153": {
+  "label": "boss-calm__point",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j154": {
+  "label": "boss-calm__talk",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j155": {
+  "label": "boss-calm__shake",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j156": {
+  "label": "boss-calm__hurt",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j157": {
+  "label": "boss-calm__walk-1",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j158": {
+  "label": "boss-calm__walk-2",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j159": {
+  "label": "boss-calm__walk-3",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j160": {
+  "label": "boss-calm__walk-4",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j161": {
+  "label": "npc-sami__walk-1",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j162": {
+  "label": "npc-sami__walk-2",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j163": {
+  "label": "npc-sami__walk-3",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j164": {
+  "label": "npc-sami__walk-4",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j165": {
+  "label": "npc-rita__walk-1",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j166": {
+  "label": "npc-rita__walk-2",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j167": {
+  "label": "npc-rita__walk-3",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j168": {
+  "label": "npc-rita__walk-4",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j169": {
+  "label": "npc-omar__walk-1",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j170": {
+  "label": "npc-omar__walk-2",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j171": {
+  "label": "npc-omar__walk-3",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j172": {
+  "label": "npc-omar__walk-4",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j173": {
+  "label": "player-base__sit",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j174": {
+  "label": "player-base__spray",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j175": {
+  "label": "player-base__walk-1",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j176": {
+  "label": "player-base__walk-4",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j177": {
+  "label": "player-smart__walk-4",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ },
+ "j178": {
+  "label": "npc-rita__getup",
+  "probe": "Game animation frame for a 2D side-scrolling mobile game called \"Worst Employee\".\nThe atta"
+ }
+}

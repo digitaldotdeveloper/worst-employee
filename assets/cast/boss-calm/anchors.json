@@ -1,65 +1,128 @@
 {
  "_comment": "Written by tools/cutout.py. Every frame shares one crop and one scale, so groundY and centreX are constants, not per-frame values.",
- "frameW": 105,
+ "frameW": 141,
  "frameH": 131,
  "groundY": 126.1,
- "centreX": 44.5,
+ "centreX": 67.4,
  "standingH": 124,
  "poses": [
+  "hurt",
   "idle",
   "idle2",
+  "point",
   "run-1",
   "run-2",
   "run-3",
-  "run-4"
+  "run-4",
+  "shake",
+  "talk",
+  "walk-1",
+  "walk-2",
+  "walk-3",
+  "walk-4"
  ],
  "poseBottom": {
+  "hurt": 124.8,
   "idle": 126.1,
   "idle2": 127.2,
+  "point": 126.6,
   "run-1": 126.1,
   "run-2": 124.8,
   "run-3": 129.0,
-  "run-4": 126.9
+  "run-4": 126.9,
+  "shake": 126.9,
+  "talk": 126.4,
+  "walk-1": 125.6,
+  "walk-2": 125.8,
+  "walk-3": 127.2,
+  "walk-4": 124.8
  },
  "poseTop": {
+  "hurt": 3.4,
   "idle": 2.1,
   "idle2": 2.1,
+  "point": 2.1,
   "run-1": 2.1,
   "run-2": 2.1,
   "run-3": 2.1,
-  "run-4": 2.1
+  "run-4": 2.1,
+  "shake": 2.4,
+  "talk": 2.4,
+  "walk-1": 2.1,
+  "walk-2": 2.1,
+  "walk-3": 2.1,
+  "walk-4": 2.4
  },
  "heads": {
+  "hurt": [
+   50.6,
+   21.5,
+   15.9
+  ],
   "idle": [
-   45.1,
-   20.2,
-   31.6
+   70.1,
+   19.4,
+   16.8
   ],
   "idle2": [
-   46.7,
-   23.3,
-   31.0
+   70.9,
+   19.0,
+   16.2
+  ],
+  "point": [
+   70.9,
+   19.2,
+   16.3
   ],
   "run-1": [
-   45.9,
-   20.2,
-   31.0
+   70.9,
+   19.6,
+   16.7
   ],
   "run-2": [
-   47.8,
-   22.3,
-   55.2
+   70.8,
+   19.7,
+   16.8
   ],
   "run-3": [
-   48.0,
-   21.6,
-   53.3
+   72.6,
+   19.6,
+   16.9
   ],
   "run-4": [
-   48.1,
-   22.5,
-   55.8
+   70.9,
+   19.4,
+   16.6
+  ],
+  "shake": [
+   71.3,
+   19.0,
+   16.2
+  ],
+  "talk": [
+   70.9,
+   19.0,
+   16.2
+  ],
+  "walk-1": [
+   70.8,
+   19.7,
+   16.8
+  ],
+  "walk-2": [
+   70.8,
+   19.0,
+   16.4
+  ],
+  "walk-3": [
+   71.1,
+   19.2,
+   16.3
+  ],
+  "walk-4": [
+   70.0,
+   19.3,
+   16.2
   ]
- },
- "_heads_comment": "Head centre x, y and radius per frame, in frame pixels. Reaction faces draw HERE, over the drawn face."
+ }
 }

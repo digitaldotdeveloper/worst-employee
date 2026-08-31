@@ -36,6 +36,14 @@ DATUM = 'idle'
 # as they are tall, a little less when curled.
 PRONE_POSES = {'down'}
 PRONE_LEN = 0.95
+# Poses the figure is LEGITIMATELY shorter in — crouched, kneeling, seated. Their
+# height carries real information, so they must never be stretched up to the
+# standing height; a `sit` scaled to match `idle` is a person standing on a
+# chair. These are checked but never auto-corrected.
+CROUCHED_POSES = {'sit', 'getup', 'land', 'c4-wind', 'dodge', 'held'}
+# Above this, the generator did not zoom — it framed a different shot, and the
+# line weight and detail will not match however it is scaled.
+MAX_AUTOFIX = 0.55
 # Standing height in output pixels. The game draws the player 62px tall, so 2x
 # gives a little headroom for high-DPI phones without bloating the download.
 TARGET_H = 124
@@ -112,6 +120,100 @@ def rescale_about(rgba, factor, ax, ay):
     return np.asarray(out).copy()
 
 
+def find_head(rgba, box):
+    """Locate the head as (x, y, radius) in this frame's pixel space.
+
+    THIS LIVES IN CUTOUT ON PURPOSE. It used to be a separate step run after
+    packing, and repacking silently threw the head data away — which does not
+    crash anything, it just makes every facial expression in the game stop
+    drawing, because `FACES.drawOnHead` bails out when `meta.heads` is missing.
+    A derived value belongs in the tool that derives everything else.
+
+    Found by SKIN, not by geometry. "Topmost blob" breaks the moment somebody
+    raises an arm over their head, throws a punch, or lies down — and three of
+    those are poses this game uses constantly. The head is simply the largest
+    connected region of skin in the drawing: bigger than a hand every time,
+    and it stays the largest whichever way up the character is.
+    """
+    a = rgba[..., 3] > 16
+    r = rgba[..., 0].astype(np.int16)
+    g = rgba[..., 1].astype(np.int16)
+    b = rgba[..., 2].astype(np.int16)
+    # Warm, mid-to-light, red-dominant, not grey. Covers the range of skin
+    # tones in the cast without picking up wood, cardboard or a tan blazer,
+    # which sit either too dark or too desaturated.
+    skin = (a & (r > 70) & (r > g + 12) & (g >= b - 6) & (r - b > 22)
+            & (r - b < 165) & (r.astype(np.int32) + g + b > 190))
+    if not skin.any():
+        return None
+
+    # Connected components, iterative flood fill on a boolean grid. No scipy on
+    # this machine, and a recursive fill blows the stack on a 700px render.
+    H, W = skin.shape
+    seen = np.zeros_like(skin)
+    best, best_n = None, 0
+    ys, xs = np.where(skin)
+    for i in range(len(ys)):
+        sy, sx = int(ys[i]), int(xs[i])
+        if seen[sy, sx]:
+            continue
+        stack = [(sy, sx)]
+        seen[sy, sx] = True
+        px = []
+        while stack:
+            y, x = stack.pop()
+            px.append((y, x))
+            for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                ny, nx = y + dy, x + dx
+                if 0 <= ny < H and 0 <= nx < W and skin[ny, nx] and not seen[ny, nx]:
+                    seen[ny, nx] = True
+                    stack.append((ny, nx))
+        if len(px) > best_n:
+            best_n, best = len(px), px
+
+    if not best or best_n < 40:
+        return None
+    pys = np.fromiter((p[0] for p in best), dtype=np.int32, count=best_n)
+    pxs = np.fromiter((p[1] for p in best), dtype=np.int32, count=best_n)
+    # Centre of the blob, and a radius from its width. Width beats height: a
+    # neck and a bare throat extend the blob downward and would inflate a
+    # height-derived radius, while the width is just the face.
+    cx = (int(pxs.min()) + int(pxs.max())) / 2.0
+    cy = (int(pys.min()) + int(pys.max())) / 2.0
+    rad = max(int(pxs.max()) - int(pxs.min()), int(pys.max()) - int(pys.min())) / 2.0
+    return cx, cy, rad
+
+
+def foot_x(rgba, box):
+    """Horizontal centre of the feet — the bottom 8% of the figure's rows.
+
+    A better datum than the bbox centre for lining two frames up. The bbox
+    centre moves with whatever the arms are doing, so aligning on it drags a
+    punching frame sideways; the feet stay under the body in every standing
+    pose.
+    """
+    x0, y0, x1, y1 = box
+    band = max(1, int((y1 - y0) * 0.08))
+    sub = rgba[max(0, y1 - band):y1 + 1, :, 3] > 16
+    xs = np.where(sub.any(axis=0))[0]
+    if len(xs) == 0:
+        return (x0 + x1) / 2.0
+    return (int(xs.min()) + int(xs.max())) / 2.0
+
+
+def translate(rgba, dx, dy):
+    """Shift the frame's content, cropping whatever falls off the canvas."""
+    out = np.zeros_like(rgba)
+    h, w = rgba.shape[:2]
+    dx, dy = int(round(dx)), int(round(dy))
+    sx0, sx1 = max(0, -dx), min(w, w - dx)
+    sy0, sy1 = max(0, -dy), min(h, h - dy)
+    if sx0 >= sx1 or sy0 >= sy1:
+        return out
+    out[sy0 + dy:sy1 + dy, sx0 + dx:sx1 + dx] = rgba[sy0:sy1, sx0:sx1]
+    return out
+
+
 def bbox(rgba):
     ys, xs = np.where(rgba[..., 3] > 16)
     if len(xs) == 0:
@@ -158,6 +260,7 @@ def main():
     d = boxes[DATUM]
     datum_h = d[3] - d[1]
     ground_y = d[3]
+    datum_foot_x = foot_x(keyed[DATUM], d)
 
     # Correct prone frames drawn at the wrong scale, measured by LENGTH against
     # the standing height. Scaled about the body's bottom-centre so it stays on
@@ -177,6 +280,40 @@ def main():
               f'({ratio:+.0%} off) — rescaling by {f:.3f}')
         keyed[name] = rescale_about(keyed[name], f, (bb[0] + bb[2]) / 2, bb[3])
         nb = bbox(keyed[name])
+        if nb:
+            boxes[name] = nb
+
+    # Correct upright frames the generator zoomed in on. Roughly one frame in ten
+    # comes back 30-40% too big, and re-prompting is unreliable — the same pose
+    # was asked for twice with an explicit scale clause and came back oversized
+    # both times. The DRAWING is right; only the framing is wrong, so scale it
+    # about the feet and keep it. Anything cropped by the frame edge is excluded
+    # above: rescaling a figure with its feet cut off just moves the damage.
+    cropped = {pr.split(':')[0] for pr in problems if 'cut off' in pr}
+    for name in list(keyed):
+        if name in PRONE_POSES or name in CROUCHED_POSES or name in cropped:
+            continue
+        bb = boxes[name]
+        hh = bb[3] - bb[1]
+        ratio = hh / datum_h
+        if ratio <= 1.12 or ratio - 1 > MAX_AUTOFIX:
+            continue
+        f = 1.0 / ratio
+        print(f'{name:14s} {ratio - 1:+.0%} oversized — rescaling by {f:.3f} '
+              f'and standing it back on the ground line')
+        fx = foot_x(keyed[name], bb)
+        keyed[name] = rescale_about(keyed[name], f, fx, bb[3])
+        # SIZE IS ONLY HALF OF IT. These frames come back on a different canvas
+        # entirely, not merely zoomed — one measured its feet 192px below the
+        # ground line. Scaling about their own feet leaves them exactly that far
+        # down, so the character renders sunk through the floor. Put the feet
+        # where the datum's feet are.
+        nb = bbox(keyed[name])
+        if nb:
+            keyed[name] = translate(keyed[name],
+                                    datum_foot_x - foot_x(keyed[name], nb),
+                                    ground_y - nb[3])
+            nb = bbox(keyed[name])
         if nb:
             boxes[name] = nb
 
@@ -219,6 +356,23 @@ def main():
     if check_only:
         return
 
+    heads, no_head = {}, []
+    for name in sorted(keyed):
+        h = find_head(keyed[name], boxes[name])
+        if h is None:
+            no_head.append(name)
+            continue
+        heads[name] = [round((h[0] - x0) * scale, 1),
+                       round((h[1] - y0) * scale, 1),
+                       round(h[2] * scale, 1)]
+    print(f'heads: {len(heads)}/{len(keyed)}'
+          + (f'  (no skin found: {", ".join(no_head)})' if no_head else ''))
+    # Anything the detector missed borrows idle's head rather than losing its
+    # expression entirely — a face in roughly the right place beats no face.
+    if 'idle' in heads:
+        for n in no_head:
+            heads[n] = heads['idle']
+
     os.makedirs(OUT, exist_ok=True)
     for name, rgba in keyed.items():
         crop = rgba[y0:y1, x0:x1]
@@ -242,6 +396,9 @@ def main():
         # prone anchor to this instead.
         'poseBottom': {n: round((boxes[n][3] - y0) * scale, 1) for n in sorted(keyed)},
         'poseTop': {n: round((boxes[n][1] - y0) * scale, 1) for n in sorted(keyed)},
+        # Where the face goes, per pose, in the same frame pixels. Missing this
+        # does not throw — expressions just quietly stop appearing.
+        'heads': heads,
     }
     with open(os.path.join(OUT, 'anchors.json'), 'w') as fh_:
         json.dump(meta, fh_, indent=1)

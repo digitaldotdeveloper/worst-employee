@@ -54,6 +54,18 @@ export class Coworker extends Body {
   }
 
   update(dt, s) {
+    // Animation timers tick before any behaviour branch — several of those
+    // branches `return` early, and a timer that only runs on some frames
+    // leaves a character stuck mid-swing.
+    if (this.sprayHold > 0) this.sprayHold -= dt;
+    if (this.talkT > 0) this.talkT -= dt;
+    if (this.pointT > 0) this.pointT -= dt;
+    if (this.swingT > 0) {
+      const was = this.swingT;
+      this.swingT -= dt;
+      if (was > 0.16 && this.swingT <= 0.16) this.swing(s);   // contact frame
+      if (this.swingT < 0) this.swingT = 0;
+    }
     this.animT += dt;
     if (this.hurtT > 0) this.hurtT -= dt;
     if (s.story && s.story.active) { this.vx *= 0.7; return; }
@@ -87,7 +99,9 @@ export class Coworker extends Body {
         this.vx = Math.max(-170, Math.min(170, this.vx));
       } else {
         this.vx *= 0.8;
-        if (this.swingCd <= 0) { this.swingCd = 1.0; this.swing(s); }
+        // Start a WIND-UP, do not hit. The blow itself fires out of the timer
+        // below, 0.26s later. An instant hit is not a fight, it is a tax.
+        if (this.swingCd <= 0 && this.swingT <= 0) { this.swingCd = 1.35; this.swingT = 0.42; }
       }
       return;
     }
@@ -337,6 +351,13 @@ export function buildOffice(world, s, floorId = 'ops') {
   const waterR = makeProp('cooler', 380); waterR.isWater = true; world.add(waterR);
 
   // ── OPEN PLAN ─ four workstations in a row, service kit between them ───
+  // Plus YOURS, at the head of the row next to the bin and the cooler, which is
+  // the desk you give the new person. The tour used to point at Sami's.
+  const mine = workstation(world, 600, { phone: false });
+  mine.isPlayerDesk = true;
+  mine.label = 'YOUR DESK';
+  s.playerDesk = mine;
+
   const stations = [740, 1060, 1500, 1820];
   stations.forEach((x, i) => workstation(world, x, { phone: i % 2 === 0, bin: i % 2 === 1 }));
   P('printer', 940);

@@ -78,6 +78,18 @@ export class Player extends Body {
       }
       return;
     }
+    // SITTING. Everything is suspended; any movement input stands you up, so
+    // you can never be stuck in the chair.
+    if (this.sitting) {
+      this.vx *= 0.7;
+      this.state = 'idle';
+      this.sitT = (this.sitT || 0) + dt;
+      if (IN.left || IN.right || IN.jump || (IN.attack && this.sitT > 0.4)) {
+        this.sitting = false;
+        if (s.onStand) s.onStand();
+      }
+      return;
+    }
     this.lastDodge += dt;
 
     // landing squash
