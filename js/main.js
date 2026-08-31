@@ -97,7 +97,7 @@ const S = {
         // A scrape still lands on a person, so it still gets a grunt. Silence
         // here is why the opening jabs of every combo read as hitting nothing:
         // beats 1 and 2 do 10 and 12 damage, both under this cutoff.
-        SFX.voice(b.name, 'mutter', 0.45);
+        SFX.voice(b.name, 'hurt', 0.5);   // a mutter measured ~0.09 and vanished under the hit
         this.addAnger(0.4);
         return;
       }

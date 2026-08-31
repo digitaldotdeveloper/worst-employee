@@ -138,89 +138,12 @@ export const WEAPONS = {
     ],
   },
 
-  stapler: {
-    id: 'stapler', name: 'STAPLER', cost: 7000, tag: 'CHAIN',
-    art: 'stapler',
-    desc: 'Heavy-duty, and it barely knocks anything back. That is the point — '
-        + 'things stay exactly where you can hit them again.',
-    verb: 'Keeps targets close. Built for chains.',
-    // The only weapon that deliberately does NOT scatter. kbMul below 1 means
-    // props stay in reach, which is what makes long chains reachable at all.
-    stats: { reach: 8, hh: 4, dmgMul: 1.5, kbMul: 0.28, spd: 1.15,
-             shakeMul: 0.9, stopMul: 0.9, sfxMul: 1, wear: 0 },
-    skills: [
-      { id: 'stapler.jam', name: 'PAPER JAM', secret: false,
-        hint: 'Land a chain of 6 or longer while holding it.',
-        req: c => (c['stapler.chain'] || 0) >= 1 },
-      { id: 'stapler.audit', name: '???', secret: true,
-        hint: '???',
-        reveal: 'FULL AUDIT — chains you seed with the stapler pay 50% more.',
-        req: c => (c['stapler.chain'] || 0) >= 8 },
-    ],
-  },
-
-  pan: {
-    id: 'pan', name: 'FRYING PAN', cost: 16000, tag: 'STUN',
-    art: 'pan',
-    desc: 'From the break room. Nobody knows whose it is. Connects with a noise '
-        + 'that stops a room, and stops people too.',
-    verb: 'Stuns people on contact.',
-    stats: { reach: 20, hh: 12, dmgMul: 2.1, kbMul: 1.5, spd: 0.9,
-             shakeMul: 1.5, stopMul: 1.6, sfxMul: 1.4, wear: 0 },
-    // The only weapon that reliably takes a person out of the fight.
-    onHit: (p, b, s) => {
-      if (b.type === 'npc' && b.knock) {
-        b.downT = Math.max(b.downT || 0, 2.6);
-        bump(s, 'pan.stun');
-        // "connects with a noise that stops a room" - so it gets the bell.
-        Music.cue('dinner_bell');
-      }
-      SFX.smash('metal', 0.5);
-    },
-    skills: [
-      { id: 'pan.ring', name: 'DINNER BELL', secret: false,
-        hint: 'Flatten 12 colleagues with it.',
-        req: c => (c['pan.stun'] || 0) >= 12 },
-    ],
-  },
-
-  hammer: {
-    id: 'hammer', name: 'HAMMER', cost: 30000, tag: 'DEMOLITION',
-    art: 'hammer',
-    desc: 'Found in a maintenance cupboard nobody locks. Heavy enough that the '
-        + 'heavy attack becomes a ground slam that levels everything nearby.',
-    verb: 'Heavy attack becomes a ground slam.',
-    stats: { reach: 22, hh: 16, dmgMul: 3.0, kbMul: 2.4, spd: 0.78,
-             shakeMul: 1.8, stopMul: 1.7, sfxMul: 1.6, wear: 0 },
-    // DISTINCT VERB: an area attack. Nothing else in the game hits behind you.
-    slam: { radius: 96, dmg: 34, kbY: -520 },
-    skills: [
-      { id: 'hammer.slam', name: 'GROUND SLAM', secret: false,
-        hint: 'Land 10 heavy hits with the hammer.',
-        req: c => (c['hammer.heavy'] || 0) >= 10 },
-      { id: 'hammer.quake', name: '???', secret: true,
-        hint: '???',
-        reveal: 'AFTERSHOCK — the slam reaches half again as far.',
-        req: c => (c['hammer.slam'] || 0) >= 15 },
-    ],
-  },
-
-  rocketchair: {
-    id: 'rocketchair', name: 'ROCKET CHAIR', cost: 55000, tag: 'CHAOS',
-    art: 'rocketchair',
-    desc: 'Two boosters and a lot of duct tape. Dodge becomes a rocket-assisted '
-        + 'charge that ploughs through the entire floor.',
-    verb: 'Dodge becomes a rocket charge.',
-    stats: { reach: 26, hh: 20, dmgMul: 2.4, kbMul: 3.0, spd: 0.85,
-             shakeMul: 1.7, stopMul: 1.4, sfxMul: 1.5, wear: 0 },
-    // DISTINCT VERB: a movement tool. The dodge stops being defensive.
-    charge: { speed: 980, time: 0.52, dmg: 26 },
-    skills: [
-      { id: 'rc.ride', name: 'FULL THROTTLE', secret: false,
-        hint: 'Plough through 40 things in one career.',
-        req: c => (c['rc.hits'] || 0) >= 40 },
-    ],
-  },
+  // stapler / frying pan / hammer / rocket chair lived here and were CUT, not
+  // hidden. Script 15 says a weapon must own a verb nothing else has, and four
+  // of them were reskins of "swing it harder" sharing the fist animation set —
+  // which is exactly what they felt like in the hand. One real alternative to
+  // fists, with its own moves, beats five that all play the same.
+  // Their art is still in assets/weapons/ for when they come back earning it.
 };
 
 export const SHOP_ORDER = ['fists', 'keyboard', 'stapler', 'pan', 'hammer', 'rocketchair'];

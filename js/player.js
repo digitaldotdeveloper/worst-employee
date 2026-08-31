@@ -46,6 +46,12 @@ export class Player extends Body {
     this.hurtT = 0.3;
     this.hitFlash = 0.18;
     s.playerHits++;
+    // YOU make a noise when you get hit, wherever the hit came from. This used
+    // to live at two call sites — a coworker's swing and the boss's — so a
+    // thrown monitor, a chain link or a falling prop hurt you in silence.
+    // Putting it here means every source is covered; SFX.voice rate-limits per
+    // person, so overlapping sources still only yelp once.
+    SFX.voice('player', dmg >= 22 ? 'scream' : 'hurt', Math.min(1, 0.45 + dmg / 45));
     if (this.hp > 0) return false;
     this.hp = 0;
     this.downT = 2.2;
@@ -106,7 +112,10 @@ export class Player extends Body {
     // ---------------- dodge ----------------
     if (this.dodgeT > 0) {
       this.dodgeT -= dt;
-      const rc = this.equipped === 'rocketchair' ? WEAPONS.rocketchair.charge : null;
+      // Inert while the rocket chair is cut from the catalogue; the optional
+      // chaining is what keeps that a no-op instead of a TypeError.
+      const rc = WEAPONS.rocketchair && this.equipped === 'rocketchair'
+        ? WEAPONS.rocketchair.charge : null;
       const spd = rc ? rc.speed : PLAYER.dodgeSpeed;
       const dur = rc ? rc.time : PLAYER.dodgeTime;
       this.vx = this.face * spd * (this.dodgeT / dur + 0.35);
@@ -133,7 +142,7 @@ export class Player extends Body {
       return;
     }
     if (IN.dodgeEdge && this.dodgeCd <= 0 && !this.atk) {
-      this.dodgeT = this.equipped === 'rocketchair' ? WEAPONS.rocketchair.charge.time : PLAYER.dodgeTime;
+      this.dodgeT = rc ? rc.time : PLAYER.dodgeTime;
       if (this.equipped === 'rocketchair') Music.cue('full_throttle');
       this.iframes = PLAYER.dodgeIFrames;
       this.lastDodge = 0;
@@ -381,6 +390,7 @@ export class Player extends Body {
   // is the only attack in the game that reaches behind you.
   _slam(s, a) {
     const def = WEAPONS.hammer;
+    if (!def) return;            // hammer is cut; this path is unreachable
     let r = def.slam.radius;
     if (hasSkill(s, 'hammer.quake')) r *= 1.5;
     FX.kick(14, 0.10);
