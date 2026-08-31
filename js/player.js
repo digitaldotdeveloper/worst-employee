@@ -122,7 +122,7 @@ export class Player extends Body {
           b.vx += this.face * 620 / Math.max(0.6, b.mass * 0.5);
           b.vy -= 240 / Math.max(0.6, b.mass * 0.5);
           s.damageBody(b, rc.dmg, this);
-          s.chaos.ignite(b, Math.max(1, b.chainDepth), b.label || b.kind);
+          s.chaos.ignite(b, 1, b.label || b.kind);
           bump(s, 'rc.hits');
           FX.kick(4, 0.02);
           SFX.hit(0.7);
@@ -334,7 +334,7 @@ export class Player extends Body {
       b.flash = 0.14;
 
       s.damageBody(b, d.dmg * mul, this);
-      s.chaos.ignite(b, Math.max(1, b.chainDepth), b.label || b.kind);
+      s.chaos.ignite(b, 1, b.label || b.kind);
 
       const hx = this.cx + this.face * 30, hy = this.cy - 4;
       FX.spark(hx, hy, d === ATTACK.heavy ? 16 : 9, '#fff', d === ATTACK.heavy ? 420 : 260);
@@ -395,7 +395,7 @@ export class Player extends Body {
       b.vy += def.slam.kbY / Math.max(0.6, b.mass * 0.5);
       b.vx += Math.sign(b.cx - this.cx || 1) * 260 / Math.max(0.6, b.mass * 0.5);
       s.damageBody(b, def.slam.dmg, this);
-      s.chaos.ignite(b, Math.max(1, b.chainDepth), b.label || b.kind);
+      s.chaos.ignite(b, 1, b.label || b.kind);
     }
     Music.cue('ground_slam');
     bump(s, 'hammer.slam');

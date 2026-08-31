@@ -22,10 +22,15 @@
       <div class="hud-left">
         <div class="hpbar"><i id="hpFill"></i></div>
         <div class="stat ruin"><span class="k">RUIN</span><span class="v" id="hRuin">0</span><span class="tier" id="hRuinTier">A NORMAL DAY</span></div>
-        <div class="stat"><span class="k">COINS</span><span class="v" id="hCoins">0</span></div>
-        <div class="stat"><span class="k">WEAPON</span><span class="v" id="hWeapon">FISTS</span></div>
-        <div class="stat"><span class="k">DAMAGE</span><span class="v" id="hDamage">$0</span></div>
-        <div class="stat"><span class="k">PRODUCTIVITY</span><span class="v" id="hProd">0%</span></div>
+        <!-- Four separate stat plates were four things to read mid-fight. RUIN
+             is the score and stays big; the rest is reference, so it is one
+             quiet line. The full breakdown is on the shift report. -->
+        <div class="stat-min">
+          <span><b id="hCoins">0</b> coins</span>
+          <span id="hWeapon">FISTS</span>
+          <span id="hDamage">$0</span>
+          <span><b id="hProd">0%</b> prod</span>
+        </div>
       </div>
       <div class="hud-right">
         <div class="anger">
@@ -48,8 +53,10 @@
       <div class="combo-hint">UP uppercut &middot; DOWN hook &middot; BACK spin</div>
     </div>
     <button id="btnLift" class="lift-btn hidden">&#9650;&nbsp; OPEN THE LIFT</button>
-    <div id="msnHud" class="msn-hud hidden"></div>
-    <div id="jobs" class="jobs"></div>
+    <div class="side-col">
+      <div id="msnHud" class="msn-hud hidden"></div>
+      <div id="jobs" class="jobs"></div>
+    </div>
     <div id="eventBar" class="event-bar hidden">
       <div id="eventName">EVENT</div>
       <div class="event-fill"><i id="eventFill"></i></div>

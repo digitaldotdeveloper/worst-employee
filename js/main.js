@@ -1,7 +1,7 @@
 // WORST EMPLOYEE — feel test. Game state, loop, camera, renderer, shift report.
 
 import { VERSION, VIEW, FLOOR_Y, CEIL_Y, ROOF_Y, LEVEL_W, COL, COFFEE, RANKS, QUIET_RANKS,
-         ATTACK, ROOMS, DOOR_W, DOOR_H, roomAt, FLOORS, CUR } from './config.js';
+         ATTACK, ROOMS, DOOR_W, DOOR_H, roomAt, FLOORS, CUR, ANGER } from './config.js';
 import { World } from './engine.js';
 import { FX } from './fx.js';
 import { ART, SPRITES, WORLD, CAST, WEAPON_ART, FACES, poseFor, npcPoseName, bossPoseName,
@@ -72,7 +72,7 @@ const S = {
 
   addAnger(v) {
     if (this.boss && this.boss.fighting) return;
-    this.anger = Math.min(100, this.anger + v);
+    this.anger = Math.min(100, this.anger + v * ANGER.rate);
     const st = angerStage(this.anger);
     const idx = ['FRIENDLY','CONCERNED','ANNOYED','ANGRY','BOSS FIGHT'].indexOf(st.name);
     if (idx > this.stageIdx) {
@@ -183,6 +183,15 @@ addEventListener('orientationchange', () => setTimeout(resize, 120));
 // UI HELPERS
 // ---------------------------------------------------------------
 let toastT = 0;
+// A cutscene has to silence the touch pad as well as the HUD. #touch is a
+// sibling of #hud, so the `scene` class never reached it and the swap/grab
+// buttons drew straight over the dialogue answers — and still swallowed taps
+// meant for them.
+function setScene(on) {
+  $('hud').classList.toggle('scene', on);
+  $('touch').classList.toggle('scene', on);
+}
+
 function toast(text, cls = '') {
   const el = $('toast');
   el.textContent = text;
@@ -441,7 +450,10 @@ function startShift() {
     S.story.done = true;
   }
 
-  $('hud').classList.remove('scene');
+  setScene(false);
+  // The move hint sits in the middle of the screen. It earns that spot while you
+  // are learning the string and stops earning it after a few shifts.
+  $('hud').classList.toggle('veteran', (S.career.shifts || 0) >= 3);
   resetInput();
   FX.clear();
   hide('title'); hide('report'); hide('help'); hide('create'); hide('shop'); hide('boost');
@@ -472,7 +484,12 @@ S.annoy = function (c) {
   c.vx += Math.sign(c.cx - S.player.cx || 1) * 90;
   if (!c.annoyed) { c.annoyed = true; S.annoyed++; }
 
-  const pay = 55 + c.annoyed2 * 18;
+  // Annoying the same person over and over used to pay MORE each time
+  // (55 + n*18, unbounded), so parking next to one colleague and mashing was
+  // the best-paying thing in the game. It pays for the first reaction and
+  // decays to nothing — the joke is the reaction, and a joke does not get
+  // funnier the fifth time.
+  const pay = Math.max(0, 55 - (c.annoyed2 - 1) * 14);
   S.coins += pay;
   S.productivity = Math.max(0, S.productivity - 1.1);
   S.addAnger(2.2);
@@ -620,7 +637,7 @@ S.onSprayed = (c, dt) => {
   c.timer = 1.6;
   c.vx += Math.sign(c.cx - S.player.cx || 1) * 260 * dt;
   S.ruin += 90 * dt;
-  S.coins += 40 * dt;
+  S.coins += 16 * dt;   // hold-to-earn; kept low on purpose
   S.day.chaos += 70 * dt;
   S.addAnger(1.6 * dt);
   if (!c.annoyed) { c.annoyed = true; S.annoyed++; }
@@ -683,7 +700,7 @@ S.onGrabPerson = v => {
 };
 S.onSlap = (v, n) => {
   S.ruin += 26 + n * 6;
-  S.coins += 22 + n * 5;
+  S.coins += Math.max(0, 18 - n * 4);   // a running gag, not an income stream
   S.productivity = Math.max(0, S.productivity - 0.5);
   S.addAnger(1.1);
   S.slaps = (S.slaps || 0) + 1;
@@ -707,7 +724,7 @@ function tickSalary(dt) {
   S.cleanT = S.damage === S.lastDamage ? S.cleanT + dt : 0;
   S.lastDamage = S.damage;
   const streak = 1 + Math.min(1.5, S.cleanT / 18);
-  S.salaryAcc += dt * 14 * streak;   // a wage, not a living
+  S.salaryAcc += dt * 9 * streak;    // a wage, not a living
   if (S.salaryAcc >= 1) {
     const n = Math.floor(S.salaryAcc);
     S.salaryAcc -= n;
@@ -1040,7 +1057,7 @@ function update(dt) {
 
   if (S.story && S.story.active) {
     S.story.step(dt);
-    $('hud').classList.add('scene');
+    setScene(true);
     show('btnSkip');
     drawDialogue();
     // the camera follows whoever is talking/walking
@@ -1057,7 +1074,7 @@ function update(dt) {
   }
   if (S.intro && S.story && S.story.done) {
     S.intro = false;
-    $('hud').classList.remove('scene');
+    setScene(false);
     hide('dlg'); hide('choices'); hide('btnSkip');
     S.career.hired = true;
     saveCareer(S.career);
@@ -1181,12 +1198,20 @@ function updateHud() {
   // sabotage briefing
   const jl = $('jobs');
   if (S.sabotage && S.sabotage.active.length) {
-    const sig = S.sabotage.active.map(j => j.id + (j.complete ? '1' : '0')).join(',');
+    // Show at most two, unfinished first. Three or four open jobs stacked into a
+    // column tall enough to cover a third of the screen, and a job you cannot
+    // read is not a job you are playing towards.
+    const shown = S.sabotage.active
+      .slice()
+      .sort((a, b) => (a.complete ? 1 : 0) - (b.complete ? 1 : 0))
+      .slice(0, 2);
+    const more = S.sabotage.active.length - shown.length;
+    const sig = shown.map(j => j.id + (j.complete ? '1' : '0')).join(',') + '|' + more;
     if (jl._sig !== sig) {
       jl._sig = sig;
-      jl.innerHTML = S.sabotage.active.map(j =>
+      jl.innerHTML = shown.map(j =>
         `<div class="job${j.complete ? ' done' : ''}"><b>${j.name}</b><span>${j.complete ? j.done : j.brief}</span></div>`
-      ).join('');
+      ).join('') + (more > 0 ? `<div class="job more">+${more} more</div>` : '');
     }
   }
 

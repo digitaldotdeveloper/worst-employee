@@ -101,10 +101,23 @@ export const ATTACK = {
 
 export const CHAOS = {
   minEnergy: 130,        // impact speed needed to make a thing "chaotic"
-  chainWindow: 2.4,      // seconds a chain stays alive
-  coinBase: 60,          // coins per link, before multiplier
+  // 2.4s was long enough that a chain essentially never lapsed during ordinary
+  // play — measured: continuously alive across 60s of mashing. If the window
+  // never closes, the multiplier stops being a reward for setting something up
+  // and becomes a number that only goes up. Short enough now that a cascade has
+  // to actually cascade.
+  chainWindow: 1.4,      // seconds a chain stays alive
+  coinBase: 13,          // coins per link, before multiplier
   damageScale: 1.0,
 };
+
+// Boss anger, globally scaled. Fourteen call sites raise anger and each was
+// individually reasonable; together they took a mashing bot from FRIENDLY to
+// BOSS FIGHT in 60 seconds, which spends the game's one polished set-piece
+// before the player has used jump, dodge, grab or a weapon. The five stages are
+// meant to be a shift-long arc, so the whole curve is scaled in one place
+// rather than re-balancing every site.
+export const ANGER = { rate: 0.3 };
 
 export const COFFEE = {
   duration: 12,

@@ -24,7 +24,18 @@ export class ChaosSystem {
   get alive() { return this.chain > 0 && this.s.time < this.until; }
   get remain() { return Math.max(0, (this.until - this.s.time) / CHAOS.chainWindow); }
 
-  // Mark something as a live chain link. `depth` is inherited from whatever hit it.
+  // Mark something as a live chain link. `depth` is inherited from whatever hit
+  // it — but ONLY when a thing hit it. A player's own swing always seeds at
+  // depth 1 (see the call sites in player.js).
+  //
+  // It used to seed at `Math.max(1, b.chainDepth)`, i.e. the depth the prop was
+  // already carrying, and `cash()` only clears chainDepth when the chain lapses.
+  // So you could stand next to one deep link, mash light attack, and re-collect
+  // its whole accumulated depth on every punch while refreshing the window
+  // forever. A bot walking right and mashing for 60 seconds earned 115,344
+  // coins — more than the entire weapon tree — and ratcheted to a 25-chain
+  // without ever setting one up. Depth now only grows through onImpact: through
+  // things hitting things, which is the mechanic the game is named after.
   ignite(body, depth, label) {
     if (body.wake) body.wake();
     body.chaosUntil = this.s.time + CHAOS.chainWindow;
@@ -35,7 +46,10 @@ export class ChaosSystem {
     // The moment a chain crosses four links is the loudest thing that happens
     // in a shift, and it happens rarely. Fired once per chain, on the crossing.
     if (was < 4 && this.chain >= 4) Music.cue('total_wipeout');
-    this.until = this.s.time + CHAOS.chainWindow;
+    // A seed never extends a chain that is already deeper than it. Otherwise
+    // hitting anything at all keeps a good chain alive indefinitely, and the
+    // 'did the cascade finish in time' tension disappears.
+    if (depth >= 2 || !this.alive) this.until = this.s.time + CHAOS.chainWindow;
     if (label && this.links[this.links.length - 1] !== label) this.links.push(label);
 
     // Depth 1 pays NOTHING: the first hit is a chain seed, not income.
