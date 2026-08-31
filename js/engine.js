@@ -75,11 +75,16 @@ export class World {
       // "running moves everything" even with the player parked 4000px away.
       // A grounded, slow body goes to sleep and STAYS put until something wakes
       // it. Only a hit moves a prop now, which is the actual rule wanted.
-      if (b.asleep) { b.vx = 0; b.vy = 0; b.va = 0; continue; }
-      if (b.grounded && Math.abs(b.vx) < 7 && Math.abs(b.vy) < 7 && Math.abs(b.va) < 0.5) {
-        b.sleepT += dt;
-        if (b.sleepT > 0.35) { b.asleep = true; b.vx = 0; b.vy = 0; b.va = 0; continue; }
-      } else b.sleepT = 0;
+      // ONLY PROPS SLEEP. Anything that drives itself — the player, coworkers,
+      // the boss — must never be skipped: a sleeping body has its integration
+      // skipped entirely, so a resting player simply stops responding to input.
+      if (b.type === 'prop') {
+        if (b.asleep) { b.vx = 0; b.vy = 0; b.va = 0; continue; }
+        if (b.grounded && Math.abs(b.vx) < 7 && Math.abs(b.vy) < 7 && Math.abs(b.va) < 0.5) {
+          b.sleepT += dt;
+          if (b.sleepT > 0.35) { b.asleep = true; b.vx = 0; b.vy = 0; b.va = 0; continue; }
+        } else b.sleepT = 0;
+      }
 
       b.py = b.y;                       // previous top, for one-way platforms
       b.vy += GRAVITY * dt;
