@@ -698,34 +698,34 @@ export const WEAPON_ART = {
 // arms at the hips. The ANGLES have to be authored: a hand position says where
 // the grip is, never which way the weapon points.
 const HAND = {
-  'air-hit': [27.0, -37.2, 0.5],
-  'c1-hit': [24.0, -44.7, -0.1],
-  'c1-wind': [25.5, -44.7, -1.25],
-  'c2-hit': [27.5, -42.2, 0.02],
-  'c3-hit': [24.5, -45.7, 0.62],
-  'c4-hit': [13.5, -46.2, -1.3],
-  'c5-hit': [15.0, -42.2, 0.75],
-  'c5-wind': [10.5, -40.2, -1.05],
-  'carry': [18.5, -44.7, -0.35],
-  'dodge': [30, -27.2, 0.85],
-  'fall': [17.0, -29.7, 0.95],
-  'heavy-hit': [27.5, -41.2, 0.18],
-  'heavy-wind': [24.5, -41.7, -1.55],
-  'hurt': [17.5, -11.2, -0.85],
-  'idle': [8.5, -26.2, 1.15],
-  'idle2': [10.5, -43.2, 0.95],
-  'jump-apex': [9.0, -25.7, 1.0],
-  'jump-up': [10.5, -50, -0.55],
-  'land': [15.5, -6, 1.35],
-  'run-1': [19.5, -39.2, 0.55],
-  'run-2': [13.5, -27.7, 0.95],
-  'run-3': [19.5, -40.7, 0.5],
-  'run-4': [14.0, -42.7, 0.9],
-  'run-5': [20.5, -39.2, 0.35],
-  'run-6': [15.0, -33.2, 0.8],
-  'swing': [18.0, -44.2, 0.25],
-  'taunt': [21.5, -31.7, -0.45],
-  'throw': [26.0, -39.7, 0.28],
+  'air-hit': [26.6, -27.3, 0.5],
+  'c1-hit': [25.1, -45.5, -0.1],
+  'c1-wind': [25.1, -44.0, -1.25],
+  'c2-hit': [27.6, -41.9, 0.02],
+  'c3-hit': [24.6, -45.1, 0.62],
+  'c4-hit': [13.1, -49.7, -1.3],
+  'c5-hit': [15.1, -49.2, 0.75],
+  'c5-wind': [10.1, -38.8, -1.05],
+  'carry': [18.1, -42.5, -0.35],
+  'dodge': [21.6, -25.6, 0.85],
+  'fall': [16.6, -31.5, 0.95],
+  'heavy-hit': [27.6, -40.2, 0.18],
+  'heavy-wind': [28.6, -41.6, -1.55],
+  'hurt': [11.1, -53.5, -0.85],
+  'idle': [10.1, -29.3, 1.15],
+  'idle2': [12.6, -48.0, 0.95],
+  'jump-apex': [8.6, -30.2, 1.0],
+  'jump-up': [13.1, -52.5, -0.55],
+  'land': [15.1, -10.5, 1.35],
+  'run-1': [19.6, -33.5, 0.55],
+  'run-2': [13.1, -29.9, 0.95],
+  'run-3': [19.1, -35.8, 0.5],
+  'run-4': [16.6, -43.1, 0.9],
+  'run-5': [20.1, -31.5, 0.35],
+  'run-6': [14.6, -29.5, 0.8],
+  'swing': [18.1, -40.2, 0.25],
+  'taunt': [21.1, -35.2, -0.45],
+  'throw': [25.1, -41.1, 0.28],
   // Thirteen poses had NO row here and silently fell back to `idle`, whose hand
   // is down at the hip — including the whole walk cycle and both grab frames,
   // which are most of the time you spend actually carrying something. That is
@@ -734,11 +734,11 @@ const HAND = {
   // the same way the rows above were measured (most-extended skin pixel that is
   // not the head) and reproduces them to within a couple of px. Angles are
   // authored, because a hand position never says which way the object points.
-  'walk-1': [11.0, -29.7, 0.95],
-  'walk-2': [0.0, -29.0, 1.05],
-  'walk-3': [11.0, -29.8, 0.95],
-  'walk-4': [8.0, -27.5, 1.0],
-  'grab-hold': [24.0, -44.7, -0.35],
+  'walk-1': [11.1, -29.0, 0.95],
+  'walk-2': [0.1, -23.2, 1.05],
+  'walk-3': [11.1, -29.7, 0.95],
+  'walk-4': [8.6, -27.1, 1.0],
+  'grab-hold': [24.1, -44.5, -0.35],
   // The three slap beats DELIBERATELY share one row. The held colleague is
   // pinned to handAt(poseFor(...)) every frame, so any difference between the
   // beats becomes a twitch on a 0.26s action. Measured, the grip fist really
@@ -751,28 +751,28 @@ const HAND = {
   // erosion as ONE blob, so the y it reports is the centre of a blob running
   // from the hair to the fist, not the fist. It would lift the victim 6.5px
   // for 0.09s and drop him back.
-  'grab-slap': [22.0, -45.2, -0.2],
-  'grab-slap-hit': [22.0, -45.2, -0.2],
-  'grab-slap-rec': [22.0, -45.2, -0.2],
-  'c2-wind': [14.5, -45.2, -1.25],
-  'c3-wind': [26.5, -44.8, -1.2],
-  'c4-wind': [14.0, -27.1, -1.3],
-  'getup': [23.5, -12.1, 1.0],
-  'sit': [12.0, -31.7, 1.0],
-  'spray': [17.5, -41.0, 1.35],
+  'grab-slap': [22.1, -44.8, -0.2],
+  'grab-slap-hit': [21.6, -44.0, -0.2],
+  'grab-slap-rec': [22.1, -45.2, -0.2],
+  'c2-wind': [14.6, -40.8, -1.25],
+  'c3-wind': [26.6, -44.5, -1.2],
+  'c4-wind': [14.1, -26.6, -1.3],
+  'getup': [23.6, -12.1, 1.0],
+  'sit': [12.1, -31.7, 1.0],
+  'spray': [17.6, -41.0, 1.35],
   'down': [17.5, -11.2, -0.85],
   // Carrying a person. These MUST agree with grab-hold's grip or the victim
   // teleports between frames — the verifier measures exactly that and caught
   // a 20px jump the moment `choke` went in without a row and fell back to
   // idle's hip. Positions from tools/fix-hands.py; angles authored.
-  'grab-walk-1': [17.5, -46.8, -0.35],
-  'grab-walk-2': [16.0, -45.6, -0.35],
+  'grab-walk-1': [17.1, -46.2, -0.35],
+  'grab-walk-2': [16.1, -45.5, -0.35],
   'grab-jump':   [25.0, -41.1, -0.30],
   'choke':       [24.0, -45.6, -0.10],
   // Carrying a prop while walking. These MUST agree with `carry`'s grip or the
   // chair in your hands jumps between beats — the same failure the slap had.
-  'carry-walk-1': [18.5, -44.7, -0.35],
-  'carry-walk-2': [18.5, -44.7, -0.35],
+  'carry-walk-1': [15.6, -44.7, -0.35],
+  'carry-walk-2': [13.1, -38.2, -0.35],
 };
 
 // Where a carried thing actually sits, in world space, for the pose being drawn.

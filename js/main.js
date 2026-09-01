@@ -16,7 +16,6 @@ import { WEAPONS, SHOP_ORDER, loadCareer, saveCareer, defaultCareer,
 import { Sabotage, RUIN, ruinTier, rankFor } from './sabotage.js';
 import { Story, introScene, HR_X } from './story.js';
 import { CHATTER, HURT, DOWNED, FIGHTBACK, BOSS_DOWN, pick } from './barks.js';
-import { MISSIONS, MissionRun, missionState, nextMission } from './missions.js';
 import { DAYS, dayById, freshDay, interact, chaosPct } from './days.js';
 import { Coworker } from './office.js';
 import { IN, initInput, pollInput, resetInput } from './input.js';
@@ -50,7 +49,7 @@ const S = {
   look: loadLook() || defaultLook(),
   career: loadCareer(),
   actors: {}, story: null, intro: false,
-  mode2: 'free', mission: null, run: null,
+  mode2: 'free',
   day: freshDay(), dayDef: null,
   ruin: 0, deskDown: 0, knocked: 0, killed: {}, roomKills: {}, jobsDone: 0,
   salaryAcc: 0,
@@ -341,34 +340,6 @@ function openCreator() {
 // so the shop shows a weapon's challenges but never sells one. Secret skills
 // show as ??? until the counter trips, which is the point of them.
 // ---------------------------------------------------------------
-function buildMissions() {
-  const list = $('msnList');
-  const done = S.career.missions || [];
-  $('msnRank').textContent = S.career.title || 'INTERN';
-  list.innerHTML = '';
-  MISSIONS.forEach((m, i) => {
-    const st = missionState(S.career, m, i);
-    const b = document.createElement('button');
-    b.className = 'msn ' + st + (st === 'open' && !done.includes(m.id) ? ' next' : '');
-    b.innerHTML = `<div class="r1"><span class="nm">${m.name}</span>
-      <span class="pay">${st === 'done' ? 'COMPLETE' : m.pay.toLocaleString() + ' coins'}</span></div>
-      <div class="role">${m.role} &middot; ${m.verb}</div>
-      <div class="bf">${m.brief}</div>
-      <div class="hint">${m.hint}</div>
-      <div class="gl">${m.goals.map(g => `<span>${g.text}</span>`).join('')}</div>`;
-    if (st !== 'locked') {
-      b.onclick = () => {
-        S.mode2 = 'mission';
-        S.mission = m;
-        SFX.ui(true);
-        hide('missions');
-        openCreator();
-      };
-    }
-    list.appendChild(b);
-  });
-}
-
 function buildShop() {
   const list = $('shopList');
   $('shopBank').textContent = S.career.bank.toLocaleString();
@@ -455,12 +426,8 @@ function startShift() {
   $('btnLift').classList.add('hidden');
   S.bossBeaten = false; S.slaps = 0; S.failedShown = false; S.drillRuin = 0;
   S.timesDown = 0;
-  S.clockT = 0; S.deadlineDone = false; S.dayRoute = null;
-  $('clock').classList.add('hidden');
   S.day = freshDay(); S.dayDef = null;
   S.ruin = 0; S.deskDown = 0; S.knocked = 0; S.killed = {}; S.roomKills = {}; S.jobsDone = 0;
-  S.run = (S.mode2 === 'mission' && S.mission) ? new MissionRun(S, S.mission) : null;
-  $('msnHud').classList.toggle('hidden', !S.run);
   S.sabotage = S.sabotage || new Sabotage(S);
   S.career.lastJobs = S.sabotage.roll(S.career.lastJobs);
   saveCareer(S.career);
@@ -607,23 +574,6 @@ function faceFor(who, emo, ms = 1500) {
 }
 
 const SLAP_LINES = ['OW', 'HEY', 'STOP', 'PLEASE', 'WHY', 'NOT AGAIN', 'HELP'];
-S.onMissionFailed = (m, why) => {
-  if (S.failedShown) return;
-  S.failedShown = true;
-  toast('MISSION FAILED — ' + why, 'boss');
-  SFX.ui(false);
-};
-S.onMissionComplete = m => {
-  const done = S.career.missions || (S.career.missions = []);
-  if (!done.includes(m.id)) {
-    done.push(m.id);
-    S.coins += m.pay;
-    saveCareer(S.career);
-  }
-  toast(`${m.name} — COMPLETE  ·  +${m.pay.toLocaleString()}`, 'boss');
-  SFX.promote();
-  FX.kick(9, 0.08);
-};
 // THE DISCOVERY. After the tutorial the game stops instructing and the player
 // finds that almost everything responds. Almost none of it is an objective —
 // that is the point, it is the first taste of free chaos.
@@ -815,78 +765,6 @@ function bankShift() {
 // turns four options into a decision — with unlimited time you would simply do
 // all of them. At 3:00 the manager comes to collect whatever exists.
 // ---------------------------------------------------------------
-const ROUTES = [
-  { id: 'work',     test: d => d.work >= 70,
-    line: 'You sat down and fixed it yourself. Nobody will ever know you did.' },
-  { id: 'steal',    test: d => d.secrets >= 3,
-    line: "You handed over another department's deck with the logo changed." },
-  { id: 'delegate', test: d => d.relationships >= 3,
-    line: 'Somebody who actually knows the client did it for you. You watched.' },
-  { id: 'burn',     test: d => d.chaos >= 2600,
-    line: 'There is no presentation. There is no projector. There is no meeting.' },
-];
-
-function tickClock(dt) {
-  const m = S.run && S.run.m;
-  if (!m || !m.clock) return;
-  const c = m.clock;
-  S.clockT = Math.min(c.seconds, (S.clockT || 0) + dt);
-  const k = S.clockT / c.seconds;
-  const mins = c.start + (c.end - c.start) * k;
-  const hh24 = Math.floor(mins / 60), mm = Math.floor(mins % 60);
-  const hh = ((hh24 + 11) % 12) + 1;
-  const el = $('clock');
-  el.classList.remove('hidden');
-  $('clockT').textContent = `${hh}:${String(mm).padStart(2, '0')} ${hh24 < 12 ? 'AM' : 'PM'}`;
-  const left = c.seconds - S.clockT;
-  el.classList.toggle('late', left < c.seconds * 0.35 && left >= 30);
-  el.classList.toggle('urgent', left < 30);
-  $('clockNote').textContent = left < 30 ? 'THE MEETING IS NOW' : 'until the meeting';
-
-  if (S.clockT >= c.seconds && !S.deadlineDone) {
-    S.deadlineDone = true;
-    threeOClock();
-  }
-}
-
-function threeOClock() {
-  const d = S.day;
-  const won = ROUTES.find(r => r.test(d));
-  if (won) {
-    S.dayRoute = won.line;
-    S.run.state = S.run.state.map(() => true);
-    S.run.complete = true;
-    toast('3:00 PM — ' + won.line, 'boss');
-    SFX.promote();
-    FX.kick(10, 0.09);
-    if (S.onMissionComplete) S.onMissionComplete(S.run.m);
-  } else {
-    S.run.failed = true;
-    S.run.failReason = 'You had until three.';
-    S.dayRoute = 'You had nothing. He looked at you for a long time.';
-    toast('3:00 PM — you had nothing.', 'boss');
-    SFX.ui(false);
-  }
-  // Tagged with the shift it belongs to. Untracked, this ended whatever shift
-  // happened to be running 3.2s later — finish one manually and start another
-  // inside that window and the new one died instantly. bossDown() already
-  // guards on shiftId; this did not.
-  const myShift3 = S.shiftId;
-  S.endTimer = setTimeout(() => {
-    if (S.mode === 'play' && S.shiftId === myShift3) endShift(false);
-  }, 3200);
-}
-
-function drawMissionHud() {
-  const h = $('msnHud'), r = S.run;
-  if (!r) return;
-  const sig = r.m.id + r.state.join('');
-  if (h._sig === sig) return;
-  h._sig = sig;
-  h.innerHTML = `<div class="t">${r.m.name}</div><div class="hint2">${r.m.hint}</div>` +
-    r.m.goals.map((g, i) => `<div class="g${r.state[i] ? ' ok' : ''}">${g.text}</div>`).join('');
-}
-
 function drawDialogue() {
   const st = S.story;
   const d = $('dlg'), c = $('choices');
@@ -915,6 +793,8 @@ function drawDialogue() {
   } else d.classList.add('hidden');
 }
 
+const TINT_SPRITES = false;   // see the note inside applyLook()
+
 async function applyLook() {
   const c = lookColours(S.look);
   const want = lookOutfit(S.look);
@@ -925,7 +805,14 @@ async function applyLook() {
     await SPRITES.setOutfit(want);
     if (mine !== outfitToken) return;
   }
-  if (SPRITES.ready) recolourSprites(S.look, c.skin, c.shirt);
+  // NO TINT WHILE THERE IS ONE OUTFIT. recolourSprites() hue-shifts whatever
+  // falls in the shirt and skin bands, which was the point when a drawn frame
+  // had to serve six skins and eight shirt colours. Firass is drawn wearing
+  // the final outfit, so the tint has nothing to add and plenty to break: the
+  // shirt band caught his BLUE JEANS and repainted them, and his white t-shirt
+  // came out light blue. The frames are the truth now.
+  // Restore this with the palettes in character.js when customisation returns.
+  if (SPRITES.ready && TINT_SPRITES) recolourSprites(S.look, c.skin, c.shirt);
 }
 
 // Riding the lift rebuilds the level in place. The shift, your coins, your ruin
@@ -1215,14 +1102,6 @@ function endShift(promoted = false) {
   $('reportRows').innerHTML = rows
     .map(([k, v]) => `<div><span class="lk">${k}</span><span class="lv">${v}</span></div>`)
     .join('');
-  if (S.dayRoute) {
-    $('reportRows').insertAdjacentHTML('afterbegin',
-      `<div><span class="lk">3:00 PM</span><span class="lv" style="color:#ffd75e;font-weight:700;text-align:right;max-width:62%">${S.dayRoute}</span></div>`);
-  }
-  if (S.run) {
-    $('reportRows').insertAdjacentHTML('afterbegin',
-      `<div><span class="lk">MISSION</span><span class="lv">${S.run.complete ? 'COMPLETE' : (S.run.failed ? 'FAILED' : 'INCOMPLETE')}</span></div>`);
-  }
   if (D.secretList && D.secretList.length) {
     $('reportRows').insertAdjacentHTML('beforeend',
       `<div><span class="lk">YOU FOUND OUT</span><span class="lv" style="color:#c39bff">${D.secretList.join(', ')}</span></div>`);
@@ -1351,13 +1230,7 @@ function update(dt) {
     S.drillRuin = (S.drillRuin || 0) + Math.max(0, S.ruin - (S.lastRuinTick || 0));
   }
   S.lastRuinTick = S.ruin;
-  tickClock(dt);
   S.sabotage.step();
-  if (S.dayRoute) {
-    $('reportRows').insertAdjacentHTML('afterbegin',
-      `<div><span class="lk">3:00 PM</span><span class="lv" style="color:#ffd75e;font-weight:700;text-align:right;max-width:62%">${S.dayRoute}</span></div>`);
-  }
-  if (S.run) { S.run.step(); drawMissionHud(); }
   tickSalary(dt);
 
   // Announce the room you walk into. Rooms are only worth having if arriving in
@@ -1963,12 +1836,9 @@ Music.scene('title');
 for (const b of document.querySelectorAll('button')) {
   b.addEventListener('pointerdown', () => { SFX.resume(); Music.resume(); });
 }
-$('btnStart').addEventListener('pointerdown', goFullscreen);
 $('btnFree').addEventListener('pointerdown', goFullscreen);
 $('btnHired').addEventListener('pointerdown', goFullscreen);
-$('btnStart').onclick = () => { SFX.resume(); SFX.ui(); Music.scene('menu'); buildMissions(); hide('title'); show('missions'); };
-$('btnFree').onclick = () => { SFX.resume(); SFX.ui(); Music.scene('menu'); S.mode2 = 'free'; S.mission = null; openCreator(); };
-$('btnMsnBack').onclick = () => { SFX.ui(false); Music.scene('title'); hide('missions'); show('title'); };
+$('btnFree').onclick = () => { SFX.resume(); SFX.ui(); Music.scene('menu'); openCreator(); };
 $('btnAgain').onclick = startShift;
 $('btnHired').onclick = () => {
   S.look.name = ($('cName').value.trim().toUpperCase().slice(0, 12)) || 'FIRASS';
@@ -1979,11 +1849,12 @@ $('btnHired').onclick = () => {
 // A button that visibly does nothing is worse than no button.
 $('btnRandom').classList.add('hidden');
 
-// TESTING PHASE — one button. Everything except FREE ROAM is hidden, including
-// the SUPPLY CUPBOARD on the shift report, so there is exactly one way in and
-// one thing to judge. Nothing is deleted; see FREE_ROAM_ONLY in config.js.
+// TESTING PHASE — one button. The side missions have been REMOVED outright,
+// not hidden: the ladder, the run, the in-shift tracker and the 3 o'clock
+// deadline are gone from the code. This flag now only hides the SUPPLY
+// CUPBOARD and HOW TO PLAY, so there is one way in and one thing to judge.
 if (FREE_ROAM_ONLY) {
-  for (const id of ['btnStart', 'btnShop', 'btnHelp', 'btnShopFromReport']) {
+  for (const id of ['btnShop', 'btnHelp', 'btnShopFromReport']) {
     const el = $(id);
     if (el) el.classList.add('hidden');
   }
