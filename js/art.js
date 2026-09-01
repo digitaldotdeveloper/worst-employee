@@ -418,9 +418,15 @@ export function poseFor(p, t) {
     if (p.walking || spd < 108) {
       return ['walk-1', 'walk-2', 'walk-3', 'walk-4'][Math.floor(t * 6.5) % 4];
     }
-    // six frames instead of four: the extra stride and recovery frames are what
-    // stop a run cycle looking like a shuffle
-    const order = ['run-1', 'run-2', 'run-5', 'run-3', 'run-4', 'run-6'];
+    // EIGHT FRAMES, AND IN STRIDE ORDER. The old six were not a cycle at all,
+    // they were six separate drawings of "running" — three a sprint, one a walk
+    // step, one upright with a hand raised, one with both arms crossed like a
+    // stumble — shuffled into the order below. Played in sequence that reads as
+    // a man tripping over, which is why it looked like it had two or three
+    // frames. These are one stride sampled at its named phases: contact, down,
+    // passing, push-off, then the same four on the other leg.
+    const order = ['run-1', 'run-2', 'run-3', 'run-4',
+                   'run-5', 'run-6', 'run-7', 'run-8'];
     const speed = Math.min(1.5, spd / 205);
     return order[Math.floor(t * 11 * speed) % order.length];
   }
@@ -437,10 +443,15 @@ export function poseFor(p, t) {
   // first version of this note quoted those fragments to explain them and kept
   // the failure alive by doing so. If the checker cannot see the name, neither
   // can anybody reading this.
+  // FOUR frames each, not two. Two frames of a near-identical pose does not
+  // read as motion at 135px — it reads as a still that twitches. Across these
+  // four his WEIGHT crosses from one hip to the other and his shoulders and
+  // head go with it, so the stance visibly changes even while he is doing
+  // nothing.
   const IDLE_LOOPS = [
-    ['idle-whistle-1', 'idle-whistle-2'],   // chilling, shifting his weight, whistling
-    ['idle-scratch-1', 'idle-scratch-2'],   // scratching the back of his head
-    ['idle-beard-1',   'idle-beard-2'],     // playing with his beard
+    ['idle-whistle-1', 'idle-whistle-2', 'idle-whistle-3', 'idle-whistle-4'],
+    ['idle-scratch-1', 'idle-scratch-2', 'idle-scratch-3', 'idle-scratch-4'],
+    ['idle-beard-1',   'idle-beard-2',   'idle-beard-3',   'idle-beard-4'],
   ];
   const CYCLE = 4.6;                        // rest, then one bit of business
   const n = Math.floor(t / CYCLE);
@@ -453,7 +464,7 @@ export function poseFor(p, t) {
   // would cut from a scratch to a whistle mid-loop. A cheap hash keeps it from
   // marching through the three in the same order forever.
   const loop = IDLE_LOOPS[Math.abs(Math.imul(n + 1, 2654435761)) % IDLE_LOOPS.length];
-  return loop[Math.floor(t * 2.2) % 2];
+  return loop[Math.floor(t * 3.4) % loop.length];
 }
 
 // ---------------------------------------------------------------

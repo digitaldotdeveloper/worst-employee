@@ -48,10 +48,16 @@
   "idle",
   "idle-beard-1",
   "idle-beard-2",
+  "idle-beard-3",
+  "idle-beard-4",
   "idle-scratch-1",
   "idle-scratch-2",
+  "idle-scratch-3",
+  "idle-scratch-4",
   "idle-whistle-1",
   "idle-whistle-2",
+  "idle-whistle-3",
+  "idle-whistle-4",
   "idle2",
   "jump-apex",
   "jump-kick",
@@ -68,6 +74,8 @@
   "run-4",
   "run-5",
   "run-6",
+  "run-7",
+  "run-8",
   "sit",
   "spray",
   "swing",
@@ -124,10 +132,16 @@
   "idle": 130.7,
   "idle-beard-1": 130.4,
   "idle-beard-2": 130.4,
+  "idle-beard-3": 130.4,
+  "idle-beard-4": 130.4,
   "idle-scratch-1": 130.4,
   "idle-scratch-2": 130.4,
+  "idle-scratch-3": 130.4,
+  "idle-scratch-4": 130.4,
   "idle-whistle-1": 130.4,
   "idle-whistle-2": 130.4,
+  "idle-whistle-3": 130.4,
+  "idle-whistle-4": 130.4,
   "idle2": 130.4,
   "jump-apex": 133.3,
   "jump-kick": 130.4,
@@ -140,10 +154,12 @@
   "roundhouse-2": 130.4,
   "run-1": 130.4,
   "run-2": 130.4,
-  "run-3": 130.4,
+  "run-3": 119.9,
   "run-4": 130.4,
   "run-5": 130.4,
   "run-6": 130.4,
+  "run-7": 127.6,
+  "run-8": 130.4,
   "sit": 130.4,
   "spray": 130.4,
   "swing": 130.4,
@@ -200,10 +216,16 @@
   "idle": 6.7,
   "idle-beard-1": 6.7,
   "idle-beard-2": 6.7,
+  "idle-beard-3": 6.7,
+  "idle-beard-4": 6.7,
   "idle-scratch-1": 6.7,
   "idle-scratch-2": 6.7,
+  "idle-scratch-3": 6.7,
+  "idle-scratch-4": 6.7,
   "idle-whistle-1": 6.7,
   "idle-whistle-2": 6.7,
+  "idle-whistle-3": 6.7,
+  "idle-whistle-4": 6.7,
   "idle2": 6.7,
   "jump-apex": 6.7,
   "jump-kick": 6.7,
@@ -220,6 +242,8 @@
   "run-4": 12.9,
   "run-5": 12.9,
   "run-6": 12.9,
+  "run-7": 16.5,
+  "run-8": 6.7,
   "sit": 31.4,
   "spray": 8.2,
   "swing": 6.7,
@@ -435,32 +459,62 @@
    13.0
   ],
   "idle-beard-1": [
-   82.0,
-   23.5,
+   81.5,
+   16.0,
    13.0
   ],
   "idle-beard-2": [
    82.0,
-   15.5,
-   13.0
-  ],
-  "idle-scratch-1": [
-   80.0,
    16.0,
    13.0
   ],
+  "idle-beard-3": [
+   82.5,
+   16.5,
+   13.0
+  ],
+  "idle-beard-4": [
+   83.0,
+   16.0,
+   13.0
+  ],
+  "idle-scratch-1": [
+   79.0,
+   19.5,
+   13.0
+  ],
   "idle-scratch-2": [
-   83.5,
+   85.5,
+   20.5,
+   13.0
+  ],
+  "idle-scratch-3": [
+   81.5,
+   16.0,
+   13.0
+  ],
+  "idle-scratch-4": [
+   82.5,
    16.5,
    13.0
   ],
   "idle-whistle-1": [
-   81.5,
-   16.5,
+   82.5,
+   18.0,
    13.0
   ],
   "idle-whistle-2": [
-   82.5,
+   83.0,
+   16.5,
+   13.0
+  ],
+  "idle-whistle-3": [
+   83.0,
+   16.5,
+   13.0
+  ],
+  "idle-whistle-4": [
+   81.5,
    16.5,
    13.0
   ],
@@ -515,33 +569,43 @@
    13.0
   ],
   "run-1": [
-   102.0,
-   21.5,
+   111.0,
+   23.5,
    13.0
   ],
   "run-2": [
-   87.5,
-   21.5,
+   113.0,
+   26.0,
    13.0
   ],
   "run-3": [
-   99.0,
+   112.5,
    23.0,
    13.0
   ],
   "run-4": [
-   82.5,
-   21.0,
+   108.0,
+   24.5,
    13.0
   ],
   "run-5": [
-   105.0,
-   23.0,
+   82.5,
+   21.5,
    13.0
   ],
   "run-6": [
-   108.5,
-   23.5,
+   114.5,
+   24.5,
+   13.0
+  ],
+  "run-7": [
+   109.0,
+   26.5,
+   13.0
+  ],
+  "run-8": [
+   112.0,
+   18.0,
    13.0
   ],
   "sit": [

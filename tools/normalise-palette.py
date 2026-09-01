@@ -57,13 +57,21 @@ def regions(a, alpha=None):
         return {}
     y0, y1 = ys.min(), ys.max()
     H = max(1, y1 - y0)
-    up = np.zeros_like(fg); up[y0:y0 + int(H * 0.45), :] = True
-    lo = np.zeros_like(fg); lo[y0 + int(H * 0.50):y1 + 1, :] = True
+    # NOT an upper/lower split. The first version masked the shirt to the top
+    # 45% of the figure, which cut the garment in half: the collar and shoulders
+    # were corrected to white and everything below the line kept whatever tint
+    # the generator gave it, leaving a hard horizontal seam across his chest and
+    # a two-tone shirt in every frame. Only the SHOES need excluding by
+    # position, and they only ever sit at the very bottom.
+    notshoes = np.zeros_like(fg); notshoes[y0:y0 + int(H * 0.86), :] = True
     return {
         'skin':  fg & (r > g + 8) & (g > b + 4) & (r > 90) & (b < 210)
                     & ~((r > 225) & (g > 215) & (b > 205)),
-        'shirt': fg & up & (lum > 150) & (np.abs(r - b) < 70),
-        'jeans': fg & lo & (b > r + 8) & (lum > 50) & (lum < 190),
+        # bright and near-neutral: the shirt. Blue jeans fail |r-b|<70, bare
+        # arms fail it warm, hair and outlines fail the luminance floor.
+        'shirt': fg & notshoes & (lum > 150) & (np.abs(r - b) < 70),
+        # blue: the jeans. Shoes are neutral so b > r + 8 drops them anyway.
+        'jeans': fg & (b > r + 8) & (lum > 50) & (lum < 190),
     }
 
 
