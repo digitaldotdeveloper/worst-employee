@@ -318,7 +318,15 @@ export function poseFor(p, t) {
   }
   if (p.landT > 0) return 'land';
   if (p.fiddleT > 0) return 'land';   // a crouch: reaching for something
-  if (p.carrying) return 'carry';
+  if (p.carrying) {
+    // Carrying a PROP was one static frame, so you slid across the floor
+    // holding a chair with your legs frozen. Same treatment the person-carry
+    // got: a two-beat walk while you are moving, the still frame when you stop.
+    if (p.grounded && Math.abs(p.vx) > 26 && SPRITES.img && SPRITES.img['carry-walk-1']) {
+      return (Math.floor(p.animT * 6.5) % 2) ? 'carry-walk-2' : 'carry-walk-1';
+    }
+    return 'carry';
+  }
   const spd = Math.abs(p.vx);
   if (spd > 26 || p.walking) {
     // A STROLL IS NOT A SPRINT. Story beats move an actor by tweening `x` with
@@ -751,6 +759,10 @@ const HAND = {
   'grab-walk-2': [16.0, -45.6, -0.35],
   'grab-jump':   [25.0, -41.1, -0.30],
   'choke':       [24.0, -45.6, -0.10],
+  // Carrying a prop while walking. These MUST agree with `carry`'s grip or the
+  // chair in your hands jumps between beats — the same failure the slap had.
+  'carry-walk-1': [18.5, -44.7, -0.35],
+  'carry-walk-2': [18.5, -44.7, -0.35],
 };
 
 // Where a carried thing actually sits, in world space, for the pose being drawn.

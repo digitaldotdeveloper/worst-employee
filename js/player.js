@@ -294,7 +294,20 @@ export class Player extends Body {
   _slapContact(s) {
     const v = this.carrying;
     if (!v) return;
-    if (this.choking) return;      // both arms are busy; see poseFor
+    // A CHOKE HAS ITS OWN ATTACK. Pressing HIT used to do nothing at all while
+    // choking — no slap, no sound, no damage, a dead button. You cannot slap
+    // with both arms round a throat, so HIT tightens instead: more damage than
+    // a slap, no wind-up, and it reads through the sound rather than a frame.
+    if (this.choking) {
+      v.hurtT = 0.2;
+      s.damageBody(v, 9, this);
+      const hd0 = castHeadAt(v);
+      FX.spark(hd0 ? hd0.x : v.cx, hd0 ? hd0.y : v.cy - 10, 5, '#ff9a9a', 150);
+      FX.kick(3, 0.04);
+      SFX.hit(0.42);
+      SFX.voice(v.name, 'scream', 0.75);
+      return;
+    }
     v.slaps = (v.slaps || 0) + 1;
     v.hurtT = 0.25;
 
@@ -517,11 +530,14 @@ export class Player extends Body {
     if (victim) {
       victim.held = true;
       victim.hoisted = true;
-      // FROM BEHIND IS A CHOKE. If you took them while facing the same way they
-      // were — i.e. you came up behind them — your arm goes round their throat
-      // instead of grabbing their collar. Same button, different move, decided
-      // entirely by where you were standing.
-      const fromBehind = victim.face === this.face;
+      // FROM BEHIND IS A CHOKE — and "behind" is about WHERE YOU ARE, not which
+      // way you both happen to point. This read `victim.face === this.face`,
+      // which is true whenever two people face the same way even if you are
+      // standing right in front of them, so roughly half of all grabs became a
+      // choke by accident. It is behind you when the victim is facing AWAY from
+      // you: their facing points along the line from you to them.
+      const toVictim = Math.sign(victim.cx - this.cx) || 1;
+      const fromBehind = victim.face === toVictim;
       victim.choked = fromBehind;
       this.choking = fromBehind;
       victim.heldT = 0;

@@ -18,6 +18,8 @@
   "c5-hit",
   "c5-wind",
   "carry",
+  "carry-walk-1",
+  "carry-walk-2",
   "choke",
   "dodge",
   "down",
@@ -67,6 +69,8 @@
   "c5-hit": 130.4,
   "c5-wind": 127.1,
   "carry": 129.9,
+  "carry-walk-1": 130.2,
+  "carry-walk-2": 130.2,
   "choke": 130.2,
   "dodge": 130.2,
   "down": 108.8,
@@ -116,6 +120,8 @@
   "c5-hit": 13.1,
   "c5-wind": 8.2,
   "carry": 9.0,
+  "carry-walk-1": 6.4,
+  "carry-walk-2": 6.4,
   "choke": 6.4,
   "dodge": 41.2,
   "down": 83.8,
@@ -211,6 +217,16 @@
   "carry": [
    58.5,
    17.0,
+   13.0
+  ],
+  "carry-walk-1": [
+   56.0,
+   25.0,
+   13.0
+  ],
+  "carry-walk-2": [
+   61.0,
+   24.0,
    13.0
   ],
   "choke": [
