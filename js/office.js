@@ -57,6 +57,9 @@ export class Coworker extends Body {
     this.annoyCd = 0;   // cannot be pestered again instantly
     this.rage = 0;      // how much of this they have taken
     this.swingCd = 0;
+    this.swingT = 0;    // MUST be a number: `undefined <= 0` is false, and the
+                        // wind-up gate below is guarded on `swingT <= 0`. Left
+                        // unset, coworkers charged you and never once swung.
     this.fighting = false;
     this.knockCd = 0;
     this.annoyed2 = 0;  // how many times this one has put up with you
@@ -124,7 +127,19 @@ export class Coworker extends Body {
       // measured across 26 rounds of chase-and-punch, they turned, closed, and
       // landed exactly ZERO swings. Starting from further out means the blow
       // arrives while they are still on their feet.
-      if (Math.abs(dx) > 64) {
+      // 72 — INSIDE THEIR ACTUAL REACH. swing() builds a 44px box from their
+      // body edge, which is about 76px centre to centre, so committing at 96
+      // meant they wound up, swung, and hit nothing but air: measured, nine
+      // seconds of standing still in front of two furious colleagues and not a
+      // single point of damage.
+      //
+      // Widening this was never the fix for "they do nothing", and neither was
+      // the range. The gate below reads `swingT <= 0`, and `swingT` was never
+      // initialised on a Coworker — so it was `undefined`, `undefined <= 0` is
+      // false, and the wind-up could not start on ANY frame at ANY distance.
+      // The Boss class had always initialised it, which is why he could hit you
+      // and your colleagues never could. One missing line in the constructor.
+      if (Math.abs(dx) > 72) {
         this.vx += this.face * 620 * dt;
         this.vx = Math.max(-170, Math.min(170, this.vx));
       } else {
@@ -170,8 +185,32 @@ export class Coworker extends Body {
 
     // Sitting down at your own desk. Standing bolt upright "at" a desk was the
     // single most obviously fake thing on the floor.
-    this.seated = this.mode === 'work' && this.deskX != null
+    // SITTING MEANS SITTING AT THE DESK, ON THE CHAIR, FACING THE SCREEN.
+    // It used to mean only "in work mode and roughly near your deskX", so
+    // people sat at floor level, 28px to the right of their own chair, facing
+    // AWAY from a monitor that was 54px behind them. Measured on all three of
+    // floor 12's seated staff.
+    //
+    // When they sit, they take the seat: snapped to the nearest chair and
+    // turned towards the nearest monitor. Worked out once, on the frame they
+    // sit down, rather than every frame for everyone on the floor.
+    const wantSit = this.mode === 'work' && this.deskX != null
       && Math.abs(this.cx - this.deskX) < 60 && this.grounded;
+    if (wantSit && !this.seated) {
+      let chair = null, mon = null, cd = 999, md = 999;
+      for (const b of s.world.bodies) {
+        const d = Math.abs(b.cx - this.cx);
+        if (b.kind === 'chair' && d < cd && d < 90) { cd = d; chair = b; }
+        if (b.kind === 'monitor' && d < md && d < 120) { md = d; mon = b; }
+      }
+      if (chair) this.x = chair.cx - this.w / 2;
+      if (mon) this.face = Math.sign(mon.cx - this.cx) || this.face;
+      this.seatFace = this.face;
+    }
+    this.seated = wantSit;
+    // Hold the facing while seated — the wander logic flips `face` on a timer
+    // and would spin a seated person round mid-typing.
+    if (this.seated && this.seatFace) this.face = this.seatFace;
 
     if (this.mode === 'panic') {
       const away = Math.sign(this.cx - s.player.cx) || 1;
@@ -302,14 +341,39 @@ export class Coworker extends Body {
     // So a fighting colleague can only be PUT DOWN every few seconds. In
     // between they take the damage, keep their feet, and swing back — which is
     // the difference between a brawl and a shooting gallery.
+    // A SWING IN FLIGHT CANNOT BE KNOCKED DOWN. They were floored mid-wind-up
+    // over and over — measured across 70 rounds of a real fight: 60% of it
+    // spent on the carpet, and ZERO swings ever reached the player. You could
+    // out-stagger them forever simply by punching faster, which is not a fight,
+    // it is a shooting gallery with a health bar.
+    //
+    // Once they have committed to a blow it lands. They still take the damage;
+    // they just get to finish what they started.
+    if (this.swingT > 0) {
+      this.hp = Math.max(6, Math.round(this.maxHp * 0.25));
+      this.hurtT = 0.2;
+      return;
+    }
     if (this.fighting && this.knockCd > 0) {
       this.hp = Math.max(8, Math.round(this.maxHp * 0.30));
       this.hurtT = 0.26;
       this.provoke(s, 1);
       return;
     }
-    // Out cold, not just floored: this is the blow that emptied them.
-    if (this.hp <= 0) { this.out = true; this.fighting = false; }
+    // OUT COLD ON THE SECOND KNOCKDOWN, NOT THE FIRST.
+    //
+    // This read `if (this.hp <= 0)`, and knock() is ONLY ever called when hp
+    // has hit zero — that is its trigger. So every single knockdown was a
+    // knockout: one blow and they were on the carpet for the rest of the shift.
+    // Worse, npcPoseName keeps returning `getup` as downT counts down, so a
+    // permanently-out colleague sat frozen in the hand-on-the-floor frame
+    // forever, which is exactly how it was reported.
+    //
+    // Being floored is temporary and being beaten is not, so it takes a second
+    // trip to the carpet. That also gives the "gets up angry" beat somewhere to
+    // happen, which it never had.
+    this.downs = (this.downs || 0) + 1;
+    if (this.downs >= 2) { this.out = true; this.fighting = false; }
     this.knockCd = 4.0;
     const t = (this.fighting ? 0.75 : 1.1)
       + Math.min(1.6, dmg / 38 * 1.6) + Math.random() * 0.3;

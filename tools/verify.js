@@ -456,14 +456,28 @@ const URL = process.env.URL || 'http://127.0.0.1:4320/';
     pl.slapCd = 0; pl.slapHit = false; pl._slap(S);
     await new Promise(r => setTimeout(r, 340));
     const afterOne = c.hp;
-    for (let i = 0; i < 24 && !c.out; i++) {
-      pl.slapCd = 0; pl.slapHit = false; pl._slap(S);
-      await new Promise(r => setTimeout(r, 330));
+    // TWO knockdowns, not one. Emptying someone's health floors them and they
+    // get back up angry; only the second flooring is permanent. A check that
+    // slaps until hp hits zero and then asks "are they out?" is asking the
+    // wrong question, and it kept the grab going against someone who was
+    // already lying on the carpet and no longer held.
+    let guard = 0;
+    while (!c.out && guard++ < 40) {
+      if (pl.holdingPerson && c.held) {
+        pl.slapCd = 0; pl.slapHit = false; pl._slap(S);
+      } else if (c.mode === 'down') {
+        c.downT = 0;                       // do not sit through the floor timer
+      } else {
+        c.x = pl.cx + 24 * pl.face - c.w / 2; c.y = pl.y + pl.h - c.h;
+        c.face = -pl.face; pl.choking = false; pl.slapCd = 0;
+        pl._grabOrThrow(S);                // on their feet again: take hold
+      }
+      await new Promise(r => setTimeout(r, 200));
     }
-    const wentOut = !!c.out;
+    const wentOut = !!c.out, downs = c.downs || 0;
     const modes = [];
     for (let i = 0; i < 8; i++) { await new Promise(r => setTimeout(r, 250)); modes.push(c.mode); }
-    return { start, afterOne, wentOut, gotUp: modes.some(m => m !== 'down') };
+    return { start, afterOne, wentOut, downs, gotUp: modes.some(m => m !== 'down') };
   });
   if (kout.err) bad('knockout: ' + kout.err);
   else {
@@ -472,7 +486,7 @@ const URL = process.env.URL || 'http://127.0.0.1:4320/';
       : bad(`slap: took no health — ${kout.start} -> ${kout.afterOne}`);
     !kout.wentOut ? bad('knockout: slapping never put them out')
       : kout.gotUp ? bad('knockout: they got back up — out is supposed to be out')
-        : ok('knockout: out stays out, two seconds of floor with no getup');
+        : ok(`knockout: out after ${kout.downs} knockdowns, and it stays out`);
   }
 
   // THE TELEGRAPH. An instant hit is not a fight, it is a tax.

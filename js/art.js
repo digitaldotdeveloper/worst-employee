@@ -593,7 +593,17 @@ export function npcPoseName(c, t) {
   }
   // Getting up is its own shape. Without it people teleport from flat on the
   // floor to standing between two frames.
-  if (c.mode === 'down') return c.downT < 0.55 ? 'getup' : 'down';
+  // 0.28, not 0.55. `getup` is ONE drawn frame, and holding a single frame for
+  // over half a second reads as the animation having frozen — reported as
+  // exactly that: "the frame freezes with one hand on the floor". It is now a
+  // quick push-up at the end of the knockdown rather than a pose they hold.
+  // Somebody who is OUT never plays `getup` — they are not getting up. Without
+  // this they lay there cycling into the push-up frame and holding it, which
+  // read as the animation freezing rather than as a body on the floor.
+  if (c.mode === 'down') {
+    if (c.out) return 'down';
+    return c.downT < 0.28 ? 'getup' : 'down';
+  }
   if (c.sprayHold > 0) return 'sprayed';
   // A punch with a wind-up. `swingT` runs 0.42 -> 0 and the blow lands at 0.16,
   // so the first 0.26s is pure telegraph — which is what makes dodging a skill
