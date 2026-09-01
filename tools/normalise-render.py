@@ -51,6 +51,17 @@ POSE_HEIGHT = {
     # makes the cycle uniform.
     'run-1': 0.95, 'run-2': 0.95, 'run-3': 0.95,
     'run-4': 0.95, 'run-5': 0.95, 'run-6': 0.95,
+
+    # The new animations. Every one of these is a shape that is NOT standing
+    # height, and the packer stretches anything it is not told about.
+    'air-throw-down': 0.94,
+    'backflip': 0.94,
+    'block': 0.94,
+    'block-hit': 0.94,
+    'dodge-1': 0.86,
+    'dodge-2': 0.74,
+    'jump-kick-rec': 0.86,
+    'uppercut-wind': 0.82,
 }
 
 # Head detection is shared with fix-heads.py rather than reimplemented, because

@@ -1815,35 +1815,49 @@ addEventListener('pointerdown', () => {
 }, { capture: true });
 
 $('verTag').textContent = 'v' + VERSION;
-SPRITES.load().then(ok => {
-  console.log(ok ? 'player sprites loaded: ' + Object.keys(SPRITES.img).length
-                 : 'no player sprites');
-});
-WEAPON_ART.load().then(n => console.log('weapon art loaded: ' + n));
-WORLD.load().then(ok => console.log(ok ? 'world art loaded: ' + Object.keys(WORLD.props).length + ' props' : 'no world art'));
+// HOLD THE DOOR UNTIL THE ART IS HERE.
+//
+// These four loaders used to run fire-and-forget while the title was already up
+// and FREE ROAM was already clickable, so the office assembled itself around the
+// player: greybox boxes first, then the props, then the cast, then Firass. On a
+// phone that is several seconds of a game visibly putting itself together.
+//
+// They still run in PARALLEL - this waits for all four, it does not serialise
+// them - and the bar moves as each lands. A loader that fails resolves anyway:
+// the game has greybox fallbacks for everything, and a missing prop sheet must
+// never be the reason nobody can play.
+const BOOT = [
+  ['the office',    WORLD.load()],
+  ['the cast',      CAST.load(['npc-sami', 'npc-rita', 'npc-omar', 'boss-calm', 'boss-rage'])],
+  ['Firass',        SPRITES.load()],
+  ['what you swing', WEAPON_ART.load()],
+];
+let bootDone = 0;
+const bootFill = $('loadFill'), bootNote = $('loadNote');
+BOOT.forEach(([label, pr]) => pr.catch(e => { console.warn(label + ' failed to load', e); })
+  .then(() => {
+    bootDone++;
+    if (bootFill) bootFill.style.width = Math.round(bootDone / BOOT.length * 100) + '%';
+    if (bootNote) bootNote.textContent = bootDone < BOOT.length ? 'LOADING ' + label + '…' : 'READY';
+  }));
 
-// LOAD WHAT THE GAME ACTUALLY DRAWS.
-//
-// FACES was 19 portraits fetched on every boot for a system that no longer
-// exists — reaction faces are whole-body frames now and nothing calls
-// FACES.draw. RIG was 1.8MB of body parts kept as a fallback for when a cast
-// member has no drawn frames, which the verifier proves cannot happen: all
-// three coworkers and both bosses have every pose their selector can ask for.
-//
-// So the rig is fetched ONLY if the cast fails to arrive — the safety net is
-// still there, it just is not downloaded before anyone needs it. Between them
-// that is ~3.5MB off a first load that was 24MB.
-CAST.load(['npc-sami', 'npc-rita', 'npc-omar', 'boss-calm', 'boss-rage'])
-  .then(async n => {
-    console.log('cast frames loaded: ' + n + ' characters');
-    if (n >= 5) return;                       // everyone drew; no fallback needed
+Promise.all(BOOT.map(([, pr]) => pr.catch(() => null))).then(async ([, castN]) => {
+  console.log('cast frames loaded: ' + castN + ' characters');
+  // The rig is the fallback for a cast member with no drawn frames. The
+  // verifier proves that cannot happen, so it is fetched only if the cast
+  // actually failed to arrive - 1.7MB nobody needs on a good day.
+  if (!(castN >= 5)) {
     console.log('cast incomplete — loading the rig as a fallback');
-    const ok = await RIG.load();
-    if (!ok) { console.log('no rig either — falling back to key poses'); return; }
-    const c = await RIG.loadCast(['npc-sami', 'npc-rita', 'npc-omar', 'boss-calm', 'boss-rage']);
-    console.log('rig loaded: ' + Object.keys(RIG.img).length + ' parts, ' + c + ' cast');
-    applyLook();
-  });
+    if (await RIG.load()) {
+      await RIG.loadCast(['npc-sami', 'npc-rita', 'npc-omar', 'boss-calm', 'boss-rage']);
+      applyLook();
+    }
+  }
+  const el = $('loading');
+  if (el) { el.style.transition = 'opacity .35s'; el.style.opacity = '0';
+            setTimeout(() => el.classList.add('hidden'), 360); }
+});
+
 initInput(cv);
 resize();
 requestAnimationFrame(frame);

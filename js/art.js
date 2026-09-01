@@ -303,14 +303,26 @@ export function poseFor(p, t) {
   if (p.spraying) return 'spray';
   if (p.atk) {
     const wind = p.atk.phase === 'startup';
-    if (!p.grounded) return 'air-hit';
+    // A KICK IN THE AIR, not a punch. `air-hit` was the same arm swing as on
+    // the ground with the legs dangling; a jump attack now leads with the sole
+    // of the shoe and reads as a decision rather than a mistimed punch.
+    if (!p.grounded) return SPRITES.img && SPRITES.img['jump-kick'] ? 'jump-kick' : 'air-hit';
     if (p.carrying) return 'swing';
     if (p.atk.kind === 'heavy') return wind ? 'heavy-wind' : 'heavy-hit';
     const c = COMBO[p.atk.step] || COMBO[0];
     return wind ? c.wind : c.hit;
   }
   if (p.hurtT > 0) return 'hurt';
-  if (p.dodgeT > 0) return 'dodge';
+  if (p.dodgeT > 0) {
+    // ONE FRAME IS NOT AN ANIMATION. The dodge held a single forward-lunge
+    // pose for its whole duration, which is why it read as nothing happening
+    // at all. It is a slip now: throw the head and shoulders back away from
+    // the punch, then reach the full lean. `dodgeT` counts DOWN, so the first
+    // half of the move is the high end of it.
+    const d = SPRITES.img;
+    if (d && d['dodge-1'] && d['dodge-2']) return p.dodgeT > 0.16 ? 'dodge-1' : 'dodge-2';
+    return 'dodge';
+  }
   if (!p.grounded) {
     if (p.vy < -180) return 'jump-up';
     if (p.vy < 120) return 'jump-apex';
@@ -342,8 +354,36 @@ export function poseFor(p, t) {
     const speed = Math.min(1.5, spd / 205);
     return order[Math.floor(t * 11 * speed) % order.length];
   }
-  // a second idle keeps a standing character from looking frozen
-  return (Math.floor(t * 0.42) % 5 === 4) ? 'idle2' : 'idle';
+  // STANDING STILL IS A PERFORMANCE. He rests for a beat, then does something
+  // with himself: whistles, scratches the back of his head, or plays with his
+  // beard. Which one is chosen from the CYCLE NUMBER rather than Math.random,
+  // so the loop plays through cleanly instead of switching mid-scratch, and a
+  // cheap hash keeps it from marching through them in the same order forever.
+  // Written as whole literal names on purpose. verify.js finds what the game
+  // can ask for by scraping quoted strings out of this function, so a name
+  // glued together from a prefix, a variable and a frame number reads to it as
+  // a handful of fragments rather than a pose, and it duly reported six
+  // missing frames that do not exist. Note the checker reads COMMENTS too: the
+  // first version of this note quoted those fragments to explain them and kept
+  // the failure alive by doing so. If the checker cannot see the name, neither
+  // can anybody reading this.
+  const IDLE_LOOPS = [
+    ['idle-whistle-1', 'idle-whistle-2'],   // chilling, shifting his weight, whistling
+    ['idle-scratch-1', 'idle-scratch-2'],   // scratching the back of his head
+    ['idle-beard-1',   'idle-beard-2'],     // playing with his beard
+  ];
+  const CYCLE = 4.6;                        // rest, then one bit of business
+  const n = Math.floor(t / CYCLE);
+  const phase = (t / CYCLE) - n;
+  if (!(SPRITES.img && SPRITES.img['idle-whistle-1'])) {
+    return (Math.floor(t * 0.42) % 5 === 4) ? 'idle2' : 'idle';
+  }
+  if (phase < 0.42) return 'idle';          // settle first, or he never stands still
+  // Chosen from the CYCLE NUMBER, not Math.random: a fresh roll every frame
+  // would cut from a scratch to a whistle mid-loop. A cheap hash keeps it from
+  // marching through the three in the same order forever.
+  const loop = IDLE_LOOPS[Math.abs(Math.imul(n + 1, 2654435761)) % IDLE_LOOPS.length];
+  return loop[Math.floor(t * 2.2) % 2];
 }
 
 // ---------------------------------------------------------------
@@ -773,6 +813,33 @@ const HAND = {
   // chair in your hands jumps between beats — the same failure the slap had.
   'carry-walk-1': [15.6, -44.7, -0.35],
   'carry-walk-2': [13.1, -38.2, -0.35],
+  // The new animations. Positions measured off the drawn frames; the angle a
+  // held object points cannot be measured from a hand and stays authored.
+  'air-throw-down': [8.5, -24.2, 0],
+  'backflip': [6.5, -27.2, 0],
+  'block': [6.0, -44.0, 0],
+  'block-hit': [6.5, -42.7, 0],
+  'carry-small': [6.5, -28.0, 0],
+  'carry-small-walk-1': [6.5, -41.2, 0],
+  'carry-small-walk-2': [7.5, -43.7, 0],
+  'dodge-1': [7.0, -45.7, 0],
+  'dodge-2': [-1.5, -32.5, 0],
+  'elbow-hit': [7.0, -49.2, 0],
+  'idle-beard-1': [6.0, -29.2, 0],
+  'idle-beard-2': [6.0, -29.0, 0],
+  'idle-scratch-1': [6.0, -27.7, 0],
+  'idle-scratch-2': [6.0, -27.7, 0],
+  'idle-whistle-1': [6.0, -27.7, 0],
+  'idle-whistle-2': [6.5, -28.0, 0],
+  'jump-kick': [17.0, -40.5, 0],
+  'jump-kick-rec': [5.0, -25.0, 0],
+  'knee-hit': [7.0, -41.5, 0],
+  'parry': [-4.0, -51.0, 0],
+  'roundhouse-1': [6.5, -44.7, 0],
+  'roundhouse-2': [21.0, -30.5, 0],
+  'toss-small': [8.0, -34.2, 0],
+  'uppercut-hit': [-0.5, -36.0, 0],
+  'uppercut-wind': [-1.0, -22.2, 0],
 };
 
 // Where a carried thing actually sits, in world space, for the pose being drawn.
