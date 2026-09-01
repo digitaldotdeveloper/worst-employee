@@ -112,6 +112,12 @@ export const FLOOR_ROOMS = {
 // different PEOPLE through name and title until more sets exist.
 export const FLOOR_STAFF = {
   park:  [['BASSAM','SECURITY','npc-omar','plobby']],
+  // Floor 12 is the one you spend the whole shift on and it was the ONLY floor
+  // with nobody coming for you — it had no entry here at all, so buildOffice
+  // staffed it by hand and never got a guard. He is hand-placed in office.js
+  // with the rest of that floor's cast; this row is here so the omission is
+  // visible from the staff table rather than only from the builder.
+  ops:   [],
   sales: [['TAREK','SALES LEAD','npc-sami','floor'], ['MAYA','ACCOUNT EXEC','npc-rita','floor'],
           ['ZIAD','ACCOUNT EXEC','npc-omar','pit'],  ['HANA','SALES MANAGER','npc-rita','smgr'],
           ['JAD','SECURITY','npc-sami','slobby']],

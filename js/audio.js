@@ -149,7 +149,11 @@ S.land = function (hard = 0.4) {
 S.dodge = function () {
   if (!this.ready) return;
   const t = ctx.currentTime;
-  const { filter } = noise(t, 0.16, 0.13, 1800, 3, 'bandpass');
+  // Measured at 0.0456 on the master bus — under the ~0.05 audibility floor, on
+  // the one move with no other feedback at all. Same cause as the whiff bug:
+  // the amplitude was set BEFORE a Q=3 bandpass, which throws most of the noise
+  // energy away, so the number in the call is not the number you hear.
+  const { filter } = noise(t, 0.16, 0.55, 1800, 1.1, 'bandpass');
   filter.frequency.setValueAtTime(2600, t);
   filter.frequency.exponentialRampToValueAtTime(500, t + 0.15);
 };

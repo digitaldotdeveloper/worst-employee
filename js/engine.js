@@ -177,7 +177,16 @@ export class World {
   _vsBody(a, b) {
     if (a.x + a.w <= b.x || a.x >= b.x + b.w || a.y + a.h <= b.y || a.y >= b.y + b.h) return;
 
-    const pa = a.type === 'player', pb = b.type === 'player';
+    // Anyone who WALKS. The exemption below was written for the player and only
+    // the player, so every NPC still ran the mass exchange against furniture —
+    // and a security guard hunting you was stopped dead by a potted plant.
+    // Measured: office.js set his vx to 7.98 every frame and world.step handed
+    // back 0.30, for 260 frames straight. 5.8 px/s of pursuit against a coded
+    // cap of 135. Remove the props and the same guard closed 590px in 6s.
+    // Furniture is a TARGET, not an obstacle — that is as true for them as it
+    // is for you.
+    const pa = a.type === 'player' || a.type === 'npc' || a.type === 'boss';
+    const pb = b.type === 'player' || b.type === 'npc' || b.type === 'boss';
     const person = x => x.type === 'npc' || x.type === 'boss' || x.type === 'player';
 
     // PEOPLE ARE NOT PROPS. You walk past colleagues, you do not shoulder-barge

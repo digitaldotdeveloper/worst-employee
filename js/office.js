@@ -602,6 +602,11 @@ function buildGeneric(world, s, F, floorId) {
     c.female = art === 'npc-rita';
     if (title === SECURITY_TITLE) {
       c.isSecurity = true;
+      c.maxHp = 190; c.hp = 190;
+      c.deskX = null;
+    }
+    if (title === SECURITY_TITLE) {
+      c.isSecurity = true;
       c.maxHp = 190; c.hp = 190;    // paid to absorb this
       c.deskX = null;               // no desk, no sitting, always on their feet
     } else {
@@ -697,12 +702,20 @@ export function buildOffice(world, s, floorId = 'ops') {
     ['LEA',   'MARKETING',        'npc-rita', 1880],
     ['KARIM', 'INTERN',           'npc-sami', 2560],   // break room
     ['NOUR',  'HR',               'npc-omar', 3070],   // meeting room
+    // The floor you actually work on had no security. Every other floor has a
+    // guard and this one — the one you spend the whole shift wrecking — did not.
+    ['BILAL', SECURITY_TITLE,     'npc-sami',  420],   // reception
   ];
   for (const [name, title, art, x] of staff) {
     const c = new Coworker(x, name);
     c.title = title;
     c.art = art;
     c.female = art === 'npc-rita';
+    if (title === SECURITY_TITLE) {
+      c.isSecurity = true;
+      c.maxHp = 190; c.hp = 190;
+      c.deskX = null;
+    }
     c.homeX = x;                    // they drift, but they belong somewhere
     c.deskX = x;                    // and this is the desk they belong AT
     world.add(c); s.coworkers.push(c);

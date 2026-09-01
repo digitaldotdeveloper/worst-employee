@@ -300,7 +300,14 @@ export class Player extends Body {
     // a slap, no wind-up, and it reads through the sound rather than a frame.
     if (this.choking) {
       v.hurtT = 0.2;
-      s.damageBody(v, 9, this);
+      // 9 went through damageBody's under-14 "scrape" path, which never touches
+      // hp — and its provoke() call returns immediately because provoke bails
+      // on `this.held`. So the squeeze paid nothing at all: 8 presses, victim
+      // 100 -> 100 hp, ruin 0, rage 0, while the sound and sparks fired and
+      // made it look like it worked. Choking someone takes hp directly.
+      v.hp = Math.max(0, v.hp - 9);
+      s.ruin += 14;
+      if (v.hp <= 0 && v.knock) v.knock(s, 30);
       const hd0 = castHeadAt(v);
       FX.spark(hd0 ? hd0.x : v.cx, hd0 ? hd0.y : v.cy - 10, 5, '#ff9a9a', 150);
       FX.kick(3, 0.04);
