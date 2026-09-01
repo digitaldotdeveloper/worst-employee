@@ -1400,6 +1400,28 @@ function render() {
     roundRect(ctx, d.x, d.y, d.w, d.h, 3); ctx.stroke();
   }
 
+// GROUND SHADOWS STAY ON THE GROUND.
+//
+// The player's was drawn at `p.y + p.h` — his feet — so it climbed into the air
+// with him on every jump and sat under him like a plate he was standing on.
+// A shadow belongs on the FLOOR, and it is the only cue for how high up
+// somebody is: it shrinks and fades with height, and that is what sells the
+// jump. `_shadowY` remembers the last surface they actually stood on, so it
+// still works on top of a desk rather than snapping to the floor below.
+function groundShadow(ctx, body, w) {
+  const feet = body.y + body.h;
+  if (body.grounded !== false) body._shadowY = feet;
+  const gy = body._shadowY == null ? FLOOR_Y : body._shadowY;
+  const air = Math.max(0, gy - feet);
+  const k = Math.max(0.34, 1 - air / 230);       // smaller the higher you are
+  ctx.save();
+  ctx.fillStyle = 'rgba(0,0,0,' + (0.36 * k).toFixed(3) + ')';
+  ctx.beginPath();
+  ctx.ellipse(body.cx, gy + 2, w * 0.55 * k, 5 * k, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
   // contact shadows first — nothing reads as standing on a floor without one
   if (WORLD.ready) {
     ctx.fillStyle = 'rgba(0,0,0,.30)';
@@ -1448,6 +1470,7 @@ function render() {
   // coworkers — same skeleton as the player, different parts
   for (const c of S.coworkers) {
     if (c.dead || c.visible === false) continue;
+    if (c.mode !== 'down') groundShadow(ctx, c, c.w);
     if (c.art && CAST.has(c.art)) {
       CAST.draw(ctx, c.art, npcPoseName(c, c.animT),
         c.cx, c.y + c.h, c.h * 1.10, c.face < 0, 1);
@@ -1513,11 +1536,7 @@ function render() {
 
   // player — real sprites when they have loaded, layered greybox rig otherwise
   const p = S.player;
-  ctx.save();
-  ctx.translate(p.cx, p.y + p.h);
-  ctx.fillStyle = 'rgba(0,0,0,.35)';
-  ctx.beginPath(); ctx.ellipse(0, 2, p.w * 0.55, 5, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.restore();
+  groundShadow(ctx, p, p.w);
 
   const alpha = p.iframes > 0 ? 0.45 : 1;
   const curPose = (S.useArt && SPRITES.ready) ? poseFor(p, p.animT) : null;

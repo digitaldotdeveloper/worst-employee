@@ -28,7 +28,12 @@ export const FX = {
       const a = -Math.PI / 2 + (Math.random() - 0.5) * 2.4;
       const s = 120 + Math.random() * 320;
       parts.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s,
-        life: 0.6 + Math.random() * 0.5, max: 1.1, col, r: 2 + Math.random() * 3, g: 1500, box: true });
+        life: 0.6 + Math.random() * 0.5, max: 1.1, col, r: 2 + Math.random() * 3, g: 1500, box: true,
+        // step() already spins anything with a `rot`, but debris never set one,
+        // so every chip drew as an axis-aligned fillRect - a smashed monitor
+        // threw off a handful of tidy little SQUARES. One starting angle each
+        // and they tumble like debris instead.
+        rot: Math.random() * Math.PI });
     }
   },
 

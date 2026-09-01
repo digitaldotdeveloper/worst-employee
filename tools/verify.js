@@ -449,6 +449,7 @@ const URL = process.env.URL || 'http://127.0.0.1:4320/';
     pl.choking = false; pl.downT = 0; pl.slapCd = 0;
     c.x = pl.cx + 24 * pl.face - c.w / 2; c.y = pl.y + pl.h - c.h;
     c.mode = 'idle'; c.downT = 0; c.held = false; c.hp = c.maxHp; c.out = false;
+    c.downs = 0;                            // start from a clean slate: out is the SECOND knockdown
     c.face = -pl.face;                      // front grab, so HIT is a slap
     pl._grabOrThrow(S);
     if (!pl.holdingPerson) return { err: 'grab did not take' };
@@ -462,7 +463,7 @@ const URL = process.env.URL || 'http://127.0.0.1:4320/';
     // wrong question, and it kept the grab going against someone who was
     // already lying on the carpet and no longer held.
     let guard = 0;
-    while (!c.out && guard++ < 40) {
+    while (!c.out && guard++ < 90) {   // two full knockdowns, and a re-grab costs turns
       if (pl.holdingPerson && c.held) {
         pl.slapCd = 0; pl.slapHit = false; pl._slap(S);
       } else if (c.mode === 'down') {
@@ -475,16 +476,23 @@ const URL = process.env.URL || 'http://127.0.0.1:4320/';
       await new Promise(r => setTimeout(r, 200));
     }
     const wentOut = !!c.out, downs = c.downs || 0;
+    // ALWAYS let go on the way out. If this loop times out it used to leave the
+    // colleague in the player's grip, and the very next check reported
+    // "fight-back: poses were held held2 held3" - a failure belonging entirely
+    // to the test above it. A probe must hand the game back as it found it.
+    if (pl.holdingPerson || c.held) {
+      c.held = false; pl.carrying = null; pl.holdingPerson = false; pl.choking = false;
+    }
     const modes = [];
     for (let i = 0; i < 8; i++) { await new Promise(r => setTimeout(r, 250)); modes.push(c.mode); }
-    return { start, afterOne, wentOut, downs, gotUp: modes.some(m => m !== 'down') };
+    return { start, afterOne, wentOut, downs, hp: c.hp, mode: c.mode, held: !!c.held, holding: !!pl.holdingPerson, gotUp: modes.some(m => m !== 'down') };
   });
   if (kout.err) bad('knockout: ' + kout.err);
   else {
     kout.afterOne < kout.start
       ? ok(`slap: takes health (${kout.start} -> ${kout.afterOne} on one slap)`)
       : bad(`slap: took no health — ${kout.start} -> ${kout.afterOne}`);
-    !kout.wentOut ? bad('knockout: slapping never put them out')
+    !kout.wentOut ? bad(`knockout: never went out — ${kout.downs} knockdowns, hp ${Math.round(kout.hp)}, mode ${kout.mode}, held ${kout.held}, holding ${kout.holding}`)
       : kout.gotUp ? bad('knockout: they got back up — out is supposed to be out')
         : ok(`knockout: out after ${kout.downs} knockdowns, and it stays out`);
   }

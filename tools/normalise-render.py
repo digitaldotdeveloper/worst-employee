@@ -41,6 +41,16 @@ POSE_HEIGHT = {
     # are in the air, so the packer must not stretch it to the ground line.
     'held2': 0.97, 'held3': 0.97, 'choked': 0.97,
     'grab-jump': 0.94,
+    # THE RUN CYCLE MUST NOT PULSE. A running figure is genuinely a little
+    # shorter than a standing one — leaning costs height — but the six frames
+    # came back spread from -1% to -17%, so he visibly swelled and shrank once
+    # per stride. Reported as "he is bigger when idle than when moving". A real
+    # run bobs by a few percent, not seventeen, and the head detector cannot
+    # settle it on its own here: he is in short sleeves, so a bare forearm by
+    # the chin is a bigger skin blob than his face. Stating the height is what
+    # makes the cycle uniform.
+    'run-1': 0.95, 'run-2': 0.95, 'run-3': 0.95,
+    'run-4': 0.95, 'run-5': 0.95, 'run-6': 0.95,
 }
 
 # Head detection is shared with fix-heads.py rather than reimplemented, because

@@ -458,7 +458,11 @@ export class Player extends Body {
       s.chaos.ignite(b, 1, b.label || b.kind);
 
       const hx = this.cx + this.face * 30, hy = this.cy - 4;
-      FX.spark(hx, hy, d === ATTACK.heavy ? 16 : 9, '#fff', d === ATTACK.heavy ? 420 : 260);
+      // Not '#fff'. Nine pure-white dots at 2.15x zoom read as white BLOCKS
+      // sitting on top of the person you just hit. A warm impact colour at
+      // half the count still says 'that connected' without covering them up.
+      FX.spark(hx, hy, d === ATTACK.heavy ? 9 : 5, d === ATTACK.heavy ? '#ffd9a8' : '#ffc98a',
+               d === ATTACK.heavy ? 420 : 260);
       FX.kick(d.shake * W.shakeMul, d.hitstop * W.stopMul);
       SFX.hit(Math.min(1, (d === ATTACK.heavy ? 1 : 0.35 + a.step * 0.2) * W.sfxMul));
       // The spin kick that ends the five-beat string gets a flourish over the
