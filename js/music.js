@@ -1,3 +1,4 @@
+import { BUST } from './config.js';
 // MUSIC — the generated soundtrack, and the director that decides what plays.
 //
 // `audio.js` still synthesises every sound effect, and it still contains a
@@ -161,7 +162,7 @@ export const Music = {
 
     next.key = key;
     next.el.loop = loop;
-    next.el.src = DIR + key + '.mp3';
+    next.el.src = DIR + key + '.mp3' + BUST;
     next.el.currentTime = 0;
     this._setGain(next, 0, 0.01);
 
@@ -268,7 +269,7 @@ export const Music = {
     if (!this.ready || this._cues[key] || this._warming[key]) return;
     this._warming[key] = true;
     try {
-      const res = await fetch(DIR + key + '.mp3');
+      const res = await fetch(DIR + key + '.mp3' + BUST);
       if (!res.ok) throw new Error('http ' + res.status);
       const full = await this._ctx.decodeAudioData(await res.arrayBuffer());
       const want = Math.min(full.duration, CUES[key].secs);

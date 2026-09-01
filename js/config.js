@@ -1,7 +1,16 @@
 // WORST EMPLOYEE — tuning. Every number that decides "feel" lives here.
 // Change these first; do not scatter magic numbers through the systems.
 
-export const VERSION = '0.1.0';
+export const VERSION = '0.2.0';
+
+// CACHE BUST. GitHub Pages serves everything with `Cache-Control: max-age=600`,
+// so for ten minutes after a deploy a returning player keeps whatever art they
+// already had. That is how a whole new main character went live and could not
+// be seen: the PNGs on the server were correct and byte-identical to local, and
+// the browser never asked for them. Every asset URL carries this, so a version
+// bump is a new URL and the cache cannot answer it.
+// BUMP VERSION WHENEVER ART OR AUDIO CHANGES.
+export const BUST = '?v=' + VERSION;
 
 // Logical resolution. `h` is fixed — it defines the world scale. `w` is set
 // at runtime from the device aspect ratio so a wide phone fills its screen

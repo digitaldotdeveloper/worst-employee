@@ -8,7 +8,7 @@
 // Sheets are expected as horizontal strips of equal frames; see assets/manifest.json
 // for the full list of slots the game will eventually ask for.
 
-import { COL, SLAP } from './config.js';
+import { COL, SLAP, BUST } from './config.js';
 
 export const ART = {
   sprites: {},          // key -> { img, frames, fw, fh, fps, anchorY }
@@ -30,7 +30,7 @@ export const ART = {
         this.loaded++;
       };
       img.onerror = () => { this.wanted--; };   // missing art just falls back
-      img.src = d.src;
+      img.src = d.src + BUST;
     }
   },
 
@@ -198,7 +198,7 @@ export const SPRITES = {
     const gen = ++this._gen;
     let meta;
     try {
-      const r = await fetch(base + 'anchors.json');
+      const r = await fetch(base + 'anchors.json' + BUST);
       if (!r.ok) return false;
       meta = await r.json();
     } catch (e) { return false; }
@@ -208,7 +208,7 @@ export const SPRITES = {
       const im = new Image();
       im.onload = () => { img[name] = im; res(); };
       im.onerror = () => { this.missing.add(name); res(); };
-      im.src = base + name + '.png';
+      im.src = base + name + '.png' + BUST;
     })));
     if (gen !== this._gen) return false;          // a newer load won
     if (!Object.keys(img).length) return false;   // keep the old set rather than blank
@@ -442,14 +442,14 @@ export const WORLD = {
 
   async load(base = 'assets/') {
     try {
-      const r = await fetch(base + 'props/props.json');
+      const r = await fetch(base + 'props/props.json' + BUST);
       if (r.ok) {
         this.meta = (await r.json()).props || {};
         await Promise.all(Object.keys(this.meta).map(name => new Promise(res => {
           const im = new Image();
           im.onload = () => { this.props[name] = im; res(); };
           im.onerror = res;
-          im.src = base + 'props/' + name + '.png';
+          im.src = base + 'props/' + name + '.png' + BUST;
         })));
       }
     } catch (e) { /* greybox */ }
@@ -458,7 +458,7 @@ export const WORLD = {
       const im = new Image();
       im.onload = () => { this.bg[n] = im; res(); };
       im.onerror = res;
-      im.src = base + 'bg/' + n + '.jpg';
+      im.src = base + 'bg/' + n + '.jpg' + BUST;
     })));
 
     this.ready = Object.keys(this.props).length > 0;
@@ -523,7 +523,7 @@ export const CAST = {
     await Promise.all(names.map(async name => {
       let meta;
       try {
-        const r = await fetch(base + name + '/anchors.json');
+        const r = await fetch(base + name + '/anchors.json' + BUST);
         if (!r.ok) return;
         meta = await r.json();
       } catch (e) { return; }
@@ -532,7 +532,7 @@ export const CAST = {
         const im = new Image();
         im.onload = () => { img[pose] = im; res(); };
         im.onerror = res;
-        im.src = base + name + '/' + pose + '.png';
+        im.src = base + name + '/' + pose + '.png' + BUST;
       })));
       if (Object.keys(img).length) this.sets[name] = { meta, img };
     }));
@@ -677,7 +677,7 @@ export const WEAPON_ART = {
 
   async load(base = 'assets/weapons/') {
     try {
-      const r = await fetch(base + 'weapons.json');
+      const r = await fetch(base + 'weapons.json' + BUST);
       if (!r.ok) return 0;
       this.meta = (await r.json()).weapons || {};
     } catch (e) { return 0; }
@@ -685,7 +685,7 @@ export const WEAPON_ART = {
       const im = new Image();
       im.onload = () => { this.img[n] = im; res(); };
       im.onerror = res;
-      im.src = base + n + '.png';
+      im.src = base + n + '.png' + BUST;
     })));
     return Object.keys(this.img).length;
   },
@@ -849,7 +849,7 @@ export const FACES = {
   async load(base = 'assets/faces/') {
     let meta;
     try {
-      const r = await fetch(base + 'faces.json');
+      const r = await fetch(base + 'faces.json' + BUST);
       if (!r.ok) return 0;
       meta = await r.json();
     } catch (e) { return 0; }
@@ -858,7 +858,7 @@ export const FACES = {
       const im = new Image();
       im.onload = () => { this.img[n] = im; res(); };
       im.onerror = res;
-      im.src = base + n + '.png';
+      im.src = base + n + '.png' + BUST;
     })));
     this.ready = Object.keys(this.img).length > 0;
     return Object.keys(this.img).length;
