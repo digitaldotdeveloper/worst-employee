@@ -51,6 +51,7 @@ POSE_HEIGHT = {
     # makes the cycle uniform.
     'run-1': 0.95, 'run-2': 0.95, 'run-3': 0.95,
     'run-4': 0.95, 'run-5': 0.95, 'run-6': 0.95,
+    'c4-wind': 0.82,
 
     # The new animations. Every one of these is a shape that is NOT standing
     # height, and the packer stretches anything it is not told about.
