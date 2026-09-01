@@ -116,7 +116,13 @@ def main(setname, poses):
         # different y and gets sliced — `dodge` came back 1376x768 against the
         # set's 1024x559 with a figure only 1% off the datum, sailed through a
         # scale check, and packed with its legs cut off at the knee.
-        if same_canvas and 0.8 <= k <= 1.25:
+        # An explicit POSE_HEIGHT is a STATED intent, not an inference, so it is
+        # always applied. The 25% tolerance existed for poses with no entry, and
+        # it silently passed `getup` frames sitting 15-20% oversize on two of
+        # four characters — visibly bigger getting up than standing, which is
+        # exactly what the tolerance band was hiding.
+        stated = pose in POSE_HEIGHT
+        if not stated and same_canvas and 0.8 <= k <= 1.25:
             print('  ok %-7s already matches the datum (x%.2f, %s)' % (pose, k, basis))
             continue
         cropped = im.crop(bx)

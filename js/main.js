@@ -1928,16 +1928,30 @@ SPRITES.load().then(ok => {
                  : 'no player sprites');
 });
 WEAPON_ART.load().then(n => console.log('weapon art loaded: ' + n));
-FACES.load().then(n => console.log('reaction faces loaded: ' + n));
 WORLD.load().then(ok => console.log(ok ? 'world art loaded: ' + Object.keys(WORLD.props).length + ' props' : 'no world art'));
+
+// LOAD WHAT THE GAME ACTUALLY DRAWS.
+//
+// FACES was 19 portraits fetched on every boot for a system that no longer
+// exists — reaction faces are whole-body frames now and nothing calls
+// FACES.draw. RIG was 1.8MB of body parts kept as a fallback for when a cast
+// member has no drawn frames, which the verifier proves cannot happen: all
+// three coworkers and both bosses have every pose their selector can ask for.
+//
+// So the rig is fetched ONLY if the cast fails to arrive — the safety net is
+// still there, it just is not downloaded before anyone needs it. Between them
+// that is ~3.5MB off a first load that was 24MB.
 CAST.load(['npc-sami', 'npc-rita', 'npc-omar', 'boss-calm', 'boss-rage'])
-  .then(n => console.log('cast frames loaded: ' + n + ' characters'));
-RIG.load().then(async ok => {
-  if (!ok) { console.log('no rig — falling back to key poses'); return; }
-  const c = await RIG.loadCast(['npc-sami', 'npc-rita', 'npc-omar', 'boss-calm', 'boss-rage']);
-  console.log('rig loaded: ' + Object.keys(RIG.img).length + ' parts, ' + c + ' cast');
-  applyLook();
-});
+  .then(async n => {
+    console.log('cast frames loaded: ' + n + ' characters');
+    if (n >= 5) return;                       // everyone drew; no fallback needed
+    console.log('cast incomplete — loading the rig as a fallback');
+    const ok = await RIG.load();
+    if (!ok) { console.log('no rig either — falling back to key poses'); return; }
+    const c = await RIG.loadCast(['npc-sami', 'npc-rita', 'npc-omar', 'boss-calm', 'boss-rage']);
+    console.log('rig loaded: ' + Object.keys(RIG.img).length + ' parts, ' + c + ' cast');
+    applyLook();
+  });
 initInput(cv);
 resize();
 requestAnimationFrame(frame);

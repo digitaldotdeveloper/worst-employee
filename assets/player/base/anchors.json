@@ -75,7 +75,7 @@
   "dodge": 130.2,
   "down": 108.8,
   "fall": 125.8,
-  "getup": 125.8,
+  "getup": 130.2,
   "grab-hold": 129.9,
   "grab-jump": 130.2,
   "grab-slap": 130.4,
@@ -126,7 +126,7 @@
   "dodge": 41.2,
   "down": 83.8,
   "fall": 7.7,
-  "getup": 22.7,
+  "getup": 41.2,
   "grab-hold": 8.5,
   "grab-jump": 13.9,
   "grab-slap": 6.4,
@@ -250,8 +250,8 @@
    13.0
   ],
   "getup": [
-   98.5,
-   45.0,
+   103.0,
+   51.5,
    13.0
   ],
   "grab-hold": [

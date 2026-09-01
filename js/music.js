@@ -165,8 +165,18 @@ export const Music = {
     next.el.currentTime = 0;
     this._setGain(next, 0, 0.01);
 
+    // IF IT DOES NOT ACTUALLY START, DO NOT PRETEND IT DID.
+    // This swallowed the rejection and set `_key` regardless, so the director's
+    // `if (key === this._key) return` saw the job as done and never tried
+    // again. Measured: the whole shift silent, deck loaded with calm.mp3 and
+    // `paused: true`, for as long as you played. Clearing the key is what lets
+    // the director pick it up on the next frame, once a gesture exists.
     const started = next.el.play();
-    if (started && started.catch) started.catch(() => {});   // autoplay refusal
+    if (started && started.catch) {
+      started.catch(() => {
+        if (this._key === key) { this._key = null; this._want = null; }
+      });
+    }
 
     this._setGain(next, 1, fade);
     if (cur) {
@@ -233,6 +243,15 @@ export const Music = {
     else if (name === 'shop') this.play('shop');
     else if (name === 'promote') this.play('promote', { loop: false, fade: 0.25 });
     else if (name === 'fired') this.play('fired', { loop: false, fade: 0.25 });
+    else if (name !== null) {
+      // AN UNKNOWN SCENE IS NOT A SCENE. Any other string fell through every
+      // branch, played nothing, and — because `update()` bails on a truthy
+      // `_scene` — locked the director out for the rest of the shift. A typo in
+      // a scene name would have been permanent silence with no error anywhere.
+      this._scene = null;
+      this._fresh = true;
+      this._want = null;
+    }
   },
 
   // ---- impact cues --------------------------------------------------------
@@ -336,6 +355,16 @@ export const Music = {
     if (!S || S.mode !== 'play') return;
     this.init();
     if (!this.ready) return;
+
+    // SELF-HEAL. A deck can end up loaded-but-paused — an autoplay refusal, a
+    // browser suspending media, a tab coming back from the background. The
+    // director's whole shortcut is "the key already matches, nothing to do", so
+    // without this it would sit next to a silent deck forever.
+    const live = this._live >= 0 ? this._decks[this._live] : null;
+    if (this._key && live && live.el && live.el.paused && live.key === this._key) {
+      const again = live.el.play();
+      if (again && again.catch) again.catch(() => { this._key = null; this._want = null; });
+    }
 
     const key = this.choose(S);
     const now = performance.now() / 1000;
