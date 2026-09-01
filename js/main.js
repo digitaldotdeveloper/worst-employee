@@ -2,7 +2,7 @@
 
 import { VERSION, VIEW, FLOOR_Y, CEIL_Y, ROOF_Y, LEVEL_W, COL, COFFEE, RANKS, QUIET_RANKS,
          ATTACK, ROOMS, DOOR_W, DOOR_H, roomAt, FLOORS, CUR, ANGER,
-         UNLOCK_ALL } from './config.js';
+         UNLOCK_ALL, FREE_ROAM_ONLY } from './config.js';
 import { World } from './engine.js';
 import { FX } from './fx.js';
 import { ART, SPRITES, WORLD, CAST, WEAPON_ART, FACES, poseFor, npcPoseName, bossPoseName,
@@ -427,6 +427,10 @@ function buildShop() {
 // ---------------------------------------------------------------
 // GAME FLOW
 // ---------------------------------------------------------------
+// `hide('rotate')` used to live in endShift, which meant the FIRST completed
+// shift permanently killed the turn-your-phone prompt for the report, the title
+// and every menu after it — until the next resize happened to run. The prompt is
+// owned by resize() and nothing else touches it.
 function startShift() {
   if (S.endTimer) { clearTimeout(S.endTimer); S.endTimer = null; }
   S.shiftId = (S.shiftId || 0) + 1;
@@ -443,6 +447,11 @@ function startShift() {
   S.chainsMade = 0; S.bestChain = 0;
   S.salary = 0; S.salaryAcc = 0; S.cleanT = 0; S.lastDamage = 0; S.coffeeCd = 0;
   S.liftCd = 0; S.nearLift = false; fade = 0; S.summoned = false;
+  // The "nobody is watching you at all" beat is the discovery the whole game
+  // turns on, and it was gated on a flag that was never reset — so it played on
+  // the first shift of a PAGE LOAD, not the first shift of a career, and anyone
+  // who reloaded never saw it again.
+  S.hasSat = false;
   $('btnLift').classList.add('hidden');
   S.bossBeaten = false; S.slaps = 0; S.failedShown = false; S.drillRuin = 0;
   S.timesDown = 0;
@@ -858,7 +867,14 @@ function threeOClock() {
     toast('3:00 PM — you had nothing.', 'boss');
     SFX.ui(false);
   }
-  setTimeout(() => { if (S.mode === 'play') endShift(false); }, 3200);
+  // Tagged with the shift it belongs to. Untracked, this ended whatever shift
+  // happened to be running 3.2s later — finish one manually and start another
+  // inside that window and the new one died instantly. bossDown() already
+  // guards on shiftId; this did not.
+  const myShift3 = S.shiftId;
+  S.endTimer = setTimeout(() => {
+    if (S.mode === 'play' && S.shiftId === myShift3) endShift(false);
+  }, 3200);
 }
 
 function drawMissionHud() {
@@ -927,8 +943,26 @@ function travelTo(floorId) {
   fade = 1;
   SFX.ui(true);
   Music.sting('lift_ding');
+  // End the shift inside the fade and this callback still rebuilt the world
+  // under the report — the floor you were scored on was not the floor you ended
+  // up standing in. Same shiftId guard as everything else deferred.
+  const myShiftLift = S.shiftId;
   setTimeout(() => {
+    if (S.mode !== 'play' || S.shiftId !== myShiftLift) return;
     const keep = S.player;
+    // DROP WHOEVER YOU ARE HOLDING. travelTo rebuilds the world and the cast but
+    // keeps the player, so `player.carrying` went on pointing at an NPC from the
+    // floor you just left — in neither world.bodies nor S.coworkers, drawn by
+    // nothing. You arrived doing `grab-hold` around thin air, and throwing the
+    // ghost still paid 180 ruin for a body that did not exist.
+    if (keep.carrying) {
+      keep.carrying.held = false;
+      keep.carrying.hoisted = false;
+      keep.carrying.choked = false;
+      keep.carrying = null;
+      keep.holdingPerson = false;
+      keep.choking = false;
+    }
     S.world = new World();
     S.chaos.s = S;
     S.world.onImpact = (a, b, e) => S.chaos.onImpact(a, b, e);
@@ -1133,7 +1167,11 @@ function bossDown() {
 
 function endShift(promoted = false) {
   S.mode = 'report';
-  hide('hud'); hide('touch'); hide('rotate');
+  hide('hud'); hide('touch');
+  // The lift panel is z-index 60 against a screen's 20, and `S.inLift` freezes
+  // the world — so a panel left open through END SHIFT painted over the NEXT
+  // shift and froze it on arrival. Nothing reset either one.
+  hide('liftPanel'); S.inLift = false; S.nearDoor = null;
 
   if (S.chaos) S.chaos.cash();     // a chain still alive must still count
   S.career.ruin = (S.career.ruin || 0) + Math.round(S.ruin);
@@ -1916,6 +1954,19 @@ $('btnHired').onclick = () => {
 // RANDOMISE has nothing left to randomise while there is one of everything.
 // A button that visibly does nothing is worse than no button.
 $('btnRandom').classList.add('hidden');
+
+// TESTING PHASE — one button. Everything except FREE ROAM is hidden, including
+// the SUPPLY CUPBOARD on the shift report, so there is exactly one way in and
+// one thing to judge. Nothing is deleted; see FREE_ROAM_ONLY in config.js.
+if (FREE_ROAM_ONLY) {
+  for (const id of ['btnStart', 'btnShop', 'btnHelp', 'btnShopFromReport']) {
+    const el = $(id);
+    if (el) el.classList.add('hidden');
+  }
+  // FREE ROAM is the only way in, so it stops being the quiet second option.
+  const fr = $('btnFree');
+  if (fr) { fr.classList.remove('ghost-btn'); fr.classList.add('big-btn'); fr.textContent = 'START THE SHIFT'; }
+}
 $('btnRandom').onclick = () => {
   Object.assign(S.look, randomLook($('cName').value));
   refreshSwatches(); saveLook(S.look); applyLook();
@@ -1942,7 +1993,7 @@ addEventListener('keydown', e => {
   if (S.story && S.story.active && (e.key === ' ' || e.key === 'Enter')) S.story.advance();
 });
 $('btnSkip').onclick = () => {
-  if (!S.story) return;
+  if (!S.story || !S.story.beats) return;  // beats is null until play()
   // Run every remaining fx beat so the world ends up in the state the scene
   // would have left it in — skipping must not strand the boss mid-tour.
   for (let i = S.story.i; i < S.story.beats.length; i++) {

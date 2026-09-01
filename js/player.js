@@ -113,7 +113,24 @@ export class Player extends Body {
       this.vx *= 0.7;
       this.state = 'idle';
       this.sitT = (this.sitT || 0) + dt;
-      if (IN.left || IN.right || IN.jump || (IN.attack && this.sitT > 0.4)) {
+      // ANY INPUT STANDS YOU UP. This tested `IN.left`, `IN.right` and
+      // `IN.attack` — none of which exist on IN. It has `axis`, `light`,
+      // `heavy` and the edge flags. So the whole condition collapsed to
+      // `IN.jump`, and only the HELD state at that, meaning a tap of space was
+      // missed too. Measured: walking, punching, grabbing, dodging and USE all
+      // left you sitting; only holding jump for a full frame got you out.
+      //
+      // The game's first instruction is "SIT AT YOUR DESK TO BEGIN", so this is
+      // the first thing a new player does and it looked like the game had
+      // frozen. On a phone the stick and the fist button are the first two
+      // things anyone tries and neither of them worked.
+      // axisY too: W and the up arrow set the vertical AXIS, not the jump key,
+      // so they never reach `pending.jump` and a tap of W was still missed even
+      // after the edge flags went in.
+      const anyInput = IN.axis !== 0 || IN.axisY !== 0 || IN.jump || IN.jumpEdge
+        || IN.light || IN.heavy || IN.lightEdge || IN.heavyEdge
+        || IN.grab || IN.grabEdge || IN.dodge || IN.dodgeEdge || IN.useEdge;
+      if (anyInput && this.sitT > 0.12) {
         this.sitting = false;
         if (s.onStand) s.onStand();
       }
@@ -300,6 +317,14 @@ export class Player extends Body {
     // a slap, no wind-up, and it reads through the sound rather than a frame.
     if (this.choking) {
       v.hurtT = 0.2;
+      // A squeeze with no movement at all read as a dead button even though it
+      // was doing MORE damage than a slap — sampled across four hits, exactly
+      // one pose for the whole window. Both your arms are locked, so the motion
+      // belongs to them: kick the struggle loop back to its fighting frame and
+      // jolt them, which is what being throttled looks like from outside.
+      v.heldT = 0;
+      v.va = (Math.random() - 0.5) * 8;
+      v.vy -= 40;
       // 9 went through damageBody's under-14 "scrape" path, which never touches
       // hp — and its provoke() call returns immediately because provoke bails
       // on `this.held`. So the squeeze paid nothing at all: 8 presses, victim
@@ -594,6 +619,11 @@ export class Player extends Body {
   _throw() {
     const b = this.carrying;
     if (!b) return;
+    // Read WHAT you are throwing before you stop holding it. The sound call at
+    // the end of this function tests `holdingPerson` and `hoisted`, and both
+    // were already cleared by then — so hurling a colleague across the office
+    // played the light-paper throw. Measured: ["light", 2.4] for a person.
+    const wasPerson = this.holdingPerson || b.hoisted;
     b.held = false;
     b.choked = false;
     this.choking = false;
@@ -620,7 +650,7 @@ export class Player extends Body {
     this.carrying = null;
     FX.kick(3, 0.02);
     const ts = propStyle(b.kind);
-    SFX.throw_(0.85, this.holdingPerson || b.hoisted ? 'person' : (ts ? ts.style : 'light'), b.mass || 1);
+    SFX.throw_(0.85, wasPerson ? 'person' : (ts ? ts.style : 'light'), b.mass || 1);
   }
 
   carryPose() {

@@ -41,6 +41,13 @@ export const DOOR_H = 104;                        // taller than the player
 // anything that depends on all floors being reachable.
 export const UNLOCK_ALL = true;
 
+// TESTING PHASE: one way in. Missions, the supply cupboard and how-to-play are
+// hidden so the only thing on the title screen is FREE ROAM — everything else
+// is a road away from the thing being tested. None of it is deleted: the
+// screens, the mission ladder, the shop and the career all still work and come
+// back the moment this is false.
+export const FREE_ROAM_ONLY = true;
+
 // liftX is the MIDDLE of every floor now — it sat at the far right of 12 and
 // the far left of everything else, so arriving anywhere meant a long walk to
 // nothing. stairX is the alternative route, always a room or two away from the

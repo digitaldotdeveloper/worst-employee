@@ -192,7 +192,11 @@ h3{font-size:11px;letter-spacing:.18em;color:#8d93a6;margin:18px 0 7px}
   background:rgba(255,215,94,.14);color:#ffd75e;border:1px solid rgba(255,215,94,.3)}
 
 /* ---------------- random events ---------------- */
-.event-bar{position:absolute;left:50%;top:8px;transform:translateX(-50%);
+/* The clock is also left:50% top:8px. Both only appear on a timed day, which
+   is still locked, so they have never been seen together — but they would draw
+   straight on top of each other the first time they were. The event bar sits
+   under it. */
+.event-bar{position:absolute;left:50%;top:calc(46px + var(--sa-t));transform:translateX(-50%);
   background:rgba(10,11,14,.72);border:1px solid rgba(255,215,94,.35);
   border-radius:5px;padding:5px 12px 6px;min-width:190px;text-align:center;
   backdrop-filter:blur(4px)}
@@ -320,18 +324,28 @@ h3{font-size:11px;letter-spacing:.18em;color:#8d93a6;margin:18px 0 7px}
    the other things about you rather than competing with the chain for the
    middle. Smaller too: it was 34px, which is headline size for a number that
    changes five times a second. */
-.combo-wrap{position:absolute;left:calc(14px + var(--sa-l));bottom:20%;text-align:left;
-  opacity:0;transition:opacity .12s;pointer-events:none}
+/* NOT UNDER THE THUMB EITHER. Moving this out of the centre put it inside
+   #stickZone, which covers the left 45% and the bottom 62% — elementFromPoint
+   returned the stick at all four corners of it, so it was 100% covered on a
+   phone. It sits above the stick zone now, under the jobs column, which is the
+   one strip of the left side no thumb occupies. */
+/* #stickZone is the left 45% and the bottom 62% — nearly the whole left side
+   below the stats — so "out of the centre, to the left" put this straight under
+   the thumb. It is display-only and takes no taps, but the stick's 112px ring
+   draws over it the moment a thumb lands. The one strip clear of both the stick
+   and the action buttons is the RIGHT side between END SHIFT and the pad. */
+.combo-wrap{position:absolute;right:calc(14px + var(--sa-r));top:calc(96px + var(--sa-t));
+  left:auto;bottom:auto;text-align:right;opacity:0;transition:opacity .12s;pointer-events:none}
 .combo-wrap.on{opacity:1}
 .combo-n{font-size:22px;font-weight:900;color:#7fd1ff;letter-spacing:.02em;
   text-shadow:0 2px 0 #14405e,0 0 20px rgba(127,209,255,.45)}
 .combo-bar{width:64px;height:3px;background:rgba(255,255,255,.16);border-radius:2px;
-  margin:3px 0 0;overflow:hidden}
+  margin:3px 0 0 auto;overflow:hidden}
 .combo-bar i{display:block;height:100%;background:#7fd1ff}
 /* Shown only until you have clearly learned the moves — after that it is text
    parked over the middle of the screen, which is where the fight is. */
 .combo-hint{margin-top:5px;font-size:7.5px;letter-spacing:.1em;color:#7d8397;font-weight:800;
-  max-width:150px}
+  max-width:132px;margin-left:auto}
 #hud.veteran .combo-hint{display:none}
 
 /* ---------------- missions ---------------- */
@@ -363,10 +377,16 @@ h3{font-size:11px;letter-spacing:.18em;color:#8d93a6;margin:18px 0 7px}
   background:rgba(140,220,160,.14);border-color:rgba(140,220,160,.42);color:#8fd6a0}
 
 /* the lift call button -- only ever visible at the doors */
-.lift-btn{position:absolute;left:50%;bottom:120px;transform:translateX(-50%);pointer-events:auto;
+/* Nudged right and up: its left edge sat inside #stickZone, so tapping the
+   first 46px of OPEN THE LIFT started the joystick instead. */
+.lift-btn{position:absolute;left:56%;bottom:calc(38% + var(--sa-b));transform:translateX(-50%);
+  pointer-events:auto;z-index:12;
   background:rgba(255,215,94,.92);color:#1a1204;border:0;border-radius:9px;
   padding:12px 20px;font:900 12px/1 system-ui;letter-spacing:.12em;cursor:pointer;
   box-shadow:0 6px 20px rgba(0,0,0,.5);animation:liftPulse 1.6s infinite}
+/* The pulse never settles, which makes an automated tap wait for stability and
+   time out. It is decoration, so it stops for anything that does not want it. */
+@media (prefers-reduced-motion: reduce){ .lift-btn{animation:none} }
 @keyframes liftPulse{0%,100%{transform:translateX(-50%) scale(1)}50%{transform:translateX(-50%) scale(1.05)}}
 
 .msn .hint{font-size:9.5px;color:#ffd75e;line-height:1.5;margin-top:5px;opacity:.85}

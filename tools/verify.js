@@ -411,6 +411,11 @@ const URL = process.env.URL || 'http://127.0.0.1:4320/';
     for (const [open, close, name] of [['btnShop', 'btnShopBack', 'shop'],
                                        ['btnHelp', 'btnHelpBack', 'help'],
                                        ['btnStart', 'btnMsnBack', 'missions']]) {
+      // FREE_ROAM_ONLY hides these while the game is being tested through one
+      // door. A hidden button is not a broken one — skip it rather than
+      // reporting the deliberate state as a failure.
+      const ob = document.getElementById(open);
+      if (!ob || ob.classList.contains('hidden')) { seen[name] = 'hidden'; continue; }
       try {
         press(open);
         await new Promise(r => setTimeout(r, 60));
@@ -424,9 +429,12 @@ const URL = process.env.URL || 'http://127.0.0.1:4320/';
     return { errs, seen };
   });
   if (screens.errs.length) bad('menus: ' + screens.errs.slice(0, 2).join(' | '));
-  else if (Object.values(screens.seen).every(Boolean))
-    ok('menus: shop, how-to-play and missions all open and close cleanly');
-  else bad('menus: a screen did not open — ' + JSON.stringify(screens.seen));
+  else if (Object.values(screens.seen).every(Boolean)) {
+    const shown = Object.entries(screens.seen).filter(([, v]) => v !== 'hidden').map(([k]) => k);
+    ok(shown.length
+      ? `menus: ${shown.join(', ')} open and close cleanly`
+      : 'menus: all hidden by FREE_ROAM_ONLY, nothing to open');
+  } else bad('menus: a screen did not open — ' + JSON.stringify(screens.seen));
 
   // A SLAP TAKES HEALTH, AND OUT MEANS OUT. Both were true-by-omission for a
   // long time: slapping paid in ruin but never touched hp, so you could hold
