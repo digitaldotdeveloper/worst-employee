@@ -60,7 +60,10 @@ function selector(name) {
 
 // Words that appear in quotes inside a selector but are NOT pose names: they are
 // mode names, attack kinds and phase names being compared against.
-const NOT_A_POSE = new Set(['fight', 'panic', 'work', 'heavy', 'startup', 'down-mode']);
+// `hunt` joins these: it is security's MODE — walking towards the trouble
+// instead of away from it — and that branch returns walk-1..4, not a frame
+// called hunt. Any new mode name compared inside a selector belongs here.
+const NOT_A_POSE = new Set(['fight', 'panic', 'work', 'hunt', 'heavy', 'startup', 'down-mode']);
 
 function posesIn(src) {
   if (!src) return [];

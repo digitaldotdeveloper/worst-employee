@@ -3,7 +3,7 @@
 
 import { Body } from './engine.js';
 import { FLOOR_Y, LEVEL_W, COL, ANGER_STAGES, ROOMS, FLOORS, FLOOR_ROOMS,
-         FLOOR_STAFF, CUR } from './config.js';
+         FLOOR_STAFF, SECURITY_TITLE, DOOR_W, DOOR_H, CUR } from './config.js';
 import { FX } from './fx.js';
 import { SFX } from './audio.js';
 
@@ -130,6 +130,23 @@ export class Coworker extends Body {
     // chain was live — which is most of a fight — anyone who turned on you was
     // panicked straight back out of it on the next frame. They never swung
     // because they were never allowed to stay in `fight` long enough to.
+    // SECURITY DOES NOT RUN. Everyone else scatters when a chain is live; they
+    // walk towards it. Being the one figure on the floor moving TOWARD the
+    // trouble is what makes them read as security without any new art.
+    if (this.isSecurity && !this.fighting && (s.chaos.alive || s.anger > 35)) {
+      const dx = s.player.cx - this.cx;
+      this.face = Math.sign(dx) || 1;
+      this.mode = 'hunt';
+      if (Math.abs(dx) > 40) {
+        this.vx += this.face * 460 * dt;
+        this.vx = Math.max(-135, Math.min(135, this.vx));
+      } else {
+        // Close enough to be a problem. One warning, then they are on you.
+        this.provoke(s, 2);
+      }
+      return;
+    }
+
     const panic = !this.fighting && (s.chaos.alive || s.anger > 60);
     if (panic && this.mode !== 'panic') {
       this.mode = 'panic';
@@ -184,7 +201,7 @@ export class Coworker extends Body {
     // and the whole room turns with them, and they stay turned. In a mission
     // they still need two real blows each, because a mission is a place you are
     // pretending to work.
-    const need = (s.freeForAll && !this.isManager) ? 1 : 2;
+    const need = this.isSecurity ? 1 : ((s.freeForAll && !this.isManager) ? 1 : 2);
     if (this.rage >= need && !this.fighting) {
       this.fighting = true;
       this.mode = 'fight';
@@ -402,6 +419,22 @@ function workstation(world, x, opt = {}) {
 // THE STAIRS. Same idea as the lift, different rules: it only reaches the floor
 // above and the floor below, and it is always a couple of rooms away from the
 // lift so choosing one over the other is a real choice.
+// A CLOSED DOOR. It is a solid across the doorway gap that the partition
+// already draws, so a sealed room genuinely cannot be walked into until it is
+// opened — and once opened it stays open for the rest of the shift.
+function buildDoors(world, s, rooms) {
+  s.doors = [];
+  for (const r of rooms) {
+    if (!r.door) continue;
+    const gapX = r.x0 - DOOR_W / 2;
+    const d = { x: gapX, y: FLOOR_Y - DOOR_H, w: DOOR_W, h: DOOR_H,
+                room: r.id, name: r.name, open: false };
+    d.solid = world.addStatic({ x: d.x, y: d.y, w: d.w, h: d.h });
+    s.doors.push(d);
+  }
+  return s.doors;
+}
+
 function stairs(world, s, x) {
   if (x == null) return null;
   const b = makeProp('cabinet', x);
@@ -439,9 +472,16 @@ function lift(world, s, x) {
 // "unarranged" was the note on the very first version of floor 12.
 // ---------------------------------------------------------------
 function furnish(world, s, room) {
+  // KEEP THE THRESHOLD CLEAR. Recipes lay furniture out from the room's x0, and
+  // the doorway sits just inside it — so a meeting room put a desk squarely in
+  // its own door, which you then could not walk through and which drew over the
+  // door itself. Everything is laid out inside an inset span instead.
+  const INSET = 70;
+  const x0 = room.x0 + INSET;
+  const span = Math.max(120, (room.x1 - room.x0) - INSET);
   const P = (kind, x) => world.add(makeProp(kind, x));
-  const span = room.x1 - room.x0;
-  const at = f => room.x0 + span * f;
+  const at = f => x0 + span * f;
+  room = { ...room, x0, x1: x0 + span };
 
   switch (room.kind) {
     case 'lobby':
@@ -535,13 +575,21 @@ function buildGeneric(world, s, F, floorId) {
   s.coworkers = [];
   const rooms = FLOOR_ROOMS[floorId] || [];
   for (const r of rooms) furnish(world, s, r);
+  buildDoors(world, s, rooms);
 
   for (const [name, title, art, roomId] of (FLOOR_STAFF[floorId] || [])) {
     const r = rooms.find(x => x.id === roomId) || rooms[0];
     if (!r) continue;
     const x = r.x0 + (r.x1 - r.x0) * 0.5;
     const c = new Coworker(x, name);
-    c.title = title; c.art = art; c.homeX = x; c.deskX = x;
+    c.title = title; c.art = art; c.homeX = x;
+    if (title === SECURITY_TITLE) {
+      c.isSecurity = true;
+      c.maxHp = 190; c.hp = 190;    // paid to absorb this
+      c.deskX = null;               // no desk, no sitting, always on their feet
+    } else {
+      c.deskX = x;
+    }
     world.add(c); s.coworkers.push(c);
   }
 
@@ -603,11 +651,14 @@ export function buildOffice(world, s, floorId = 'ops') {
   P('bin', 2700); P('plant', 2830);
 
   // ── MEETING ROOM ─ one long table, chairs down both sides ─────────────
-  desk(world, 2990); desk(world, 3110);
-  for (const cx of [2970, 3060, 3150, 3240]) {
+  // Pushed clear of the doorway at 2863. The first desk used to span 2930-3050
+  // and the room's door opens right into it, so the table sat in its own
+  // threshold: you could see the door through the desk and not walk in.
+  desk(world, 3080); desk(world, 3200);
+  for (const cx of [3060, 3150, 3240, 3330]) {
     world.add(makeProp('chair', cx, FLOOR_Y - PROPS.chair.h));
   }
-  P('mug', 3010); P('stack', 3080); P('mug', 3160);
+  P('mug', 3100); P('stack', 3170); P('mug', 3250);
   P('plant', 3330); P('cabinet', 3420);
 
   // ── BOSS'S OFFICE ─ big desk, status objects, nothing shared ──────────
@@ -641,6 +692,7 @@ export function buildOffice(world, s, floorId = 'ops') {
 
   lift(world, s, F.liftX);
   stairs(world, s, F.stairX);
+  buildDoors(world, s, FLOOR_ROOMS.ops);
 
   // The boss is NOT here. He is on 13, which is the whole point: after the tour
   // you don't see him again until you can get up there.
@@ -660,6 +712,7 @@ function buildExec(world, s, F) {
 
   lift(world, s, F.liftX);
   stairs(world, s, F.stairX);
+  buildDoors(world, s, FLOOR_ROOMS.exec);
 
   // lift lobby — deliberately empty and expensive-looking
   P('plant', 260); P('plant', 430);

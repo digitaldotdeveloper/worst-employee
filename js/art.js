@@ -579,6 +579,12 @@ export function npcPoseName(c, t) {
       ? ['walk-1', 'walk-2', 'walk-3', 'walk-4'][Math.floor(t * 6.5) % 4]
       : ['run-1', 'run-2', 'run-3', 'run-4'][Math.floor(t * 5) % 4];
   }
+  // Hunting looks like a purposeful walk, not a panicked run.
+  if (c.mode === 'hunt') {
+    return CAST.hasPose(c.art, 'walk-1')
+      ? ['walk-1', 'walk-2', 'walk-3', 'walk-4'][Math.floor(t * 7) % 4]
+      : ['run-1', 'run-2', 'run-3', 'run-4'][Math.floor(t * 6) % 4];
+  }
   if (c.mode === 'panic') {
     return ['run-1', 'run-2', 'run-3', 'run-4'][Math.floor(t * 10) % 4];
   }

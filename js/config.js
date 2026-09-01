@@ -54,12 +54,16 @@ export const FLOORS = {
           locked:'Finance have not approved your access request.' },
   it:   { id:'it',   no:11, name:'FLOOR 11 — IT & HR',      w:3400, liftX:1700, stairX:2300,
           locked:'IT will get to your ticket. IT will not get to your ticket.' },
-  ops:  { id:'ops',  no:12, name:'FLOOR 12 — OPERATIONS',   w:4400, liftX:2200, stairX:2800 },
+  ops:  { id:'ops',  no:12, name:'FLOOR 12 — OPERATIONS',   w:4400, liftX:2200, stairX:1250 },
   exec: { id:'exec', no:13, name:'FLOOR 13 — EXECUTIVE',    w:2600, liftX:1300, stairX:900,
           needRuin: 2500,
           locked: 'The lift needs an executive pass. Ruin enough of floor 12 and they will hand you one.' },
 };
 
+// `door:true` means the room is SEALED: the gap in the partition has an actual
+// door across it that you have to open. Public floor space stays open — a door
+// on every threshold would be a tax, not a feature. It goes on the rooms that
+// are somebody's: an office, the server room, the archive, a meeting.
 // Each room is [id, name, x0, x1, tint, kind]. `kind` is the furnishing recipe
 // office.js runs; `name` is what the floor label says as you walk through.
 export const FLOOR_ROOMS = {
@@ -72,34 +76,34 @@ export const FLOOR_ROOMS = {
     { id:'slobby', name:'LIFT LOBBY',       x0:0,    x1:420,  tint:'#2f3346', kind:'lobby' },
     { id:'floor',  name:'THE SALES FLOOR',  x0:420,  x1:2200, tint:'#2b2636', kind:'openplan' },
     { id:'pit',    name:'THE BULLPEN',      x0:2200, x1:2800, tint:'#302a38', kind:'openplan' },
-    { id:'smgr',   name:"SALES MANAGER",    x0:2800, x1:3200, tint:'#38303c', kind:'office' },
+    { id:'smgr',   name:"SALES MANAGER",    x0:2800, x1:3200, tint:'#38303c', kind:'office', door:true },
   ],
   fin: [
     { id:'flobby', name:'LIFT LOBBY',       x0:0,    x1:420,  tint:'#2f3346', kind:'lobby' },
     { id:'acct',   name:'ACCOUNTING',       x0:420,  x1:1700, tint:'#262a38', kind:'openplan' },
     { id:'payr',   name:'PAYROLL',          x0:1700, x1:2400, tint:'#242c34', kind:'openplan' },
-    { id:'fmgr',   name:'FINANCE DIRECTOR', x0:2400, x1:2900, tint:'#333042', kind:'office' },
-    { id:'vault',  name:'THE ARCHIVE',      x0:2900, x1:3200, tint:'#222630', kind:'archive' },
+    { id:'fmgr',   name:'FINANCE DIRECTOR', x0:2400, x1:2900, tint:'#333042', kind:'office', door:true },
+    { id:'vault',  name:'THE ARCHIVE',      x0:2900, x1:3200, tint:'#222630', kind:'archive', door:true },
   ],
   it: [
     { id:'ilobby', name:'LIFT LOBBY',       x0:0,    x1:420,  tint:'#2f3346', kind:'lobby' },
     { id:'helpd',  name:'IT HELPDESK',      x0:420,  x1:1500, tint:'#232c34', kind:'openplan' },
-    { id:'server', name:'SERVER ROOM',      x0:1500, x1:2100, tint:'#1e2830', kind:'server' },
+    { id:'server', name:'SERVER ROOM',      x0:1500, x1:2100, tint:'#1e2830', kind:'server', door:true },
     { id:'hr',     name:'HR',               x0:2100, x1:2800, tint:'#332c38', kind:'openplan' },
-    { id:'hrmtg',  name:'THE QUIET ROOM',   x0:2800, x1:3400, tint:'#36303a', kind:'meeting' },
+    { id:'hrmtg',  name:'THE QUIET ROOM',   x0:2800, x1:3400, tint:'#36303a', kind:'meeting', door:true },
   ],
   ops: [
     { id:'reception', name:'RECEPTION',     x0:0,    x1:640,  tint:'#2f3346', kind:'reception' },
     { id:'openplan',  name:'OPEN PLAN',     x0:640,  x1:2180, tint:'#262a38', kind:'openplan' },
     { id:'break',     name:'BREAK ROOM',    x0:2180, x1:2900, tint:'#33301f', kind:'kitchen' },
-    { id:'meeting',   name:'CONFERENCE ROOM', x0:2900, x1:3560, tint:'#232b39', kind:'meeting' },
+    { id:'meeting',   name:'CONFERENCE ROOM', x0:2900, x1:3560, tint:'#232b39', kind:'meeting', door:true },
     { id:'admin',     name:'ADMIN',         x0:3560, x1:4400, tint:'#2b2f3f', kind:'openplan' },
   ],
   exec: [
     { id:'lift',      name:'LIFT LOBBY',    x0:0,    x1:520,  tint:'#3a3348', kind:'lobby' },
     { id:'boardroom', name:'BOARDROOM',     x0:520,  x1:1500, tint:'#2b3040', kind:'meeting' },
     { id:'pa',        name:"EXECUTIVE ASSISTANT", x0:1500, x1:1980, tint:'#333a4e', kind:'openplan' },
-    { id:'boss',      name:"THE BOSS'S OFFICE", x0:1980, x1:2600, tint:'#42302c', kind:'bossoffice' },
+    { id:'boss',      name:"THE BOSS'S OFFICE", x0:1980, x1:2600, tint:'#42302c', kind:'bossoffice', door:true },
   ],
 };
 
@@ -107,13 +111,23 @@ export const FLOOR_ROOMS = {
 // for now — three coworker sets across eight departments — so these read as
 // different PEOPLE through name and title until more sets exist.
 export const FLOOR_STAFF = {
+  park:  [['BASSAM','SECURITY','npc-omar','plobby']],
   sales: [['TAREK','SALES LEAD','npc-sami','floor'], ['MAYA','ACCOUNT EXEC','npc-rita','floor'],
-          ['ZIAD','ACCOUNT EXEC','npc-omar','pit'],  ['HANA','SALES MANAGER','npc-rita','smgr']],
+          ['ZIAD','ACCOUNT EXEC','npc-omar','pit'],  ['HANA','SALES MANAGER','npc-rita','smgr'],
+          ['JAD','SECURITY','npc-sami','slobby']],
   fin:   [['RITA','ACCOUNTS','npc-rita','acct'],     ['FADI','PAYROLL','npc-omar','payr'],
-          ['GEORGES','FINANCE DIRECTOR','npc-sami','fmgr']],
+          ['GEORGES','FINANCE DIRECTOR','npc-sami','fmgr'],
+          ['MARWAN','SECURITY','npc-omar','flobby']],
   it:    [['OMAR','IT SUPPORT','npc-omar','helpd'],  ['SILA','SYSADMIN','npc-rita','server'],
-          ['NOUR','HR','npc-rita','hr'],             ['WALID','HR MANAGER','npc-sami','hrmtg']],
+          ['NOUR','HR','npc-rita','hr'],             ['WALID','HR MANAGER','npc-sami','hrmtg'],
+          ['RAMI','SECURITY','npc-sami','ilobby']],
 };
+
+// A title of SECURITY is not decoration: office.js reads it and gives that
+// person a different job. They do not panic, they do not flee, they walk
+// towards trouble instead of away from it, and they swing on the first blow
+// rather than the second. They are the reason a floor stops being a sandbox.
+export const SECURITY_TITLE = 'SECURITY';
 
 export const ROOMS = [
   { id:'reception', name:'RECEPTION',        x0:0,    x1:640,  tint:'#2f3346' },

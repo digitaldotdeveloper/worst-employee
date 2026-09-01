@@ -935,6 +935,59 @@ function travelTo(floorId) {
 // press it on 12, arrive on 13. With six floors it has to become a choice, and
 // the choice is the panel: first person, your hand, buttons that are lit or
 // locked, and a reason when one will not take you.
+// Opening a door removes its solid and leaves it open for the rest of the shift.
+// It does not swing shut behind you: a door you have to reopen every time you
+// walk through it is a chore, and the point of sealing a room is that getting IN
+// is the moment, not staying in.
+function openDoor(d) {
+  if (!d || d.open) return;
+  d.open = true;
+  const w = S.world.statics.indexOf(d.solid);
+  if (w >= 0) S.world.statics.splice(w, 1);
+  S.nearDoor = null;
+  SFX.ui(true);
+  SFX.grab('heavy', 2);
+  toast(d.name);
+}
+
+
+// DOORS ARE DRAWN AFTER THE ROOM, NOT WITH IT.
+// They started life inside the partition-wall pass, which runs in the
+// background layer — so the furniture pass painted straight over them and a
+// closed door showed as a sliver under a desk. It cost an hour of hunting a
+// "desk" that did not exist in bodies or statics, because the thing on top of
+// it was simply drawn later. A door is at the front of its room; it belongs
+// with the things you can walk into, not with the wall behind them.
+function drawDoors(ctx, camX) {
+  for (const r of CUR.rooms) {
+    if (r.x0 <= 0) continue;
+    const dx = r.x0 - DOOR_W / 2;
+    if (dx + DOOR_W < camX - 60 || dx > camX + viewW() + 60) continue;
+    const door = (S.doors || []).find(d2 => d2.room === r.id && !d2.open);
+    if (!door) continue;
+    const top = FLOOR_Y - DOOR_H;
+    // Painted, not wood: brown next to a room full of wooden desks reads as
+    // another desk, which is exactly how this went wrong twice.
+    ctx.fillStyle = '#20232e';
+    ctx.fillRect(dx, top, DOOR_W, DOOR_H);
+    ctx.fillStyle = '#4d566b';
+    ctx.fillRect(dx + 5, top + 5, DOOR_W - 10, DOOR_H - 5);
+    ctx.fillStyle = 'rgba(255,255,255,.07)';
+    ctx.fillRect(dx + 5, top + 5, 6, DOOR_H - 5);
+    ctx.strokeStyle = 'rgba(0,0,0,.38)'; ctx.lineWidth = 2;
+    ctx.strokeRect(dx + 13, top + 30, DOOR_W - 26, DOOR_H * 0.28);
+    ctx.strokeRect(dx + 13, top + 30 + DOOR_H * 0.36, DOOR_W - 26, DOOR_H * 0.28);
+    ctx.fillStyle = '#e6cf8e';
+    ctx.fillRect(dx + DOOR_W - 20, FLOOR_Y - DOOR_H * 0.46, 12, 4.5);
+    ctx.fillStyle = '#1a1d27';
+    ctx.fillRect(dx + 11, top + 11, DOOR_W - 22, 12);
+    ctx.fillStyle = '#cdd3e6';
+    ctx.font = `800 ${5 / S.zoom * 1.7}px system-ui`;
+    ctx.textAlign = 'center';
+    ctx.fillText(r.name.slice(0, 15), dx + DOOR_W / 2, top + 19.5);
+  }
+}
+
 function rideLift() {
   if ((!S.nearLift && !S.nearStairs) || S.liftCd > 0) return;
   S.liftCd = 1.2;
@@ -1255,16 +1308,28 @@ function update(dt) {
   // the lift
   const lf = S.lift;
   S.nearLift = !!(lf && Math.abs(lf.cx - S.player.cx) < 54 && S.player.grounded);
+  // The nearest CLOSED door you are standing at.
+  S.nearDoor = null;
+  for (const d of (S.doors || [])) {
+    if (d.open) continue;
+    // 78, not 52. A closed door STOPS you, so the closest you can ever stand to
+    // its centre is half the door plus half of you — measured at 54px, which
+    // means a 52px radius could never fire. The prompt for a door you are
+    // physically leaning on has to reach further than the door is wide.
+    if (Math.abs((d.x + d.w / 2) - S.player.cx) < 78 && S.player.grounded) { S.nearDoor = d; break; }
+  }
   const stw = S.stairs;
-  S.nearStairs = !!(stw && !S.nearLift
+  S.nearStairs = !!(stw && !S.nearLift && !S.nearDoor
     && Math.abs(stw.cx - S.player.cx) < 54 && S.player.grounded);
   // The lift used to ride on "hold up" -- but W is both up AND jump, so simply
   // jumping next to the doors teleported you between floors. It is its own
   // button now, shown only when you are actually at the doors.
-  $('btnLift').classList.toggle('hidden', !S.nearLift && !S.nearStairs);
-  if (S.nearStairs) $('btnLift').innerHTML = '&#9650;&nbsp; TAKE THE STAIRS';
+  $('btnLift').classList.toggle('hidden', !S.nearLift && !S.nearStairs && !S.nearDoor);
+  if (S.nearDoor) $('btnLift').innerHTML = '&#9654;&nbsp; OPEN ' + S.nearDoor.name;
+  else if (S.nearStairs) $('btnLift').innerHTML = '&#9650;&nbsp; TAKE THE STAIRS';
   else if (S.nearLift) $('btnLift').innerHTML = '&#9650;&nbsp; OPEN THE LIFT';
-  if ((S.nearLift || S.nearStairs) && IN.useEdge && S.liftCd <= 0) rideLift();
+  if (S.nearDoor && IN.useEdge) openDoor(S.nearDoor);
+  else if ((S.nearLift || S.nearStairs) && IN.useEdge && S.liftCd <= 0) rideLift();
   if (S.liftCd > 0) S.liftCd -= dt;
   if (fade > 0) fade = Math.max(0, fade - dt * 3);
 
@@ -1439,6 +1504,9 @@ function render() {
     if (b.type !== 'prop') continue;
     if (!(WORLD.ready && WORLD.drawProp(ctx, b, S.time))) drawProp(ctx, b, S.time);
   }
+
+  // ...and then the doors, over the furniture rather than under it.
+  drawDoors(ctx, S.cam.x);
 
   // coworkers — same skeleton as the player, different parts
   for (const c of S.coworkers) {
@@ -1684,6 +1752,7 @@ function drawBackground(camX) {
     ctx.fillRect(dx, FLOOR_Y - DOOR_H, DOOR_W, DOOR_H);
     ctx.fillStyle = 'rgba(120,150,200,.06)';
     ctx.fillRect(dx + 7, FLOOR_Y - DOOR_H + 7, DOOR_W - 14, DOOR_H - 7);
+
     ctx.strokeStyle = '#454c66'; ctx.lineWidth = 5;
     ctx.beginPath();
     ctx.moveTo(dx, FLOOR_Y); ctx.lineTo(dx, FLOOR_Y - DOOR_H);
@@ -1868,7 +1937,14 @@ $('btnSkip').onclick = () => {
   S.story.choice = null;
   SFX.ui(false);
 };
-$('btnLift').addEventListener('pointerdown', e => { e.preventDefault(); rideLift(); });
+// One button, three things, and it must route the same way the USE key does.
+// It called rideLift() unconditionally, so the prompt said OPEN CONFERENCE ROOM
+// and pressing it tried to take a lift that was not there.
+$('btnLift').addEventListener('pointerdown', e => {
+  e.preventDefault();
+  if (S.nearDoor) openDoor(S.nearDoor);
+  else rideLift();
+});
 $('lpClose').onclick = () => { SFX.ui(false); closeLiftPanel(); };
 $('btnFS').addEventListener('click', () => { goFullscreen(); syncFsBtn(); });
 $('btnSwap').addEventListener('pointerdown', e => { e.preventDefault(); cycleWeapon(); });
