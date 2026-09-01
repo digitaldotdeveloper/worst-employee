@@ -767,7 +767,31 @@ export function npcPoseName(c, t) {
     // cycle if they have one.
     return cycle(c, 'flee', t, 11) || RUN(t, 10);
   }
-  if (c.mode === 'work') return c.seated ? 'sit' : 'work';
+  if (c.mode === 'work') {
+    if (!c.seated) return 'work';
+    // A DESK IS NOT A STILL LIFE. This used to be the single frame `sit`, so
+    // five people held one pose at five desks for the whole shift, which is
+    // most of why the floor read as dead.
+    //
+    // Deliberately not four typing frames: an office is not everyone hammering
+    // keys in unison. Somebody types, somebody pushes a mouse around, somebody
+    // leans in at something that will not work, and somebody has a stretch.
+    // `deskSeed` is stamped per person at spawn, so it picks a different beat
+    // AND a different phase for each of them and the room never looks
+    // choreographed. Falls back to `sit` for anyone whose set lacks the frames.
+    if (!CAST.hasPose(c.art, 'sit-type')) return 'sit';
+    const seed = c.deskSeed || 0;
+    const BEAT = [
+      ['sit', 'sit-type', 'sit', 'sit-type'],   // typing
+      ['sit-mouse', 'sit', 'sit-mouse', 'sit'], // mousing about
+      ['sit-lean', 'sit-lean', 'sit', 'sit'],   // squinting at it
+      ['sit', 'sit-back', 'sit-back', 'sit'],   // having a stretch
+    ];
+    const CYCLE = 3.2;
+    const n = Math.floor((t + seed * 1.7) / CYCLE);
+    const beat = BEAT[Math.abs(Math.imul(n + seed + 1, 2654435761)) % BEAT.length];
+    return beat[Math.floor((t + seed) * 2.6) % beat.length];
+  }
   if (Math.abs(c.vx) > 22) return ['run-1', 'run-2', 'run-3', 'run-4'][Math.floor(t * 5) % 4];
   return (Math.floor(t * 0.4) % 3 === 2) ? 'idle2' : 'idle';
 }

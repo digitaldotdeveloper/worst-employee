@@ -31,6 +31,10 @@
   "run-3",
   "run-4",
   "sit",
+  "sit-back",
+  "sit-lean",
+  "sit-mouse",
+  "sit-type",
   "sprayed",
   "swing",
   "talk",
@@ -67,6 +71,10 @@
   "run-3": 126.1,
   "run-4": 128.2,
   "sit": 130.8,
+  "sit-back": 128.2,
+  "sit-lean": 128.2,
+  "sit-mouse": 128.2,
+  "sit-type": 128.2,
   "sprayed": 128.2,
   "swing": 128.5,
   "talk": 129.2,
@@ -103,6 +111,10 @@
   "run-3": 2.1,
   "run-4": 4.2,
   "sit": 7.9,
+  "sit-back": 24.4,
+  "sit-lean": 31.7,
+  "sit-mouse": 29.4,
+  "sit-type": 29.4,
   "sprayed": 8.9,
   "swing": 4.2,
   "talk": 4.5,
@@ -237,6 +249,26 @@
   "sit": [
    64.0,
    33.0,
+   13.0
+  ],
+  "sit-back": [
+   50.5,
+   42.5,
+   13.0
+  ],
+  "sit-lean": [
+   70.5,
+   58.0,
+   13.0
+  ],
+  "sit-mouse": [
+   50.5,
+   47.0,
+   13.0
+  ],
+  "sit-type": [
+   53.5,
+   48.0,
    13.0
   ],
   "sprayed": [

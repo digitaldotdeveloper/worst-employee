@@ -41,6 +41,11 @@ POSE_HEIGHT = {
     # are in the air, so the packer must not stretch it to the ground line.
     'held2': 0.97, 'held3': 0.97, 'choked': 0.97,
     'grab-jump': 0.94,
+    # the seated desk loop: all of these are a SEATED figure
+    'sit-back': 0.84,
+    'sit-lean': 0.78,
+    'sit-mouse': 0.8,
+    'sit-type': 0.8,
     # THE RUN CYCLE MUST NOT PULSE. A running figure is genuinely a little
     # shorter than a standing one — leaning costs height — but the six frames
     # came back spread from -1% to -17%, so he visibly swelled and shrank once

@@ -58,6 +58,11 @@ export class Coworker extends Body {
     this.rage = 0;      // how much of this they have taken
     this.swingCd = 0;
     this.swingT = 0;    // MUST be a number: `undefined <= 0` is false, and the
+    // Which bit of desk business this one does, and how far out of step they
+    // are with everybody else. Without it, five people at five desks type in
+    // perfect unison — which is worse than the single frame it replaces,
+    // because a room of synchronised colleagues reads as a machine.
+    this.deskSeed = Math.floor(Math.random() * 4);
                         // wind-up gate below is guarded on `swingT <= 0`. Left
                         // unset, coworkers charged you and never once swung.
     this.fighting = false;
