@@ -1280,6 +1280,16 @@ function update(dt) {
     return;
   }
 
+  // HELD SIDEWAYS MEANS HELD SIDEWAYS. The rotate overlay ate touches but not
+  // keys, so in portrait the world kept stepping — the player walked, the
+  // salary ticked, the boss's anger climbed and event timers ran, all behind a
+  // screen telling you to turn the phone. Freeze it like the lift does.
+  if (!$('rotate').classList.contains('hidden')) {
+    FX.step(dt);
+    updateHud();
+    return;
+  }
+
   if (S.story && S.story.active) {
     S.story.step(dt);
     setScene(true);
