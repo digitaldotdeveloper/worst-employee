@@ -146,7 +146,16 @@ export const WEAPONS = {
   // Their art is still in assets/weapons/ for when they come back earning it.
 };
 
-export const SHOP_ORDER = ['fists', 'keyboard', 'stapler', 'pan', 'hammer', 'rocketchair'];
+// FILTERED AGAINST WEAPONS, ALWAYS. This was a plain literal listing all six,
+// and cutting four of them from the catalogue left four ids here pointing at
+// nothing — so buildShop read `undefined.cost` and the SUPPLY CUPBOARD, a button
+// on the title screen, threw on open. It had been broken since the cut.
+//
+// A hand-kept parallel list of the same things is a list that will disagree
+// with itself eventually. This one cannot: the order is intent, the contents
+// are whatever actually exists.
+const SHOP_ORDER_INTENT = ['fists', 'keyboard', 'stapler', 'pan', 'hammer', 'rocketchair'];
+export const SHOP_ORDER = SHOP_ORDER_INTENT.filter(id => !!WEAPONS[id]);
 
 // EVERY GRABBED PROP FIGHTS DIFFERENTLY.
 //

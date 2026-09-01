@@ -397,6 +397,37 @@ const URL = process.env.URL || 'http://127.0.0.1:4320/';
     bad(`choke: player played ${choke.player} and the victim ${choke.victim} `
         + '— wanted choke / choked');
 
+  // EVERY MENU SCREEN OPENS. The live checks all drove the SHIFT and none of
+  // them opened a menu, so the SUPPLY CUPBOARD threw on open — reading `cost`
+  // off a weapon that had been cut from the catalogue — and stayed broken
+  // through several passes because nothing ever pressed the button. A screen
+  // nobody tests is a screen that is broken.
+  const screens = await p.evaluate(async () => {
+    const errs = [];
+    const onerr = e => errs.push(String(e.message || e));
+    window.addEventListener('error', onerr);
+    const press = id => { const b = document.getElementById(id); if (b) b.click(); };
+    const seen = {};
+    for (const [open, close, name] of [['btnShop', 'btnShopBack', 'shop'],
+                                       ['btnHelp', 'btnHelpBack', 'help'],
+                                       ['btnStart', 'btnMsnBack', 'missions']]) {
+      try {
+        press(open);
+        await new Promise(r => setTimeout(r, 60));
+        const el = document.getElementById(name === 'missions' ? 'missions' : name);
+        seen[name] = !!el && !el.classList.contains('hidden');
+        press(close);
+        await new Promise(r => setTimeout(r, 60));
+      } catch (e) { errs.push(name + ': ' + e.message); }
+    }
+    window.removeEventListener('error', onerr);
+    return { errs, seen };
+  });
+  if (screens.errs.length) bad('menus: ' + screens.errs.slice(0, 2).join(' | '));
+  else if (Object.values(screens.seen).every(Boolean))
+    ok('menus: shop, how-to-play and missions all open and close cleanly');
+  else bad('menus: a screen did not open — ' + JSON.stringify(screens.seen));
+
   // THE TELEGRAPH. An instant hit is not a fight, it is a tax.
   await p.evaluate(() => {
     const S = window.WE.S; const c = S.coworkers[0];
