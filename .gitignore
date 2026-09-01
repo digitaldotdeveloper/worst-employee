@@ -20,3 +20,20 @@ Thumbs.db
 tools/__pycache__/
 __pycache__/
 *.pyc
+
+# ---------------------------------------------------------------
+# GENERATOR OUTPUT — never commit this again.
+# The raw green-screen renders were 122MB in a PUBLIC repo, ~25x the
+# size of the game itself, and the game does not load one byte of them
+# at runtime: `tools/cutout.py` turns them into `assets/`, and `assets/`
+# is what ships. They live in
+#   Desktop/WORK-RELATED-source-archive/renders/
+# Point the cutout tools at that folder when you need to re-cut a set.
+# ---------------------------------------------------------------
+tools/renders/
+tools/renders-*/
+tools/faces/
+tools/rig/
+tools/world/
+tools/weapons/
+tools/concepts/
