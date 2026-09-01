@@ -63,8 +63,15 @@ def main(setname, poses):
         # A pose can be legitimately shorter (doubled over) or taller (arms up),
         # so match on figure height only when the difference is a SCALE problem
         # — a canvas change — rather than a pose difference. Over 25% is scale.
-        if 0.8 <= k <= 1.25:
-            print('  ok %-7s already within 25%% of the datum (x%.2f)' % (pose, k))
+        same_canvas = (im.width == datum.width and im.height == datum.height)
+        # Re-canvas whenever the CANVAS differs, even if the figure height
+        # happens to match. cutout.py crops every pose to one shared rectangle
+        # in source space, so a frame on a different canvas has its feet at a
+        # different y and gets sliced — `dodge` came back 1376x768 against the
+        # set's 1024x559 with a figure only 1% off the datum, sailed through a
+        # scale check, and packed with its legs cut off at the knee.
+        if same_canvas and 0.8 <= k <= 1.25:
+            print('  ok %-7s already matches the datum (x%.2f)' % (pose, k))
             continue
         cropped = im.crop(bx)
         nw = max(1, int(round(cropped.width * k)))
