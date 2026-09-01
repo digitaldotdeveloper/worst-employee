@@ -22,11 +22,42 @@ it cannot drift.
     python tools/normalise-render.py <set> <pose> [<pose> ...]
     python tools/normalise-render.py npc-rita hurt2 hurt3
 """
-import os, sys
+import importlib.util, os, sys
 import numpy as np
 from PIL import Image
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+
+# Fraction of STANDING height each pose shape should occupy. Only poses that are
+# not upright need a row; everything else is 1.0.
+POSE_HEIGHT = {
+    'dodge': 0.72,     # a low forward lunge, nowhere near standing height
+    'sit':   0.80,
+    'getup': 0.72,
+    'land':  0.86,
+    'hurt2': 0.86,     # doubled over
+    'down':  0.34,     # flat on the floor
+}
+
+# Head detection is shared with fix-heads.py rather than reimplemented, because
+# two copies of a heuristic drift and this one has been tuned four times.
+_spec = importlib.util.spec_from_file_location('fh', os.path.join(HERE, 'fix-heads.py'))
+FH = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(FH)
+
+
+def head_width(path, standing_h):
+    """Diameter of the character's head, or None.
+
+    THE SCALE INVARIANT IS THE HEAD, NOT THE FIGURE.
+    Matching figure HEIGHT is only right for upright poses. `dodge` is a
+    horizontal lunge — 480 wide by 476 tall — so forcing its height to a
+    standing figure's 481 scaled the whole character up, and in game he visibly
+    grew every time you dodged. A head is the same size whatever the body is
+    doing, which is exactly the property a scale reference needs.
+    """
+    h = FH.head_of(path, standing_h)
+    return None if not h else h[2] * 2.0
 
 
 def figure_box(im):
@@ -59,7 +90,18 @@ def main(setname, poses):
         if not bx:
             print('  !! %s: no figure found' % pose); continue
         fh = bx[3] - bx[1]
-        k = dh / float(fh)
+        # Scale by HEAD first — see head_width. Figure height is the fallback
+        # for a frame whose head cannot be found, and it is only trustworthy
+        # for upright poses.
+        # HOW TALL SHOULD THIS POSE BE, as a fraction of standing?
+        # Matching every pose to the standing figure's height is what made the
+        # player visibly GROW when he dodged: a lunge is 480 wide by 476 tall,
+        # and forcing 476 to equal a standing 481 scales the whole man up.
+        # Head detection is no help here — it finds a fist on an outstretched
+        # arm — so this is anatomy, stated once, per pose shape.
+        target = dh * POSE_HEIGHT.get(pose, 1.0)
+        k = target / float(fh)
+        basis = 'pose height %.0f%% of standing' % (POSE_HEIGHT.get(pose, 1.0) * 100)
         # A pose can be legitimately shorter (doubled over) or taller (arms up),
         # so match on figure height only when the difference is a SCALE problem
         # — a canvas change — rather than a pose difference. Over 25% is scale.
@@ -71,7 +113,7 @@ def main(setname, poses):
         # set's 1024x559 with a figure only 1% off the datum, sailed through a
         # scale check, and packed with its legs cut off at the knee.
         if same_canvas and 0.8 <= k <= 1.25:
-            print('  ok %-7s already matches the datum (x%.2f)' % (pose, k))
+            print('  ok %-7s already matches the datum (x%.2f, %s)' % (pose, k, basis))
             continue
         cropped = im.crop(bx)
         nw = max(1, int(round(cropped.width * k)))
@@ -82,8 +124,8 @@ def main(setname, poses):
         cx = (db[0] + db[2]) // 2
         out.alpha_composite(scaled, (max(0, cx - nw // 2), max(0, db[3] - nh)))
         out.save(p)
-        print('  fixed %-7s x%.2f  %dx%d -> %dx%d, figure %d -> %d'
-              % (pose, k, im.width, im.height, out.width, out.height, fh, nh))
+        print('  fixed %-7s x%.2f by %s  %dx%d -> %dx%d'
+              % (pose, k, basis, im.width, im.height, out.width, out.height))
     return 0
 
 
