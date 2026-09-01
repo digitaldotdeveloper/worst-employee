@@ -37,6 +37,10 @@ POSE_HEIGHT = {
     'land':  0.86,
     'hurt2': 0.86,     # doubled over
     'down':  0.34,     # flat on the floor
+    # Held off the ground: the FIGURE is roughly standing height, but its feet
+    # are in the air, so the packer must not stretch it to the ground line.
+    'held2': 0.97, 'held3': 0.97, 'choked': 0.97,
+    'grab-jump': 0.94,
 }
 
 # Head detection is shared with fix-heads.py rather than reimplemented, because

@@ -82,7 +82,13 @@ export class Coworker extends Body {
     if (this.annoyCd > 0) this.annoyCd -= dt;
     if (this.swingCd > 0) this.swingCd -= dt;
     if (this.hitFlash > 0) this.hitFlash -= dt;
-    if (this.held) { this.vx = 0; return; }
+    if (this.held) {
+      // The struggle clock. It runs on real dt rather than a fixed step so the
+      // loop keeps time on a phone that is dropping frames.
+      this.heldT = (this.heldT || 0) + dt;
+      this.vx = 0;
+      return;
+    }
     if (this.mode === 'down') {
       this.downT -= dt;
       this.angle += this.va * dt * 0.3;
@@ -201,6 +207,15 @@ export class Coworker extends Body {
     // and the whole room turns with them, and they stay turned. In a mission
     // they still need two real blows each, because a mission is a place you are
     // pretending to work.
+    // The women on this floor run rather than square up — the user's call about
+    // his own cast. They still take damage, still get knocked down, still fill
+    // the room with noise; they just never enter `fight`, so rage has nothing
+    // to reach.
+    if (this.female) {
+      this.mode = 'panic';
+      this.timer = Math.max(this.timer, 2.4);
+      return;
+    }
     const need = this.isSecurity ? 1 : ((s.freeForAll && !this.isManager) ? 1 : 2);
     if (this.rage >= need && !this.fighting) {
       this.fighting = true;
@@ -214,6 +229,7 @@ export class Coworker extends Body {
         for (const c of s.coworkers) {
           if (c === this || c.dead || c.held || c.fighting || c.visible === false) continue;
           if (c.isManager) continue;              // he has his own arc; see main.js
+          if (c.female) continue;                 // they run; see provoke()
           c.rage = Math.max(c.rage, need);
           c.fighting = true;
           c.timer = 600;
@@ -583,6 +599,7 @@ function buildGeneric(world, s, F, floorId) {
     const x = r.x0 + (r.x1 - r.x0) * 0.5;
     const c = new Coworker(x, name);
     c.title = title; c.art = art; c.homeX = x;
+    c.female = art === 'npc-rita';
     if (title === SECURITY_TITLE) {
       c.isSecurity = true;
       c.maxHp = 190; c.hp = 190;    // paid to absorb this
@@ -685,6 +702,7 @@ export function buildOffice(world, s, floorId = 'ops') {
     const c = new Coworker(x, name);
     c.title = title;
     c.art = art;
+    c.female = art === 'npc-rita';
     c.homeX = x;                    // they drift, but they belong somewhere
     c.deskX = x;                    // and this is the desk they belong AT
     world.add(c); s.coworkers.push(c);
@@ -730,6 +748,7 @@ function buildExec(world, s, F) {
   const pa = new Coworker(1660, 'DALIA');
   pa.title = 'EXECUTIVE ASSISTANT';
   pa.art = 'npc-rita';
+  pa.female = true;
   pa.homeX = 1660;
   world.add(pa); s.coworkers.push(pa);
   workstation(world, 1560, { phone: true });

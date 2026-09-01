@@ -6,9 +6,12 @@
  "centreX": 59.8,
  "standingH": 124,
  "poses": [
+  "choked",
   "down",
   "getup",
   "held",
+  "held2",
+  "held3",
   "hurt",
   "hurt2",
   "hurt3",
@@ -31,9 +34,12 @@
   "work"
  ],
  "poseBottom": {
+  "choked": 128.2,
   "down": 115.1,
   "getup": 129.0,
   "held": 128.7,
+  "held2": 128.2,
+  "held3": 128.2,
   "hurt": 130.6,
   "hurt2": 128.2,
   "hurt3": 128.2,
@@ -56,9 +62,12 @@
   "work": 127.7
  },
  "poseTop": {
+  "choked": 8.1,
   "down": 88.1,
   "getup": 21.0,
   "held": 4.5,
+  "held2": 8.1,
+  "held3": 8.1,
   "hurt": 5.8,
   "hurt2": 4.5,
   "hurt3": 4.5,
@@ -81,6 +90,11 @@
   "work": 6.3
  },
  "heads": {
+  "choked": [
+   60.0,
+   26.0,
+   13.0
+  ],
   "down": [
    99.0,
    104.5,
@@ -94,6 +108,16 @@
   "held": [
    57.5,
    19.0,
+   13.0
+  ],
+  "held2": [
+   62.0,
+   17.0,
+   13.0
+  ],
+  "held3": [
+   64.0,
+   27.0,
    13.0
   ],
   "hurt": [

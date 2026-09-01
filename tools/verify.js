@@ -311,6 +311,12 @@ const URL = process.env.URL || 'http://127.0.0.1:4320/';
     pl.downT = 0; pl.hurtT = 0; pl.sitting = false; pl.vx = 0; pl.slapCd = 0;
     c.dead = false; c.held = false; c.downT = 0;
     c.x = pl.cx + pl.face * 24 - c.w / 2; c.y = pl.y + pl.h - c.h;
+    // FACE HIM. Grabbing someone facing the same way you are is a CHOKE now,
+    // not a collar grab, and a choke has no slap in it — both arms are busy.
+    // Without this the test took whichever hold the wandering NPC's facing
+    // happened to give it, so it passed or failed at random. A test about the
+    // slap has to set up the hold the slap belongs to.
+    c.face = -pl.face;
     pl._grabOrThrow(S);
     if (!pl.holdingPerson || !pl.carrying) return { err: 'grab did not take' };
     pl._slap(S);
@@ -345,6 +351,34 @@ const URL = process.env.URL || 'http://127.0.0.1:4320/';
         : bad(`slap: the held colleague jumps ${slap.spread.toFixed(1)}px mid-slap `
               + '— the three beats are not sharing one HAND row');
   }
+
+  // FROM BEHIND IS A DIFFERENT MOVE. Same button, and the only thing that
+  // decides it is which way the victim was facing — so it is exactly the kind
+  // of branch that rots silently. Both halves are checked: the player locks
+  // into `choke`, and the victim plays `choked` rather than hanging in `held`.
+  const choke = await p.evaluate(async () => {
+    const S = window.WE.S, pl = S.player;
+    const c = S.coworkers.find(x => !x.dead && x.visible !== false);
+    if (!c) return { err: 'no coworker to grab' };
+    if (pl.carrying) { pl.carrying.held = false; pl.carrying = null; pl.holdingPerson = false; }
+    pl.downT = 0; pl.hurtT = 0; pl.sitting = false; pl.vx = 0; pl.slapCd = 0; pl.choking = false;
+    c.dead = false; c.held = false; c.downT = 0; c.mode = 'idle';
+    c.x = pl.cx + pl.face * 24 - c.w / 2; c.y = pl.y + pl.h - c.h;
+    c.face = pl.face;                       // same way = you came up behind him
+    pl._grabOrThrow(S);
+    if (!pl.holdingPerson) return { err: 'grab did not take' };
+    const out = { player: window.WE.poseFor(pl, pl.animT),
+                  victim: window.WE.npcPoseName(c, c.animT), choking: !!pl.choking };
+    if (pl.carrying) { pl.carrying.held = false; pl.carrying.choked = false; pl.carrying = null; }
+    pl.holdingPerson = false; pl.choking = false;
+    return out;
+  });
+  if (choke.err) bad('choke: ' + choke.err);
+  else if (choke.player === 'choke' && choke.victim === 'choked')
+    ok('choke: taken from behind, he chokes and they claw at it');
+  else
+    bad(`choke: player played ${choke.player} and the victim ${choke.victim} `
+        + '— wanted choke / choked');
 
   // THE TELEGRAPH. An instant hit is not a fight, it is a tax.
   await p.evaluate(() => {

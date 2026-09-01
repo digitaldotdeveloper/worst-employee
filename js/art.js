@@ -283,9 +283,19 @@ export function poseFor(p, t) {
   // drifts away from the moment the blow lands is exactly how this action
   // ended up connecting with nothing. One number, one source.
   if (p.holdingPerson && p.carrying) {
+    // A CHOKE IS NOT A COLLAR GRAB. Both your arms are locked round a throat,
+    // so there is no free hand to slap with — the choke wins over the whole
+    // slap sequence rather than sitting after it.
+    if (p.choking && SPRITES.img && SPRITES.img.choke) return 'choke';
     if (p.slapCd > SLAP.contact) return 'grab-slap';      // wind-up, arm still back
     if (p.slapCd > SLAP.recover) return 'grab-slap-hit';  // contact, on entry
     if (p.slapCd > 0) return 'grab-slap-rec';             // recovery, back to the grip
+    // And you do not glide along holding someone at arm's length. Walking and
+    // jumping with a person have their own frames.
+    if (!p.grounded) return 'grab-jump';
+    if (Math.abs(p.vx) > 26) {
+      return (Math.floor(p.animT * 6.5) % 2) ? 'grab-walk-2' : 'grab-walk-1';
+    }
     return 'grab-hold';
   }
   // Spraying is AIMING, not carrying. The carry frame holds a box at chest
@@ -549,7 +559,20 @@ export const CAST = {
 
 export function npcPoseName(c, t) {
   if (c.poseHold && c.mode !== 'down') return c.poseHold;
-  if (c.held && c.hoisted) return 'held';
+  // BEING HELD IS NOT A STILL. One frame meant a colleague hung off your fist
+  // like a coat while you walked around. They struggle, tire, struggle again —
+  // and if you took them from BEHIND they are being choked instead, which is a
+  // different shape entirely.
+  if (c.held && c.hoisted) {
+    if (c.choked && CAST.hasPose(c.art, 'choked')) return 'choked';
+    if (!CAST.hasPose(c.art, 'held2')) return 'held';
+    // 0.62s of fight, 0.38s of sag, then the limp frame. Deliberately uneven —
+    // a metronome between two frames reads as a glitch, not as a struggle.
+    const k = (c.heldT || 0) % 1.6;
+    if (k < 0.62) return 'held2';
+    if (k < 1.0) return 'held';
+    return CAST.hasPose(c.art, 'held3') ? 'held3' : 'held';
+  }
   // Getting up is its own shape. Without it people teleport from flat on the
   // floor to standing between two frames.
   if (c.mode === 'down') return c.downT < 0.55 ? 'getup' : 'down';
@@ -703,6 +726,14 @@ const HAND = {
   'sit': [12.0, -31.7, 1.0],
   'spray': [17.5, -41.0, 1.35],
   'down': [17.5, -11.2, -0.85],
+  // Carrying a person. These MUST agree with grab-hold's grip or the victim
+  // teleports between frames — the verifier measures exactly that and caught
+  // a 20px jump the moment `choke` went in without a row and fell back to
+  // idle's hip. Positions from tools/fix-hands.py; angles authored.
+  'grab-walk-1': [17.5, -46.8, -0.35],
+  'grab-walk-2': [16.0, -45.6, -0.35],
+  'grab-jump':   [25.0, -41.1, -0.30],
+  'choke':       [24.0, -45.6, -0.10],
 };
 
 // Where a carried thing actually sits, in world space, for the pose being drawn.

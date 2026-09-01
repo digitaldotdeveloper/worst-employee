@@ -471,7 +471,7 @@ function startShift() {
   S.story = S.story || new Story(S);
   if (!S.career.hired) {
     const hr = new Coworker(HR_X, 'DALIA');
-    hr.title = 'HR'; hr.art = 'npc-rita'; hr.homeX = HR_X; hr.mode = 'work';
+    hr.title = 'HR'; hr.art = 'npc-rita'; hr.female = true; hr.homeX = HR_X; hr.mode = 'work';
     S.world.add(hr); S.coworkers.push(hr);
     S.actors.hr = hr;
     const bs = new Coworker(HR_X + 400, 'MR. HALEY');

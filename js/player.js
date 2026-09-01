@@ -98,7 +98,7 @@ export class Player extends Body {
       this.downT -= dt;
       this.vx *= 0.82;
       this.state = 'hurt';
-      if (this.carrying) { this.carrying.held = false; this.carrying = null; this.holdingPerson = false; }
+      if (this.carrying) { this.carrying.held = false; this.carrying.choked = false; this.carrying = null; this.holdingPerson = false; this.choking = false; }
       this.heaveT = 0;
       if (this.downT <= 0) {
         this.hp = Math.round(this.maxHp * 0.6);
@@ -294,6 +294,7 @@ export class Player extends Body {
   _slapContact(s) {
     const v = this.carrying;
     if (!v) return;
+    if (this.choking) return;      // both arms are busy; see poseFor
     v.slaps = (v.slaps || 0) + 1;
     v.hurtT = 0.25;
 
@@ -516,6 +517,14 @@ export class Player extends Body {
     if (victim) {
       victim.held = true;
       victim.hoisted = true;
+      // FROM BEHIND IS A CHOKE. If you took them while facing the same way they
+      // were — i.e. you came up behind them — your arm goes round their throat
+      // instead of grabbing their collar. Same button, different move, decided
+      // entirely by where you were standing.
+      const fromBehind = victim.face === this.face;
+      victim.choked = fromBehind;
+      this.choking = fromBehind;
+      victim.heldT = 0;
       victim.mode = 'panic';
       victim.slaps = 0;
       this.carrying = victim;
@@ -551,6 +560,8 @@ export class Player extends Body {
     const b = this.carrying;
     if (!b) return;
     b.held = false;
+    b.choked = false;
+    this.choking = false;
     this.holdingPerson = false;
     if (b.hoisted) {
       // A hurled colleague is a projectile AND a casualty.
