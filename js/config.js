@@ -1,7 +1,7 @@
 // WORST EMPLOYEE — tuning. Every number that decides "feel" lives here.
 // Change these first; do not scatter magic numbers through the systems.
 
-export const VERSION = '0.3.0';
+export const VERSION = '0.3.1';
 
 // CACHE BUST. GitHub Pages serves everything with `Cache-Control: max-age=600`,
 // so for ten minutes after a deploy a returning player keeps whatever art they

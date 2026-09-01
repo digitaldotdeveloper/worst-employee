@@ -135,7 +135,77 @@ export function drawHuman(ctx, b, opt = {}) {
 }
 
 // Props are labelled boxes. The label is doing the work art will do later.
+// THE LIFT AND THE STAIRCASE ARE ARCHITECTURE, NOT FURNITURE.
+//
+// Both were built with makeProp('cabinet') and then re-kinded, and there is no
+// art for either kind — so WORLD.drawProp returned false and they fell through
+// to the greybox rounded rect. That is the "white blocks where I am hitting":
+// the greybox path paints an opaque white rect over the whole body on `flash`,
+// and these two are the only things left in the level still drawn that way.
+// They are also indestructible (hp 1e9), so flashing them was a lie anyway —
+// nothing is happening to a lift when you punch it.
+//
+// Drawn here rather than generated: a lift is a rectangle, a seam and a light,
+// and that is cheaper and sharper than a render.
+function drawLift(ctx, b) {
+  const w = b.w, h = b.h, x = -w / 2, y = -h / 2;
+  ctx.fillStyle = '#171a24';                       // the shaft recess
+  roundRect(ctx, x - 3, y - 3, w + 6, h + 6, 2); ctx.fill();
+  ctx.fillStyle = '#4d5566';                       // brushed metal frame
+  roundRect(ctx, x, y, w, h, 1); ctx.fill();
+  ctx.fillStyle = '#39404f';                       // the doors themselves
+  ctx.fillRect(x + 3, y + 12, w - 6, h - 15);
+  ctx.strokeStyle = '#232935'; ctx.lineWidth = 1;  // the seam down the middle
+  ctx.beginPath(); ctx.moveTo(0, y + 12); ctx.lineTo(0, y + h - 3); ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,255,255,.10)';       // a highlight on each door
+  ctx.beginPath();
+  ctx.moveTo(x + 6, y + 15); ctx.lineTo(x + 6, y + h - 6);
+  ctx.moveTo(w / 2 - 6, y + 15); ctx.lineTo(w / 2 - 6, y + h - 6);
+  ctx.stroke();
+  ctx.fillStyle = '#12151d';                       // floor indicator above
+  ctx.fillRect(x + 6, y + 3, w - 12, 7);
+  ctx.fillStyle = '#ffd75e';
+  ctx.fillRect(x + 8, y + 5, 3, 3);
+  ctx.fillStyle = 'rgba(255,215,94,.35)';
+  ctx.fillRect(x + 13, y + 5, 3, 3);
+  ctx.fillStyle = '#2a3040';                       // call panel
+  ctx.fillRect(x + w + 1, y + h * 0.45, 4, 9);
+  ctx.fillStyle = '#8fd6a0';
+  ctx.fillRect(x + w + 2, y + h * 0.45 + 2, 2, 2);
+}
+
+function drawStairs(ctx, b) {
+  const w = b.w, h = b.h, x = -w / 2, y = -h / 2;
+  ctx.fillStyle = '#171a24';                       // stairwell recess
+  roundRect(ctx, x - 3, y - 3, w + 6, h + 6, 2); ctx.fill();
+  const steps = 7, sw = w / steps, sh = h / steps;
+  for (let i = 0; i < steps; i++) {
+    // Rising to the right, each tread sitting on the one below it.
+    const sx = x + i * sw, sy = y + h - (i + 1) * sh;
+    ctx.fillStyle = i % 2 ? '#414959' : '#4a5364';
+    ctx.fillRect(sx, sy, w - i * sw, sh);
+    ctx.fillStyle = 'rgba(0,0,0,.30)';             // the shadow under the nose
+    ctx.fillRect(sx, sy + sh - 1.5, w - i * sw, 1.5);
+  }
+  ctx.strokeStyle = '#6c7689'; ctx.lineWidth = 1.6; // handrail
+  ctx.beginPath();
+  ctx.moveTo(x + 1, y + h - 3);
+  ctx.lineTo(x + w - 1, y + sh - 3);
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(108,118,137,.55)'; ctx.lineWidth = 1;
+  for (let i = 1; i < steps; i += 2) {
+    const sx = x + i * sw, sy = y + h - (i + 1) * sh;
+    ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx, sy - sh * 0.9); ctx.stroke();
+  }
+}
+
 export function drawProp(ctx, b, t) {
+  if (b.isLift || b.isStairs) {
+    ctx.save(); ctx.translate(b.cx, b.cy);
+    (b.isLift ? drawLift : drawStairs)(ctx, b);
+    ctx.restore();
+    return;                                  // no greybox, and no flash
+  }
   const hot = b.chaosUntil > t;
   ctx.save();
   ctx.translate(b.cx, b.cy);
