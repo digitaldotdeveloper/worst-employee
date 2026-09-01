@@ -41,11 +41,22 @@ export const OPTIONS = {
   outfit:     { label: 'LOOK',   kind: 'outfit',
     values: OUTFITS.map(o => o.id) },
 
+  // ONE APPEARANCE WHILE THE GAME IS BEING BUILT.
+  //
+  // Skin and shirt were recoloured on top of the drawn frames, which is cheap
+  // and looked fine — but every new animation had to be checked against six
+  // skins and eight shirts, and the point of this phase is to get one character
+  // working properly. The palettes are kept, trimmed to the values the frames
+  // are actually drawn in, so restoring choice later is uncommenting a list
+  // rather than rebuilding the system. The creator hides any row offering fewer
+  // than two options, so both disappear on their own.
   skin:       { label: 'SKIN',   kind: 'colour',
-    values: ['#f2cba3', '#e8b98c', '#d19a6b', '#b07a4c', '#8a5a34', '#5f3d24'] },
+    values: ['#e8b98c'] },
+    // ['#f2cba3', '#e8b98c', '#d19a6b', '#b07a4c', '#8a5a34', '#5f3d24']
 
   shirtColour:{ label: 'COLOUR', kind: 'colour',
-    values: ['#7fd1ff', '#5b8dd6', '#7a6fd0', '#d06f9a', '#d0844f', '#6fb87a', '#e2e5ee', '#3c4256'] },
+    values: ['#7fd1ff'] },
+    // ['#7fd1ff', '#5b8dd6', '#7a6fd0', '#d06f9a', '#d0844f', '#6fb87a', '#e2e5ee', '#3c4256']
 };
 
 export function defaultLook() {
@@ -53,6 +64,8 @@ export function defaultLook() {
 }
 
 export function randomLook(name) {
+  // With one value per option this is deterministic, which is the point: the
+  // RANDOMISE button must not imply a choice that is not there.
   const r = k => Math.floor(Math.random() * OPTIONS[k].values.length);
   return { name: name || 'FIRASS', outfit: r('outfit'), skin: r('skin'), shirtColour: r('shirtColour') };
 }

@@ -218,7 +218,14 @@ const URL = process.env.URL || 'http://127.0.0.1:4320/';
   ok('module graph loaded');
 
   await p.click('#btnFree'); await p.waitForTimeout(500);
-  await p.click('#btnHired', { force: true }); await p.waitForTimeout(800);
+  // The creator is SKIPPED while every appearance option has one value, so
+  // FREE ROAM drops straight into the shift and START MONDAY never appears.
+  // Clicking it unconditionally hung the whole run. Click it only if the
+  // screen is actually up, so this works either way.
+  if (await p.evaluate(() => !document.getElementById('create').classList.contains('hidden'))) {
+    await p.click('#btnHired', { force: true });
+  }
+  await p.waitForTimeout(800);
 
   // THE TOUR. Story beats tween `x` with `vx` pinned to zero, so a walk cycle
   // that reads `vx` alone renders everybody standing still and sliding.

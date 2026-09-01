@@ -1,4 +1,4 @@
-# WORST EMPLOYEE — feel test
+# WORK RELATED — feel test
 
 > HATE YOUR JOB? BECOME THE WORST EMPLOYEE.
 

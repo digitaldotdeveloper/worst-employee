@@ -181,8 +181,12 @@ function resize() {
   cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
   ctx.setTransform(dpr * scale, 0, 0, dpr * scale, 0, 0);
 
+  // TURN THE PHONE, WHATEVER SCREEN YOU ARE ON. This was gated on
+  // `S.mode === 'play'`, so the title, the creator, the mission list and the
+  // shift report all rendered portrait — the game asked you to rotate only
+  // after you had already navigated three menus sideways.
   const portrait = H > W && W < 760;
-  $('rotate').classList.toggle('hidden', !portrait || S.mode !== 'play');
+  $('rotate').classList.toggle('hidden', !portrait);
 }
 addEventListener('resize', resize);
 addEventListener('orientationchange', () => setTimeout(resize, 120));
@@ -313,9 +317,21 @@ function drawPreview(dt) {
 }
 
 function openCreator() {
-  hide('title'); show('create');
+  // NOTHING LEFT TO CHOOSE. Outfit, skin and shirt are all down to one value
+  // while the game is built around a single character, so the creator was a
+  // screen showing a man you cannot change and a button to accept him. It is
+  // skipped entirely rather than shown empty — a step that only exists to be
+  // dismissed is worse than no step.
+  //
+  // The screen itself is untouched and comes back on its own the moment any
+  // option has a second value again; buildOptionRows already hides rows with
+  // fewer than two.
   applyLook();
-  $('cName').value = S.look.name || 'FIRASS';
+  S.look.name = S.look.name || 'FIRASS';
+  const rows = Object.values(OPTIONS).filter(d => d.values.length > 1).length;
+  if (rows === 0) { hide('title'); startShift(); return; }
+  hide('title'); show('create');
+  $('cName').value = S.look.name;
   buildOptionRows();
 }
 
@@ -1897,6 +1913,9 @@ $('btnHired').onclick = () => {
   saveLook(S.look);
   startShift();
 };
+// RANDOMISE has nothing left to randomise while there is one of everything.
+// A button that visibly does nothing is worse than no button.
+$('btnRandom').classList.add('hidden');
 $('btnRandom').onclick = () => {
   Object.assign(S.look, randomLook($('cName').value));
   refreshSwatches(); saveLook(S.look); applyLook();

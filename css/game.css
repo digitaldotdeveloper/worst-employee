@@ -45,7 +45,7 @@ html,body{height:100%;height:100dvh;overflow:hidden;overscroll-behavior:none;bac
   background:linear-gradient(90deg,#5ec8ff,#ffd75e 45%,#ff5c5c);transition:width .18s}
 
 /* chaos chain */
-.chain-wrap{position:absolute;top:64px;left:50%;transform:translateX(-50%);
+.chain-wrap{position:absolute;top:52px;left:50%;transform:translateX(-50%);
   text-align:center;opacity:0;transition:opacity .12s}
 .chain-wrap.on{opacity:1}
 .chain-x{font-size:30px;font-weight:900;letter-spacing:.04em;color:#ffd75e;
@@ -58,9 +58,13 @@ html,body{height:100%;height:100dvh;overflow:hidden;overscroll-behavior:none;bac
   background:#6b3f14;border:1px solid #c98a3e;color:#ffd9a8;font-size:11px;font-weight:800;
   letter-spacing:.1em;padding:5px 12px;border-radius:20px}
 
-.toast{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
-  font-size:19px;font-weight:800;letter-spacing:.02em;text-align:center;line-height:1.35;
-  opacity:0;transition:opacity .25s;max-width:78%;text-shadow:0 2px 6px rgba(0,0,0,.9)}
+/* OUT OF THE MIDDLE. Four things were rendering in the same 130px band over the
+   fight: CHAOS x N, the combo counter, the coin float and this. The centre of
+   the screen is where the game is; it is the worst place to put text.
+   The toast is the least urgent of the four, so it goes lowest. */
+.toast{position:absolute;left:50%;bottom:13%;top:auto;transform:translateX(-50%);
+  font-size:17px;font-weight:800;letter-spacing:.02em;text-align:center;line-height:1.35;
+  opacity:0;transition:opacity .25s;max-width:62%;text-shadow:0 2px 6px rgba(0,0,0,.9)}
 .toast.on{opacity:1}
 .toast.boss{color:#ff7b7b}
 
@@ -312,17 +316,22 @@ h3{font-size:11px;letter-spacing:.18em;color:#8d93a6;margin:18px 0 7px}
   border-radius:6px;padding:7px 12px;font:800 9px/1 system-ui;letter-spacing:.14em;cursor:pointer}
 
 /* ---------------- combo counter ---------------- */
-.combo-wrap{position:absolute;left:50%;top:120px;transform:translateX(-50%);text-align:center;
+/* The combo is YOUR feedback, not the room's, so it joins the left column with
+   the other things about you rather than competing with the chain for the
+   middle. Smaller too: it was 34px, which is headline size for a number that
+   changes five times a second. */
+.combo-wrap{position:absolute;left:calc(14px + var(--sa-l));bottom:20%;text-align:left;
   opacity:0;transition:opacity .12s;pointer-events:none}
 .combo-wrap.on{opacity:1}
-.combo-n{font-size:34px;font-weight:900;color:#7fd1ff;letter-spacing:.02em;
+.combo-n{font-size:22px;font-weight:900;color:#7fd1ff;letter-spacing:.02em;
   text-shadow:0 2px 0 #14405e,0 0 20px rgba(127,209,255,.45)}
-.combo-bar{width:96px;height:3px;background:rgba(255,255,255,.16);border-radius:2px;
-  margin:3px auto 0;overflow:hidden}
+.combo-bar{width:64px;height:3px;background:rgba(255,255,255,.16);border-radius:2px;
+  margin:3px 0 0;overflow:hidden}
 .combo-bar i{display:block;height:100%;background:#7fd1ff}
 /* Shown only until you have clearly learned the moves — after that it is text
    parked over the middle of the screen, which is where the fight is. */
-.combo-hint{margin-top:5px;font-size:7.5px;letter-spacing:.1em;color:#7d8397;font-weight:800}
+.combo-hint{margin-top:5px;font-size:7.5px;letter-spacing:.1em;color:#7d8397;font-weight:800;
+  max-width:150px}
 #hud.veteran .combo-hint{display:none}
 
 /* ---------------- missions ---------------- */
@@ -458,3 +467,33 @@ h3{font-size:11px;letter-spacing:.18em;color:#8d93a6;margin:18px 0 7px}
   filter:drop-shadow(0 1px 2px rgba(0,0,0,.55))}
 #btnPad .tb-hit img{width:72%;height:72%}
 #btnPad .tb-swap img{width:58%;height:58%}
+
+/* ---------------- LANDSCAPE MENUS ----------------
+   A landscape phone is ~390px tall and the title screen is a stacked column:
+   three intro lines, a two-line logo, a tagline, a version, four buttons, a
+   link and a paragraph. It did not fit, so MISSIONS and FREE ROAM sat below
+   the fold and the first thing the game asked you to do was scroll.
+   Short viewports get two columns instead: the identity on the left, the
+   things you can press on the right. */
+@media (max-height: 500px) {
+  .screen-inner{max-height:100vh;overflow-y:auto}
+  #title .screen-inner{display:grid;grid-template-columns:1fr 1fr;
+    align-items:center;gap:0 26px;max-width:760px;padding:10px 16px;overflow:hidden}
+  #title .intro, #title h1, #title .tag, #title .build{grid-column:1;margin:0}
+  #title h1{font-size:clamp(30px,7.6vh,52px);line-height:.94;margin:4px 0}
+  #title .intro p{font-size:9px;margin:1px 0}
+  #title .tag{font-size:9.5px}
+  #title .build{font-size:8px;margin-top:4px}
+  #title .big-btn, #title .ghost-btn{grid-column:2;margin:3px 0;padding:9px 12px;font-size:12px}
+  #title .note{display:none}
+  #title a.ghost-btn{display:block}
+
+  /* the creator is a row too: the man on the left, his name and the button
+     on the right, with nothing that needs scrolling to reach */
+  #create .screen-inner{padding:8px 14px}
+  #create h2{font-size:14px;margin:2px 0 6px}
+  #create .create-top{gap:14px}
+  #create #preview{width:96px;height:auto}
+  #create .note{display:none}
+  #create .big-btn{margin-top:6px;padding:10px;font-size:13px}
+}

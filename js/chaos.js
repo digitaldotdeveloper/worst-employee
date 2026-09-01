@@ -105,8 +105,12 @@ export class ChaosSystem {
     }
     if (this.chain >= 2) {
       const n = this.chain;
-      FX.float(this.s.cam.x + VIEW.w / this.s.zoom / 2, this.s.cam.y + 90, `CHAOS ×${n}`, '#ffd75e', 30);
-      FX.float(this.s.cam.x + VIEW.w / this.s.zoom / 2, this.s.cam.y + 118, `+${this.pending.toLocaleString()} coins`, '#fff', 15);
+      // Under the live counter rather than in the middle of the fight. These
+      // were at cam.y + 90/118, which is dead centre of a 390px-tall phone —
+      // the fourth and fifth things drawn in the same band.
+      const midX = this.s.cam.x + VIEW.w / this.s.zoom / 2;
+      FX.float(midX, this.s.cam.y + 46, `CHAOS ×${n}`, '#ffd75e', 26);
+      FX.float(midX, this.s.cam.y + 70, `+${this.pending.toLocaleString()} coins`, '#fff', 13);
       SFX.chain(n);
       this.s.chainsMade++;
       if (this.s.player && this.s.player.equipped === 'stapler' && n >= 6) {
