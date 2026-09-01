@@ -557,6 +557,16 @@ export const CAST = {
   },
 };
 
+// A four-beat cycle by name, or null when the set has not been drawn it.
+// Checking only the FIRST frame is deliberate: cutout.py packs a cycle as a
+// unit, so a set either has all four or none, and testing four names every
+// frame for every person on the floor is work for nothing.
+function cycle(c, name, t, rate) {
+  if (!CAST.hasPose(c.art, name + '-1')) return null;
+  return name + '-' + (1 + Math.floor(t * rate) % 4);
+}
+const RUN = (t, rate) => ['run-1', 'run-2', 'run-3', 'run-4'][Math.floor(t * rate) % 4];
+
 export function npcPoseName(c, t) {
   if (c.poseHold && c.mode !== 'down') return c.poseHold;
   // BEING HELD IS NOT A STILL. One frame meant a colleague hung off your fist
@@ -592,7 +602,12 @@ export function npcPoseName(c, t) {
     if (v && CAST.hasPose(c.art, 'hurt' + (v + 1))) return 'hurt' + (v + 1);
     return 'hurt';
   }
-  if (c.mode === 'fight') return ['run-1','run-2','run-3','run-4'][Math.floor(t*9)%4];
+  // THREE DIFFERENT RUNS, because running at someone and running from them are
+  // not the same movement and were sharing one cycle. `charge` leans in with
+  // fists up; `flee` is upright and stiff with the arms over the head, looking
+  // back at what is chasing. Both fall back to the neutral run for any cast
+  // member who has not been drawn them.
+  if (c.mode === 'fight') return cycle(c, 'charge', t, 9) || RUN(t, 9);
   if (c.talkT > 0 && c.mode !== 'panic') return 'talk';
   if (c.pointT > 0) return 'point';
   // Scripted walks pin `vx` to zero and tween `x`, so without this the boss
@@ -609,7 +624,9 @@ export function npcPoseName(c, t) {
       : ['run-1', 'run-2', 'run-3', 'run-4'][Math.floor(t * 6) % 4];
   }
   if (c.mode === 'panic') {
-    return ['run-1', 'run-2', 'run-3', 'run-4'][Math.floor(t * 10) % 4];
+    // Fear runs FASTER than a jog and worse — 11 rather than 10, and the flee
+    // cycle if they have one.
+    return cycle(c, 'flee', t, 11) || RUN(t, 10);
   }
   if (c.mode === 'work') return c.seated ? 'sit' : 'work';
   if (Math.abs(c.vx) > 22) return ['run-1', 'run-2', 'run-3', 'run-4'][Math.floor(t * 5) % 4];

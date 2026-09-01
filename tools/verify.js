@@ -67,9 +67,19 @@ const NOT_A_POSE = new Set(['fight', 'panic', 'work', 'hunt', 'heavy', 'startup'
 
 function posesIn(src) {
   if (!src) return [];
-  return [...new Set((src.match(/'[a-z0-9][a-z0-9-]*'/g) || [])
-    .map(s => s.slice(1, -1))
-    .filter(s => !NOT_A_POSE.has(s)))];
+  // A CYCLE IS FOUR FRAMES UNDER ONE NAME. `cycle(c, 'charge', t, 9)` builds
+  // 'charge-1'..'charge-4' at runtime, so scraping quoted strings sees a pose
+  // called 'charge' that does not exist and misses the four that do. Expanding
+  // it here makes the check STRONGER — a half-delivered cycle now fails.
+  const bases = [...(src.match(/cycle\(\s*\w+\s*,\s*'([a-z0-9-]+)'/g) || [])]
+    .map(m => /'([a-z0-9-]+)'/.exec(m)[1]);
+  const expanded = bases.flatMap(b => [1, 2, 3, 4].map(i => b + '-' + i));
+  return [...new Set([
+    ...(src.match(/'[a-z0-9][a-z0-9-]*'/g) || [])
+      .map(s => s.slice(1, -1))
+      .filter(s => !NOT_A_POSE.has(s) && !bases.includes(s)),
+    ...expanded,
+  ])];
 }
 
 const comboBlock = /const COMBO = \[[\s\S]*?\];/.exec(ART);
