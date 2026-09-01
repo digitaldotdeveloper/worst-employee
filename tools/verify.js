@@ -428,6 +428,45 @@ const URL = process.env.URL || 'http://127.0.0.1:4320/';
     ok('menus: shop, how-to-play and missions all open and close cleanly');
   else bad('menus: a screen did not open — ' + JSON.stringify(screens.seen));
 
+  // A SLAP TAKES HEALTH, AND OUT MEANS OUT. Both were true-by-omission for a
+  // long time: slapping paid in ruin but never touched hp, so you could hold
+  // someone and hit them forever; and everyone got back up, so a floor of eight
+  // never got any emptier however long you worked. Neither shows in a
+  // screenshot, which is why they are checked.
+  const kout = await p.evaluate(async () => {
+    const S = window.WE.S, pl = S.player;
+    const c = S.coworkers.find(x => !x.dead && x.visible !== false && !x.isManager);
+    if (!c) return { err: 'no coworker' };
+    if (pl.carrying) { pl.carrying.held = false; pl.carrying = null; pl.holdingPerson = false; }
+    pl.choking = false; pl.downT = 0; pl.slapCd = 0;
+    c.x = pl.cx + 24 * pl.face - c.w / 2; c.y = pl.y + pl.h - c.h;
+    c.mode = 'idle'; c.downT = 0; c.held = false; c.hp = c.maxHp; c.out = false;
+    c.face = -pl.face;                      // front grab, so HIT is a slap
+    pl._grabOrThrow(S);
+    if (!pl.holdingPerson) return { err: 'grab did not take' };
+    const start = c.hp;
+    pl.slapCd = 0; pl.slapHit = false; pl._slap(S);
+    await new Promise(r => setTimeout(r, 340));
+    const afterOne = c.hp;
+    for (let i = 0; i < 24 && !c.out; i++) {
+      pl.slapCd = 0; pl.slapHit = false; pl._slap(S);
+      await new Promise(r => setTimeout(r, 330));
+    }
+    const wentOut = !!c.out;
+    const modes = [];
+    for (let i = 0; i < 8; i++) { await new Promise(r => setTimeout(r, 250)); modes.push(c.mode); }
+    return { start, afterOne, wentOut, gotUp: modes.some(m => m !== 'down') };
+  });
+  if (kout.err) bad('knockout: ' + kout.err);
+  else {
+    kout.afterOne < kout.start
+      ? ok(`slap: takes health (${kout.start} -> ${kout.afterOne} on one slap)`)
+      : bad(`slap: took no health — ${kout.start} -> ${kout.afterOne}`);
+    !kout.wentOut ? bad('knockout: slapping never put them out')
+      : kout.gotUp ? bad('knockout: they got back up — out is supposed to be out')
+        : ok('knockout: out stays out, two seconds of floor with no getup');
+  }
+
   // THE TELEGRAPH. An instant hit is not a fight, it is a tax.
   await p.evaluate(() => {
     const S = window.WE.S; const c = S.coworkers[0];

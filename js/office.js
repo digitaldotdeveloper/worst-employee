@@ -92,6 +92,12 @@ export class Coworker extends Body {
     if (this.mode === 'down') {
       this.downT -= dt;
       this.angle += this.va * dt * 0.3;
+      // KNOCKED OUT MEANS OUT. They used to get back up every time, so a
+      // colleague was never actually beaten — only briefly inconvenienced, and
+      // a floor of eight people never got any emptier however long you worked.
+      // Emptying someone's health puts them on the carpet for the rest of the
+      // shift. Being knocked DOWN is still temporary; being knocked OUT is not.
+      if (this.out) { this.vx *= 0.86; return; }
       if (this.downT <= 0 && this.grounded) {
         this.angle = 0; this.va = 0;
         // They get up. If they have taken enough, they get up ANGRY.
@@ -196,7 +202,7 @@ export class Coworker extends Body {
   // combo beats 2-5 land on a downed body and visibly do nothing.
   // Being hit builds rage. Three real blows and they turn round.
   provoke(s, amount = 1) {
-    if (this.held) return;
+    if (this.held || this.out) return;
     // Rage builds even while they are ON THE FLOOR. Knocking someone down used
     // to reset the counter in practice — they spent the whole fight flat, so
     // they could never reach the point of getting up angry. Now they do.
@@ -302,6 +308,8 @@ export class Coworker extends Body {
       this.provoke(s, 1);
       return;
     }
+    // Out cold, not just floored: this is the blow that emptied them.
+    if (this.hp <= 0) { this.out = true; this.fighting = false; }
     this.knockCd = 4.0;
     const t = (this.fighting ? 0.75 : 1.1)
       + Math.min(1.6, dmg / 38 * 1.6) + Math.random() * 0.3;

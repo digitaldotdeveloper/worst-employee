@@ -317,6 +317,18 @@ export class Player extends Body {
     }
     v.slaps = (v.slaps || 0) + 1;
     v.hurtT = 0.25;
+    // A SLAP TAKES HEALTH. It paid in ruin, coins and anger but never touched
+    // hp — measured, five slaps left the victim on 100/100 — so you could hold
+    // someone and hit them all day without ever putting them down. Applied
+    // directly rather than through damageBody, because 7 goes down that
+    // function's under-14 "scrape" branch, which does not touch hp either and
+    // whose provoke() returns immediately on anyone being held.
+    v.hp = Math.max(0, v.hp - 7);
+    if (v.hp <= 0 && v.knock) {
+      v.knock(this.s, 26);
+      this.carrying = null; this.holdingPerson = false; this.choking = false;
+      v.held = false; v.hoisted = false; v.choked = false;
+    }
 
     // Aim at the face they are actually wearing. `v.cy - 10` was a fixed offset
     // off body CENTRE, so it hit the chest — and stayed on the chest whether
