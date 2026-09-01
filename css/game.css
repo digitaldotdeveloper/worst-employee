@@ -497,3 +497,21 @@ h3{font-size:11px;letter-spacing:.18em;color:#8d93a6;margin:18px 0 7px}
   #create .note{display:none}
   #create .big-btn{margin-top:6px;padding:10px;font-size:13px}
 }
+
+/* ---------------- TITLE ART ----------------
+   The aftermath: him with his feet on the desk, two colleagues face down, the
+   office wrecked around them. It is the whole pitch in one picture, which the
+   words underneath were doing badly.
+   The left third is deliberately darkened by the scrim below, because that is
+   where the logo and the buttons sit and art behind text is only ever a
+   readability problem. */
+#title{background:#0a0b0e}
+#title::before{content:'';position:absolute;inset:0;z-index:0;
+  background:url('../assets/bg/title.jpg') center/cover no-repeat;
+  opacity:.85}
+#title::after{content:'';position:absolute;inset:0;z-index:0;
+  background:linear-gradient(90deg,rgba(8,9,13,.94) 0%,rgba(8,9,13,.86) 34%,
+    rgba(8,9,13,.42) 62%,rgba(8,9,13,.30) 100%)}
+#title .screen-inner{position:relative;z-index:1}
+#title h1{text-shadow:0 3px 18px rgba(0,0,0,.9)}
+#title .tag{text-shadow:0 2px 10px rgba(0,0,0,.9)}
